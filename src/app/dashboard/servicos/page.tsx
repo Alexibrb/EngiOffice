@@ -162,6 +162,7 @@ export default function ServicosPage() {
           prazo: data.prazo instanceof Timestamp ? data.prazo.toDate() : new Date(data.prazo),
         } as Service
       });
+      servicesData.sort((a, b) => a.descricao.localeCompare(b.descricao));
       setServices(servicesData);
 
       const clientsSnapshot = await getDocs(collection(db, "clientes"));

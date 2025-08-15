@@ -90,6 +90,7 @@ export default function FornecedoresPage() {
         ...doc.data(),
         id: doc.id,
       })) as Supplier[];
+      suppliersData.sort((a, b) => a.razao_social.localeCompare(b.razao_social));
       setSuppliers(suppliersData);
     } catch (error) {
       console.error("Erro ao buscar fornecedores: ", error);
@@ -395,7 +396,5 @@ export default function FornecedoresPage() {
     </div>
   );
 }
-
-    
 
     

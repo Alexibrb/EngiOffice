@@ -87,6 +87,7 @@ export default function FuncionariosPage() {
         ...doc.data(),
         id: doc.id,
       })) as Employee[];
+      employeesData.sort((a, b) => a.nome.localeCompare(b.nome));
       setEmployees(employeesData);
     } catch (error) {
       console.error("Erro ao buscar funcionários: ", error);

@@ -206,6 +206,7 @@ export default function ClientesPage() {
         ...doc.data(),
         codigo_cliente: doc.id,
       })) as Client[];
+      clientsData.sort((a, b) => a.nome_completo.localeCompare(b.nome_completo));
       setClients(clientsData);
     } catch (error) {
       console.error("Erro ao buscar clientes: ", error);
