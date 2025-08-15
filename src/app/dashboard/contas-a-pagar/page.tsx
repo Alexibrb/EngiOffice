@@ -49,7 +49,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { cn, formatCurrency } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import { format, endOfDay, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { Account, Supplier, Employee, Payee } from '@/lib/types';
@@ -179,9 +179,7 @@ export default function ContasAPagarPage() {
         try {
              const submissionValues = {
                 ...values,
-                valor: typeof values.valor === 'string' 
-                    ? parseFloat(values.valor.replace('.', '').replace(',', '.')) 
-                    : values.valor,
+                valor: values.valor,
             };
 
             if (editingAccount) {
@@ -591,26 +589,6 @@ function PayableFormComponent({ form, payees, onAddSupplier, onAddProduct, editi
 
     const isSupplier = selectedPayee?.tipo === 'fornecedor';
     
-    // This useEffect was causing the issues. It was resetting fields on every re-render
-    // related to the selectedPayee. It's better to handle these changes in the `onValueChange`
-    // of the Select component.
-    //
-    // useEffect(() => {
-    //     if (selectedPayee) {
-    //         form.setValue('tipo_referencia', selectedPayee.tipo);
-    //          if (!editingAccount) {
-    //             if (selectedPayee.tipo === 'funcionario') {
-    //                 form.setValue('descricao', 'Pagamento de Salário');
-    //                 form.setValue('valor', (selectedPayee as Employee).salario || 0);
-    //             } else {
-    //                 form.setValue('valor', 0);
-    //                 form.setValue('descricao', '');
-    //             }
-    //         }
-    //     }
-    // }, [selectedPayee, editingAccount, form]);
-
-
     return (
          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField
@@ -696,22 +674,15 @@ function PayableFormComponent({ form, payees, onAddSupplier, onAddProduct, editi
             <FormField
                 control={form.control}
                 name="valor"
-                render={({ field: { onChange, value, ...restField } }) => (
+                render={({ field }) => (
                     <FormItem>
                         <FormLabel>Valor (R$)</FormLabel>
                         <FormControl>
                              <Input 
-                                {...restField}
-                                type="text"
-                                inputMode="decimal"
+                                type="number"
+                                step="0.01"
                                 disabled={form.getValues('tipo_referencia') === 'funcionario' && !editingAccount}
-                                value={typeof value === 'number' ? formatCurrency(String(value)) : value}
-                                onChange={(e) => {
-                                    const rawValue = e.target.value.replace(/\D/g, '');
-                                    const numericValue = parseFloat(rawValue) / 100;
-                                    onChange(numericValue);
-                                    form.setValue('valor', numericValue, { shouldValidate: true, shouldDirty: true });
-                                }}
+                                {...field}
                             />
                         </FormControl>
                         <FormMessage />
@@ -919,3 +890,7 @@ function PayableTableComponent({ accounts, getPayeeName, onEdit, onDelete, total
 
     
 
+
+
+
+    
