@@ -24,6 +24,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Form,
@@ -67,6 +68,15 @@ const accountSchema = z.object({
   status: z.enum(['pendente', 'pago']),
 });
 
+const supplierSchema = z.object({
+  razao_social: z.string().min(1, { message: 'Razão Social é obrigatória.' }),
+  cnpj: z.string().optional(),
+  telefone: z.string().optional(),
+  email: z.string().email({ message: 'Email inválido.' }).optional().or(z.literal('')),
+  endereco: z.string().optional(),
+  produtos_servicos: z.string().optional(),
+});
+
 
 export default function FinanceiroPage() {
     const [accountsPayable, setAccountsPayable] = useState<Account[]>([]);
@@ -74,8 +84,10 @@ export default function FinanceiroPage() {
     const [clients, setClients] = useState<Client[]>([]);
     const [suppliers, setSuppliers] = useState<Supplier[]>([]);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [isSupplierDialogOpen, setIsSupplierDialogOpen] = useState(false);
     const [editingAccount, setEditingAccount] = useState<Account | null>(null);
     const [isLoading, setIsLoading] = useState(false);
+    const [isSupplierLoading, setIsSupplierLoading] = useState(false);
     const { toast } = useToast();
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -83,6 +95,24 @@ export default function FinanceiroPage() {
     const form = useForm<z.infer<typeof accountSchema>>({
         resolver: zodResolver(accountSchema),
     });
+    
+    const supplierForm = useForm<z.infer<typeof supplierSchema>>({
+        resolver: zodResolver(supplierSchema),
+        defaultValues: {
+            razao_social: '',
+            cnpj: '',
+            telefone: '',
+            email: '',
+            endereco: '',
+            produtos_servicos: '',
+        },
+    });
+
+    const fetchSuppliers = async () => {
+      const suppliersSnapshot = await getDocs(collection(db, "fornecedores"));
+      const suppliersData = suppliersSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Supplier[];
+      setSuppliers(suppliersData);
+    };
 
     const fetchData = async () => {
         try {
@@ -167,6 +197,33 @@ export default function FinanceiroPage() {
             toast({ variant: "destructive", title: "Erro", description: "Ocorreu um erro ao salvar a conta." });
         } finally {
             setIsLoading(false);
+        }
+    };
+
+     const handleSaveSupplier = async (values: z.infer<typeof supplierSchema>) => {
+        setIsSupplierLoading(true);
+        try {
+            const supplierData = {
+                ...values,
+                produtos_servicos: values.produtos_servicos?.split('\n').filter(p => p.trim() !== '') || [],
+            };
+            await addDoc(collection(db, 'fornecedores'), supplierData);
+            toast({
+                title: "Sucesso!",
+                description: "Fornecedor adicionado com sucesso.",
+            });
+            supplierForm.reset();
+            setIsSupplierDialogOpen(false);
+            await fetchSuppliers();
+        } catch (error) {
+            console.error("Erro ao salvar fornecedor: ", error);
+            toast({
+                variant: "destructive",
+                title: "Erro",
+                description: "Ocorreu um erro ao salvar o fornecedor.",
+            });
+        } finally {
+            setIsSupplierLoading(false);
         }
     };
     
@@ -363,6 +420,7 @@ export default function FinanceiroPage() {
                 </TabsContent>
             </Tabs>
 
+            {/* Dialog para Adicionar/Editar Conta a Pagar */}
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
@@ -391,20 +449,25 @@ export default function FinanceiroPage() {
                                     render={({ field }) => (
                                         <FormItem>
                                             <FormLabel>Fornecedor *</FormLabel>
-                                            <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
-                                                <FormControl>
-                                                    <SelectTrigger>
-                                                        <SelectValue placeholder="Selecione o Fornecedor" />
-                                                    </SelectTrigger>
-                                                </FormControl>
-                                                <SelectContent>
-                                                    {suppliers.map(ref => (
-                                                        <SelectItem key={ref.id} value={ref.id}>
-                                                            {ref.razao_social}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
+                                            <div className="flex items-center gap-2">
+                                                <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                                                    <FormControl>
+                                                        <SelectTrigger>
+                                                            <SelectValue placeholder="Selecione o Fornecedor" />
+                                                        </SelectTrigger>
+                                                    </FormControl>
+                                                    <SelectContent>
+                                                        {suppliers.map(ref => (
+                                                            <SelectItem key={ref.id} value={ref.id}>
+                                                                {ref.razao_social}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                                <Button type="button" variant="outline" size="icon" onClick={() => setIsSupplierDialogOpen(true)}>
+                                                    <PlusCircle className="h-4 w-4" />
+                                                </Button>
+                                            </div>
                                             <FormMessage />
                                         </FormItem>
                                     )}
@@ -468,6 +531,97 @@ export default function FinanceiroPage() {
                                 <Button type="submit" disabled={isLoading}>
                                     {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                     Salvar
+                                </Button>
+                            </DialogFooter>
+                        </form>
+                    </Form>
+                </DialogContent>
+            </Dialog>
+
+            {/* Dialog para Adicionar Novo Fornecedor */}
+            <Dialog open={isSupplierDialogOpen} onOpenChange={setIsSupplierDialogOpen}>
+                <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle className="font-headline">Adicionar Novo Fornecedor</DialogTitle>
+                        <DialogDescription>
+                            Preencha os dados do novo fornecedor.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <Form {...supplierForm}>
+                        <form onSubmit={supplierForm.handleSubmit(handleSaveSupplier)} className="space-y-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <FormField
+                                    control={supplierForm.control}
+                                    name="razao_social"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Razão Social *</FormLabel>
+                                            <FormControl><Input {...field} /></FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={supplierForm.control}
+                                    name="cnpj"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>CNPJ</FormLabel>
+                                            <FormControl><Input {...field} /></FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={supplierForm.control}
+                                    name="telefone"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Telefone</FormLabel>
+                                            <FormControl><Input type="tel" {...field} /></FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={supplierForm.control}
+                                    name="email"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Email</FormLabel>
+                                            <FormControl><Input type="email" {...field} /></FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={supplierForm.control}
+                                    name="endereco"
+                                    render={({ field }) => (
+                                        <FormItem className="md:col-span-2">
+                                            <FormLabel>Endereço</FormLabel>
+                                            <FormControl><Input {...field} /></FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={supplierForm.control}
+                                    name="produtos_servicos"
+                                    render={({ field }) => (
+                                        <FormItem className="md:col-span-2">
+                                            <FormLabel>Produtos/Serviços (um por linha)</FormLabel>
+                                            <FormControl><Textarea rows={4} {...field} /></FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                            </div>
+                            <DialogFooter>
+                                <Button type="button" variant="ghost" onClick={() => setIsSupplierDialogOpen(false)}>Cancelar</Button>
+                                <Button type="submit" disabled={isSupplierLoading}>
+                                    {isSupplierLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                    Salvar Fornecedor
                                 </Button>
                             </DialogFooter>
                         </form>
