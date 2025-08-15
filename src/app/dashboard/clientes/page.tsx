@@ -46,6 +46,8 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+
 
 const addressSchema = z.object({
   street: z.string().optional(),
@@ -73,6 +75,7 @@ export default function ClientesPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [search, setSearch] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
@@ -113,45 +116,55 @@ export default function ClientesPage() {
   const handleSaveClient = async (values: z.infer<typeof clientSchema>) => {
     setIsLoading(true);
     try {
-      await addDoc(collection(db, 'clientes'), {
+      const clientData = {
         ...values,
         coordenadas: {
           lat: values.coordenadas?.lat || 0,
           lng: values.coordenadas?.lng || 0,
         },
-        // Campos obrigatórios no tipo, mas não no formulário
-        rg: '',
-        numero_art: '',
-        historico_servicos: [],
+        rg: editingClient?.rg || '',
+        numero_art: editingClient?.numero_art || '',
+        historico_servicos: editingClient?.historico_servicos || [],
         endereco_residencial: {
             street: values.endereco_residencial?.street || '',
             number: values.endereco_residencial?.number || '',
             neighborhood: values.endereco_residencial?.neighborhood || '',
-            city: '',
-            state: '',
-            zip: '',
+            city: values.endereco_residencial?.city || '',
+            state: values.endereco_residencial?.state || '',
+            zip: values.endereco_residencial?.zip || '',
         },
          endereco_obra: {
             street: values.endereco_obra?.street || '',
             number: values.endereco_obra?.number || '',
             neighborhood: values.endereco_obra?.neighborhood || '',
-            city: '',
-            state: '',
-            zip: '',
+            city: values.endereco_obra?.city || '',
+            state: values.endereco_obra?.state || '',
+            zip: values.endereco_obra?.zip || '',
         }
-      });
+      };
+
+      if (editingClient) {
+        const clientDocRef = doc(db, 'clientes', editingClient.codigo_cliente);
+        await setDoc(clientDocRef, clientData);
+        toast({
+          title: "Sucesso!",
+          description: "Cliente atualizado com sucesso.",
+        });
+      } else {
+        await addDoc(collection(db, 'clientes'), clientData);
+         toast({
+          title: "Sucesso!",
+          description: "Cliente adicionado com sucesso.",
+        });
+      }
       
       form.reset();
+      setEditingClient(null);
       setIsDialogOpen(false);
       await fetchClients();
 
-      toast({
-        title: "Sucesso!",
-        description: "Cliente adicionado com sucesso.",
-      });
-
     } catch (error) {
-      console.error("Erro ao adicionar cliente: ", error);
+      console.error("Erro ao salvar cliente: ", error);
        toast({
         variant: "destructive",
         title: "Erro",
@@ -162,6 +175,35 @@ export default function ClientesPage() {
     }
   };
 
+  const handleDeleteClient = async (clientId: string) => {
+    try {
+      await deleteDoc(doc(db, "clientes", clientId));
+      toast({
+        title: "Sucesso!",
+        description: "Cliente excluído com sucesso.",
+      });
+      await fetchClients();
+    } catch (error) {
+      console.error("Erro ao excluir cliente: ", error);
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Ocorreu um erro ao excluir o cliente.",
+      });
+    }
+  };
+
+  const handleAddNewClick = () => {
+    form.reset();
+    setEditingClient(null);
+    setIsDialogOpen(true);
+  };
+
+  const handleEditClick = (client: Client) => {
+    setEditingClient(client);
+    form.reset(client);
+    setIsDialogOpen(true);
+  }
 
   const filteredClients = clients.filter(
     (client) =>
@@ -190,19 +232,16 @@ export default function ClientesPage() {
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-             <Button onClick={() => {
-                form.reset();
-                setIsDialogOpen(true);
-             }}>
+             <Button onClick={handleAddNewClick}>
               <PlusCircle className="mr-2 h-4 w-4" />
               Adicionar Cliente
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle className="font-headline">Adicionar Novo Cliente</DialogTitle>
+              <DialogTitle className="font-headline">{editingClient ? 'Editar Cliente' : 'Adicionar Novo Cliente'}</DialogTitle>
               <DialogDescription>
-                Preencha os dados do novo cliente. Campos marcados com * são obrigatórios.
+                Preencha os dados do cliente. Campos marcados com * são obrigatórios.
               </DialogDescription>
             </DialogHeader>
             
@@ -376,7 +415,7 @@ export default function ClientesPage() {
                   <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
                   <Button type="submit" disabled={isLoading}>
                     {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Salvar Cliente
+                    {editingClient ? 'Salvar Alterações' : 'Salvar Cliente'}
                   </Button>
                 </DialogFooter>
               </form>
@@ -411,8 +450,30 @@ export default function ClientesPage() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                        <DropdownMenuItem>Editar</DropdownMenuItem>
-                        <DropdownMenuItem>Excluir</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleEditClick(client)}>
+                          Editar
+                        </DropdownMenuItem>
+                         <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                             <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                Excluir
+                             </DropdownMenuItem>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Essa ação não pode ser desfeita. Isso excluirá permanentemente o cliente.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDeleteClient(client.codigo_cliente)}>
+                                  Excluir
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
