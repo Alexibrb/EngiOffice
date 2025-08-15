@@ -258,7 +258,7 @@ export default function DashboardPage() {
           </Card>
        </div>
 
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-8">
         <Card>
           <CardHeader>
             <CardTitle>Serviços em Andamento</CardTitle>
