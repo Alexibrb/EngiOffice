@@ -36,7 +36,7 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import { collection, addDoc, getDocs, doc, setDoc, deleteDoc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { PlusCircle, MoreHorizontal, Loader2, Calendar as CalendarIcon, Download } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Loader2, Calendar as CalendarIcon, Download, ExternalLink } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -56,6 +56,7 @@ import type { Account, Client, Supplier, Service } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { useRouter } from 'next/navigation';
 
 
 const accountSchema = z.object({
@@ -479,6 +480,12 @@ function ReceivableTableComponent({ services, getClientName }: {
     services: Service[], 
     getClientName: (id: string) => string
 }) {
+    const router = useRouter();
+
+    const handleEditService = (serviceId: string) => {
+        router.push(`/dashboard/servicos?edit=${serviceId}`);
+    };
+
     return (
         <div className="border rounded-lg">
             <Table>
@@ -489,6 +496,7 @@ function ReceivableTableComponent({ services, getClientName }: {
                         <TableHead>Prazo Final</TableHead>
                         <TableHead>Valor</TableHead>
                         <TableHead>Status</TableHead>
+                         <TableHead>Ações</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -507,10 +515,20 @@ function ReceivableTableComponent({ services, getClientName }: {
                                     {service.status}
                                 </Badge>
                             </TableCell>
+                            <TableCell>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleEditService(service.id)}
+                                >
+                                  <ExternalLink className="mr-2 h-3 w-3" />
+                                  Ver/Editar Serviço
+                                </Button>
+                            </TableCell>
                         </TableRow>
                     )) : (
                         <TableRow>
-                            <TableCell colSpan={5} className="h-24 text-center">Nenhum serviço encontrado.</TableCell>
+                            <TableCell colSpan={6} className="h-24 text-center">Nenhum serviço encontrado.</TableCell>
                         </TableRow>
                     )}
                 </TableBody>

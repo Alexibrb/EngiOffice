@@ -53,6 +53,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useSearchParams, useRouter } from 'next/navigation';
 
 const serviceSchema = z.object({
   descricao: z.string().min(1, { message: 'Descrição é obrigatória.' }),
@@ -74,6 +75,9 @@ export default function ServicosPage() {
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
 
   const form = useForm<z.infer<typeof serviceSchema>>({
     resolver: zodResolver(serviceSchema),
@@ -106,6 +110,16 @@ export default function ServicosPage() {
       })) as Client[];
       setClients(clientsData);
 
+      const editId = searchParams.get('edit');
+      if (editId) {
+        const serviceToEdit = servicesData.find(s => s.id === editId);
+        if (serviceToEdit) {
+            handleEditClick(serviceToEdit);
+            // Clean the URL
+            router.replace('/dashboard/servicos', undefined);
+        }
+      }
+
     } catch (error) {
       console.error("Erro ao buscar dados: ", error);
       toast({
@@ -118,7 +132,7 @@ export default function ServicosPage() {
 
   useEffect(() => {
     fetchServicesAndClients();
-  }, []);
+  }, [searchParams]);
   
   const getClientName = (clientId: string) => {
     return clients.find(c => c.codigo_cliente === clientId)?.nome_completo || 'Desconhecido';
