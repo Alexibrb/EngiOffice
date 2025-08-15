@@ -260,7 +260,7 @@ export default function ServicosPage() {
             const allAccountsPayable = accountsPayableSnap.docs.map(doc => doc.data() as Account);
             const totalExpenses = allAccountsPayable
                 .filter(acc => acc.status === 'pago')
-                .reduce((acc, acc) => acc + acc.valor, 0);
+                .reduce((total, currentAccount) => total + currentAccount.valor, 0);
             
             const allCommissions = commissionsSnap.docs.map(doc => doc.data() as Commission);
             const totalCommissionsPaid = allCommissions
