@@ -48,7 +48,7 @@ import {
 } from '@/components/ui/form';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { formatCPF_CNPJ, formatTelefone } from '@/lib/utils';
+import { formatCPF_CNPJ, formatTelefone, formatCEP } from '@/lib/utils';
 
 const addressSchema = z.object({
   street: z.string().optional(),
@@ -507,7 +507,13 @@ export default function ClientesPage() {
                             <FormItem>
                               <FormLabel>CEP</FormLabel>
                               <FormControl>
-                                <Input {...field} />
+                                 <Input 
+                                  {...field}
+                                  onChange={(e) => {
+                                      const { value } = e.target;
+                                      field.onChange(formatCEP(value));
+                                  }}
+                                />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -603,7 +609,13 @@ export default function ClientesPage() {
                               <FormItem>
                                 <FormLabel>CEP</FormLabel>
                                 <FormControl>
-                                  <Input {...field} />
+                                  <Input 
+                                    {...field}
+                                    onChange={(e) => {
+                                        const { value } = e.target;
+                                        field.onChange(formatCEP(value));
+                                    }}
+                                  />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
@@ -718,5 +730,3 @@ export default function ClientesPage() {
     </div>
   );
 }
-
-    
