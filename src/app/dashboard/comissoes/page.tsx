@@ -70,6 +70,8 @@ const CommissionFormContent = ({ form, employees, clients, services }: { form: a
     });
 
     const filteredServices = services.filter(service => service.cliente_id === selectedClientId);
+    
+    const commissionBasedEmployees = employees.filter(emp => emp.tipo_contratacao === 'comissao');
 
     useEffect(() => {
         form.setValue('servico_id', '');
@@ -82,11 +84,11 @@ const CommissionFormContent = ({ form, employees, clients, services }: { form: a
                 name="funcionario_id"
                 render={({ field }) => (
                     <FormItem>
-                        <FormLabel>Funcionário *</FormLabel>
+                        <FormLabel>Funcionário (Comissão) *</FormLabel>
                         <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
                             <FormControl><SelectTrigger><SelectValue placeholder="Selecione o Funcionário" /></SelectTrigger></FormControl>
                             <SelectContent>
-                                {employees.map(emp => (<SelectItem key={emp.id} value={emp.id}>{emp.nome}</SelectItem>))}
+                                {commissionBasedEmployees.map(emp => (<SelectItem key={emp.id} value={emp.id}>{emp.nome}</SelectItem>))}
                             </SelectContent>
                         </Select>
                         <FormMessage />

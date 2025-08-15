@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
@@ -56,6 +56,16 @@ const employeeSchema = z.object({
   telefone: z.string().optional(),
   email: z.string().email({ message: 'Email inválido.' }).optional().or(z.literal('')),
   status: z.enum(['ativo', 'inativo']),
+  tipo_contratacao: z.enum(['salario_fixo', 'comissao'], { required_error: 'Tipo de contratação é obrigatório.'}),
+  salario: z.coerce.number().optional(),
+}).refine(data => {
+    if (data.tipo_contratacao === 'salario_fixo') {
+        return data.salario !== undefined && data.salario > 0;
+    }
+    return true;
+}, {
+    message: 'Salário é obrigatório para contratação de tipo salário fixo.',
+    path: ['salario'],
 });
 
 
@@ -78,7 +88,13 @@ export default function FuncionariosPage() {
       telefone: '',
       email: '',
       status: 'ativo',
+      tipo_contratacao: 'comissao',
     },
+  });
+  
+  const tipoContratacao = useWatch({
+      control: form.control,
+      name: 'tipo_contratacao',
   });
 
   const fetchEmployees = async () => {
@@ -107,15 +123,19 @@ export default function FuncionariosPage() {
   const handleSaveEmployee = async (values: z.infer<typeof employeeSchema>) => {
     setIsLoading(true);
     try {
+      const employeeData = {
+          ...values,
+          salario: values.tipo_contratacao === 'salario_fixo' ? values.salario : 0,
+      }
       if (editingEmployee) {
         const employeeDocRef = doc(db, 'funcionarios', editingEmployee.id);
-        await setDoc(employeeDocRef, values);
+        await setDoc(employeeDocRef, employeeData);
         toast({
           title: "Sucesso!",
           description: "Funcionário atualizado com sucesso.",
         });
       } else {
-        await addDoc(collection(db, 'funcionarios'), values);
+        await addDoc(collection(db, 'funcionarios'), employeeData);
          toast({
           title: "Sucesso!",
           description: "Funcionário adicionado com sucesso.",
@@ -158,7 +178,16 @@ export default function FuncionariosPage() {
   };
 
   const handleAddNewClick = () => {
-    form.reset();
+    form.reset({
+      nome: '',
+      cpf: '',
+      cargo: '',
+      telefone: '',
+      email: '',
+      status: 'ativo',
+      tipo_contratacao: 'comissao',
+      salario: 0,
+    });
     setEditingEmployee(null);
     setIsDialogOpen(true);
   };
@@ -311,6 +340,42 @@ export default function FuncionariosPage() {
                                 </FormItem>
                             )}
                             />
+                            <FormField
+                            control={form.control}
+                            name="tipo_contratacao"
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Tipo de Contratação *</FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                                    <FormControl>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Selecione o tipo" />
+                                    </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                    <SelectItem value="comissao">Comissão</SelectItem>
+                                    <SelectItem value="salario_fixo">Salário Fixo</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                            />
+                           {tipoContratacao === 'salario_fixo' && (
+                                <FormField
+                                control={form.control}
+                                name="salario"
+                                render={({ field }) => (
+                                    <FormItem>
+                                    <FormLabel>Salário (R$) *</FormLabel>
+                                    <FormControl>
+                                        <Input type="number" step="0.01" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                    </FormItem>
+                                )}
+                                />
+                            )}
                         </div>
                         <DialogFooter>
                         <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
@@ -349,7 +414,7 @@ export default function FuncionariosPage() {
                     <TableRow>
                     <TableHead>Nome</TableHead>
                     <TableHead>Cargo</TableHead>
-                    <TableHead>Telefone</TableHead>
+                    <TableHead>Contratação</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead><span className="sr-only">Ações</span></TableHead>
                     </TableRow>
@@ -359,7 +424,7 @@ export default function FuncionariosPage() {
                     <TableRow key={employee.id}>
                         <TableCell className="font-medium">{employee.nome}</TableCell>
                         <TableCell>{employee.cargo}</TableCell>
-                        <TableCell>{employee.telefone}</TableCell>
+                        <TableCell>{employee.tipo_contratacao === 'salario_fixo' ? 'Salário Fixo' : 'Comissão'}</TableCell>
                         <TableCell>
                         <Badge variant={employee.status === 'ativo' ? 'secondary' : 'destructive'}>
                             {employee.status}

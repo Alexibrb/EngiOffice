@@ -45,6 +45,8 @@ export type Employee = {
   telefone: string;
   email: string;
   status: 'ativo' | 'inativo';
+  tipo_contratacao: 'salario_fixo' | 'comissao';
+  salario?: number;
 };
 
 export type Service = {
