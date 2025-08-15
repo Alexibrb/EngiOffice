@@ -27,7 +27,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { Service, Client } from '@/lib/types';
-import { PlusCircle, Search, MoreHorizontal, Loader2, Calendar as CalendarIcon, Wrench, Link as LinkIcon, ExternalLink } from 'lucide-react';
+import { PlusCircle, Search, MoreHorizontal, Loader2, Calendar as CalendarIcon, Wrench, Link as LinkIcon, ExternalLink, ClipboardCopy } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -68,7 +68,15 @@ const serviceSchema = z.object({
 });
 
 
-const AnexosList = ({ urls }: { urls: string[] }) => {
+const AnexosList = ({ urls, toast }: { urls: string[], toast: any }) => {
+  const handleCopy = (url: string) => {
+    navigator.clipboard.writeText(url);
+    toast({
+      title: "Sucesso!",
+      description: "Link copiado para a área de transferência.",
+    });
+  };
+
   if (!urls || urls.length === 0) {
     return (
       <div className="text-sm text-muted-foreground p-4 text-center border rounded-md">
@@ -79,19 +87,36 @@ const AnexosList = ({ urls }: { urls: string[] }) => {
 
   return (
     <div className="space-y-2">
-      {urls.map((url, index) => (
-        <a
-          key={index}
-          href={url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-2 p-2 rounded-md bg-muted hover:bg-muted/80 transition-colors text-sm"
-        >
-          <LinkIcon className="h-4 w-4 text-primary" />
-          <span className="flex-1 truncate">{url}</span>
-          <ExternalLink className="h-4 w-4 text-muted-foreground" />
-        </a>
-      ))}
+      {urls.map((url, index) => {
+        const isWebUrl = url.startsWith('http://') || url.startsWith('https://');
+        return (
+            <div key={index} className="flex items-center gap-2 p-2 rounded-md bg-muted text-sm">
+                <LinkIcon className="h-4 w-4 text-primary shrink-0" />
+                {isWebUrl ? (
+                    <a
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 truncate hover:underline"
+                    >
+                      {url}
+                    </a>
+                ) : (
+                    <span className="flex-1 truncate">{url}</span>
+                )}
+                
+                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleCopy(url)}>
+                    <ClipboardCopy className="h-4 w-4" />
+                </Button>
+
+                {isWebUrl && (
+                  <a href={url} target="_blank" rel="noopener noreferrer">
+                      <ExternalLink className="h-4 w-4 text-muted-foreground" />
+                  </a>
+                )}
+            </div>
+        )
+      })}
     </div>
   );
 };
@@ -423,7 +448,7 @@ export default function ServicosPage() {
                         {editingService && (
                             <div>
                                 <FormLabel>Anexos Salvos</FormLabel>
-                                <AnexosList urls={anexosValue?.split('\n').filter(Boolean) || []} />
+                                <AnexosList urls={anexosValue?.split('\n').filter(Boolean) || []} toast={toast} />
                             </div>
                         )}
                         <FormField
@@ -433,7 +458,7 @@ export default function ServicosPage() {
                                 <FormItem>
                                     <FormLabel>{editingService ? 'Adicionar ou Remover Anexos (URLs, um por linha)' : 'Anexos (URLs, um por linha)'}</FormLabel>
                                     <FormControl>
-                                        <Textarea rows={3} {...field} placeholder="https://exemplo.com/documento.pdf&#10;https://exemplo.com/imagem.png" />
+                                        <Textarea rows={3} {...field} placeholder="https://exemplo.com/documento.pdf&#10;C:\Projetos\Cliente_Alfa\Planta_Baixa.dwg" />
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>
