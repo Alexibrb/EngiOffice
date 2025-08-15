@@ -30,6 +30,8 @@ import {
   Loader2,
   ExternalLink,
   HandCoins,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -105,6 +107,17 @@ export default function DashboardPage() {
     .filter((c) => c.status === 'pendente')
     .reduce((acc, curr) => acc + curr.valor, 0);
 
+  const totalReceivablePending = services
+    .filter((s) => s.status === 'em andamento')
+    .reduce((acc, curr) => acc + curr.valor, 0);
+
+  const totalPayablePending = accountsPayable
+    .filter((a) => a.status === 'pendente')
+    .reduce((acc, curr) => acc + curr.valor, 0);
+
+  const totalPayable = accountsPayable.reduce((acc, curr) => acc + curr.valor, 0);
+
+
   const handlePayAccount = (accountId: string) => {
     router.push(`/dashboard/financeiro?editPayable=${accountId}`);
   };
@@ -172,21 +185,7 @@ export default function DashboardPage() {
             </p>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Comissões Pendentes
-            </CardTitle>
-            <HandCoins className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">R$ {totalCommissionsPending.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
-            <p className="text-xs text-muted-foreground">
-              Total de comissões a pagar
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
+         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
               Taxa de Conclusão
@@ -201,6 +200,47 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+         <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Contas a Receber (Pendente)</CardTitle>
+                  <ArrowUp className="h-4 w-4 text-green-500" />
+              </CardHeader>
+              <CardContent>
+                  <div className="text-2xl font-bold">R$ {totalReceivablePending.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                  <p className="text-xs text-muted-foreground">
+                      Soma de todos os serviços "em andamento"
+                  </p>
+              </CardContent>
+          </Card>
+          <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Contas a Pagar (Pendente)</CardTitle>
+                  <ArrowDown className="h-4 w-4 text-red-500" />
+              </CardHeader>
+              <CardContent>
+                  <div className="text-2xl font-bold">R$ {totalPayablePending.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                    <p className="text-xs text-muted-foreground">
+                      Soma de todas as contas pendentes
+                  </p>
+              </CardContent>
+          </Card>
+          <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  Comissões Pendentes
+                </CardTitle>
+                <HandCoins className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">R$ {totalCommissionsPending.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                <p className="text-xs text-muted-foreground">
+                  Total de comissões a pagar
+                </p>
+              </CardContent>
+            </Card>
+       </div>
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
         <Card>
