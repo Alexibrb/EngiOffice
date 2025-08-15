@@ -451,6 +451,7 @@ export default function ContasAPagarPage() {
                                 payees={payees} 
                                 onAddSupplier={() => setIsSupplierDialogOpen(true)}
                                 onAddProduct={() => setIsAddProductDialogOpen(true)}
+                                editingAccount={editingAccount}
                             />
                             <DialogFooter>
                                 <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
@@ -566,11 +567,12 @@ export default function ContasAPagarPage() {
     );
 }
 
-function PayableFormComponent({ form, payees, onAddSupplier, onAddProduct }: { 
+function PayableFormComponent({ form, payees, onAddSupplier, onAddProduct, editingAccount }: { 
     form: any, 
     payees: Payee[], 
     onAddSupplier: () => void,
-    onAddProduct: () => void
+    onAddProduct: () => void,
+    editingAccount: Account | null
 }) {
     const payeeId = useWatch({ control: form.control, name: 'referencia_id' });
     const selectedPayee = payees.find(p => p.id === payeeId) as (Supplier | Employee | undefined);
@@ -580,15 +582,17 @@ function PayableFormComponent({ form, payees, onAddSupplier, onAddProduct }: {
     useEffect(() => {
         if (selectedPayee) {
             form.setValue('tipo_referencia', selectedPayee.tipo);
-            if (selectedPayee.tipo === 'funcionario') {
-                form.setValue('descricao', 'Pagamento de Salário');
-                form.setValue('valor', (selectedPayee as Employee).salario || 0);
-            } else {
-                 form.setValue('valor', 0);
-                 // Não limpar a descrição aqui para permitir a seleção
+             // Only autofill/reset if it's a new account being created
+            if (!editingAccount) {
+                if (selectedPayee.tipo === 'funcionario') {
+                    form.setValue('descricao', 'Pagamento de Salário');
+                    form.setValue('valor', (selectedPayee as Employee).salario || 0);
+                } else {
+                    form.setValue('valor', 0);
+                }
             }
         }
-    }, [selectedPayee, form]);
+    }, [selectedPayee, editingAccount, form]);
 
 
     return (
@@ -865,3 +869,4 @@ function PayableTableComponent({ accounts, getPayeeName, onEdit, onDelete, total
     );
 }
 
+    
