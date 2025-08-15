@@ -247,11 +247,10 @@ export default function ServicosPage() {
 
   const fetchFinancials = async () => {
         try {
-            const [servicesSnap, accountsPayableSnap, employeesSnap, commissionsSnap] = await Promise.all([
+            const [servicesSnap, accountsPayableSnap, employeesSnap] = await Promise.all([
                 getDocs(collection(db, "servicos")),
                 getDocs(collection(db, "contas_a_pagar")),
                 getDocs(collection(db, "funcionarios")),
-                getDocs(collection(db, "comissoes")),
             ]);
 
             const allServices = servicesSnap.docs.map(doc => doc.data() as Service);
@@ -262,18 +261,13 @@ export default function ServicosPage() {
             const totalExpenses = allAccountsPayable
                 .filter(acc => acc.status === 'pago')
                 .reduce((sum, currentAccount) => sum + currentAccount.valor, 0);
-            
-            const allCommissions = commissionsSnap.docs.map(doc => doc.data() as Commission);
-            const totalCommissionsPaid = allCommissions
-                .filter(c => c.status === 'pago')
-                .reduce((sum, c) => sum + c.valor, 0);
 
             const allEmployees = employeesSnap.docs.map(doc => ({...doc.data(), id: doc.id }) as Employee);
             const commissionableEmployees = allEmployees.filter(e => e.tipo_contratacao === 'comissao' && e.status === 'ativo');
 
             setFinancials({
                 totalRevenue,
-                totalExpenses: totalExpenses + totalCommissionsPaid,
+                totalExpenses: totalExpenses,
                 commissionableEmployees,
             });
 
@@ -956,7 +950,9 @@ export default function ServicosPage() {
                                   <HandCoins className="mr-2 h-4 w-4" />
                                   Lançar Pagamento
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleDistributionClick(service)} disabled={service.status === 'cancelado' || service.valor_total === service.saldo_devedor}>
+                                <DropdownMenuItem 
+                                    onClick={() => handleDistributionClick(service)} 
+                                    disabled={service.status === 'cancelado' || service.valor_total === service.saldo_devedor}>
                                     <Users className="mr-2 h-4 w-4" />
                                     Distribuir Lucro
                                 </DropdownMenuItem>
