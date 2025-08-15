@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -23,7 +23,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { mockClients } from '@/lib/data';
-import type { Client } from '@/lib/types';
+import type { Client, Address } from '@/lib/types';
 import { PlusCircle, Search } from 'lucide-react';
 import {
   DropdownMenu,
@@ -33,15 +33,99 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { MoreHorizontal } from "lucide-react"
+import { collection, addDoc, getDocs } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { useToast } from "@/hooks/use-toast"
+
 
 export default function ClientesPage() {
-  const [clients, setClients] = useState<Client[]>(mockClients);
+  const [clients, setClients] = useState<Client[]>([]);
   const [search, setSearch] = useState('');
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const { toast } = useToast();
+
+  // Form state
+  const [nomeCompleto, setNomeCompleto] = useState('');
+  const [cpfCnpj, setCpfCnpj] = useState('');
+  const [telefone, setTelefone] = useState('');
+  const [resStreet, setResStreet] = useState('');
+  const [resNumber, setResNumber] = useState('');
+  const [resNeighborhood, setResNeighborhood] = useState('');
+  const [workStreet, setWorkStreet] = useState('');
+
+
+  const fetchClients = async () => {
+    const querySnapshot = await getDocs(collection(db, "clientes"));
+    const clientsData = querySnapshot.docs.map(doc => ({
+      ...doc.data(),
+      codigo_cliente: doc.id,
+    })) as Client[];
+    setClients(clientsData);
+  };
+
+  useEffect(() => {
+    fetchClients();
+  }, []);
+
+  const handleSaveClient = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const residentialAddress: Partial<Address> = {
+        street: resStreet,
+        number: resNumber,
+        neighborhood: resNeighborhood,
+      };
+
+      const workAddress: Partial<Address> = {
+        street: workStreet,
+      };
+
+      await addDoc(collection(db, 'clientes'), {
+        nome_completo: nomeCompleto,
+        cpf_cnpj: cpfCnpj,
+        telefone: telefone,
+        endereco_residencial: residentialAddress,
+        endereco_obra: workAddress,
+        // Add default/empty values for other required fields from Client type
+        rg: '',
+        coordenadas: { lat: 0, lng: 0 },
+        numero_art: '',
+        historico_servicos: [],
+      });
+      
+      toast({
+        title: "Sucesso!",
+        description: "Cliente adicionado com sucesso.",
+      })
+      
+      // Reset form and close dialog
+      setNomeCompleto('');
+      setCpfCnpj('');
+      setTelefone('');
+      setResStreet('');
+      setResNumber('');
+      setResNeighborhood('');
+      setWorkStreet('');
+      setIsDialogOpen(false);
+
+      // Refetch clients to update the list
+      fetchClients();
+
+    } catch (error) {
+      console.error("Erro ao adicionar cliente: ", error);
+       toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Ocorreu um erro ao salvar o cliente.",
+      })
+    }
+  };
+
 
   const filteredClients = clients.filter(
     (client) =>
       client.nome_completo.toLowerCase().includes(search.toLowerCase()) ||
-      client.cpf_cnpj.includes(search)
+      (client.cpf_cnpj && client.cpf_cnpj.includes(search))
   );
 
   return (
@@ -63,7 +147,7 @@ export default function ClientesPage() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <Dialog>
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button className="bg-primary hover:bg-primary/90">
               <PlusCircle className="mr-2 h-4 w-4" />
@@ -71,6 +155,7 @@ export default function ClientesPage() {
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+           <form onSubmit={handleSaveClient}>
             <DialogHeader>
               <DialogTitle className="font-headline">Adicionar Novo Cliente</DialogTitle>
               <DialogDescription>
@@ -83,40 +168,41 @@ export default function ClientesPage() {
                 <Label htmlFor="name" className="text-right">
                   Nome
                 </Label>
-                <Input id="name" className="col-span-3" />
+                <Input id="name" className="col-span-3" value={nomeCompleto} onChange={(e) => setNomeCompleto(e.target.value)} required />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="cpfCnpj" className="text-right">
                   CPF/CNPJ
                 </Label>
-                <Input id="cpfCnpj" className="col-span-3" />
+                <Input id="cpfCnpj" className="col-span-3" value={cpfCnpj} onChange={(e) => setCpfCnpj(e.target.value)} />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="phone" className="text-right">
                   Telefone
                 </Label>
-                <Input id="phone" className="col-span-3" />
+                <Input id="phone" className="col-span-3" value={telefone} onChange={(e) => setTelefone(e.target.value)} />
               </div>
               <h3 className="col-span-4 font-semibold mt-4">Endereço Residencial</h3>
               <div className="grid grid-cols-4 items-center gap-4">
                  <Label htmlFor="res-street" className="text-right">Rua</Label>
-                 <Input id="res-street" className="col-span-3" />
+                 <Input id="res-street" className="col-span-3" value={resStreet} onChange={(e) => setResStreet(e.target.value)} />
               </div>
                <div className="grid grid-cols-4 items-center gap-4">
                  <Label htmlFor="res-number" className="text-right">Número</Label>
-                 <Input id="res-number" className="col-span-1" />
+                 <Input id="res-number" className="col-span-1" value={resNumber} onChange={(e) => setResNumber(e.target.value)} />
                   <Label htmlFor="res-neighborhood" className="text-right">Bairro</Label>
-                 <Input id="res-neighborhood" className="col-span-2" />
+                 <Input id="res-neighborhood" className="col-span-2" value={resNeighborhood} onChange={(e) => setResNeighborhood(e.target.value)} />
               </div>
               <h3 className="col-span-4 font-semibold mt-4">Endereço da Obra</h3>
                <div className="grid grid-cols-4 items-center gap-4">
                  <Label htmlFor="work-street" className="text-right">Rua</Label>
-                 <Input id="work-street" className="col-span-3" />
+                 <Input id="work-street" className="col-span-3" value={workStreet} onChange={(e) => setWorkStreet(e.target.value)} />
               </div>
             </div>
             <DialogFooter>
               <Button type="submit" variant="accent">Salvar Cliente</Button>
             </DialogFooter>
+            </form>
           </DialogContent>
         </Dialog>
       </div>
@@ -138,7 +224,7 @@ export default function ClientesPage() {
                 <TableCell className="font-medium">{client.nome_completo}</TableCell>
                 <TableCell>{client.cpf_cnpj}</TableCell>
                 <TableCell>{client.telefone}</TableCell>
-                <TableCell>{client.endereco_residencial.city}</TableCell>
+                <TableCell>{client.endereco_residencial?.city}</TableCell>
                 <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
