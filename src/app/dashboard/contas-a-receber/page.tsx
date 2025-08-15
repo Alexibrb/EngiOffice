@@ -58,8 +58,7 @@ export default function ContasAReceberPage() {
     const [services, setServices] = useState<Service[]>([]);
     const [clients, setClients] = useState<Client[]>([]);
     const [financials, setFinancials] = useState({
-      totalRevenue: 0,
-      totalExpenses: 0,
+      balance: 0,
       commissionableEmployees: [] as Employee[],
     });
     const { toast } = useToast();
@@ -82,10 +81,11 @@ export default function ContasAReceberPage() {
 
     const fetchFinancials = async () => {
         try {
-            const [servicesSnap, accountsPayableSnap, employeesSnap] = await Promise.all([
+             const [servicesSnap, accountsPayableSnap, employeesSnap, commissionsSnap] = await Promise.all([
                 getDocs(collection(db, "servicos")),
                 getDocs(collection(db, "contas_a_pagar")),
                 getDocs(collection(db, "funcionarios")),
+                getDocs(collection(db, "comissoes")),
             ]);
 
             const allServices = servicesSnap.docs.map(doc => doc.data() as Service);
@@ -96,13 +96,17 @@ export default function ContasAReceberPage() {
             const totalExpenses = allAccountsPayable
                 .filter(acc => acc.status === 'pago')
                 .reduce((sum, currentAccount) => sum + currentAccount.valor, 0);
+            
+            const allCommissions = commissionsSnap.docs.map(doc => doc.data() as Commission);
+            const totalCommissionsPaid = allCommissions
+                .filter(c => c.status === 'pago')
+                .reduce((sum, c) => sum + c.valor, 0);
 
             const allEmployees = employeesSnap.docs.map(doc => ({...doc.data(), id: doc.id }) as Employee);
             const commissionableEmployees = allEmployees.filter(e => e.tipo_contratacao === 'comissao' && e.status === 'ativo');
 
             setFinancials({
-                totalRevenue,
-                totalExpenses: totalExpenses,
+                balance: totalRevenue - totalExpenses - totalCommissionsPaid,
                 commissionableEmployees,
             });
 
@@ -547,7 +551,8 @@ function ReceivableTableComponent({ services, getClientName, totalValor, totalSa
                                         </DropdownMenuItem>
                                          <DropdownMenuItem 
                                             onClick={() => onDistribute(service)} 
-                                            disabled={service.status === 'cancelado' || service.valor_total === service.saldo_devedor}>
+                                            disabled={service.status === 'cancelado' || service.valor_total === service.saldo_devedor}
+                                         >
                                             <Users className="mr-2 h-4 w-4" />
                                             Distribuir Lucro
                                         </DropdownMenuItem>
@@ -587,7 +592,7 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, paymentValue, fi
     setIsOpen: (isOpen: boolean) => void;
     service: Service;
     paymentValue: number;
-    financials: { totalRevenue: number; totalExpenses: number; commissionableEmployees: Employee[] };
+    financials: { balance: number; commissionableEmployees: Employee[] };
     toast: any;
     onDistributionComplete: () => void;
 }) {
@@ -608,7 +613,7 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, paymentValue, fi
                 const accountsPayableSnap = await getDocs(collection(db, 'contas_a_pagar'));
                 const accountsPayable = accountsPayableSnap.docs.map(doc => doc.data() as Account);
                 const relatedExpenses = accountsPayable
-                    .filter(acc => acc.servico_id === service.id && acc.status === 'pago')
+                    .filter(acc => acc.servico_id === service.id)
                     .reduce((sum, acc) => sum + acc.valor, 0);
                 
                 const totalCosts = relatedExpenses;
@@ -635,7 +640,7 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, paymentValue, fi
     const profitFromPayment = valueForCalculation * profitMargin;
     
     // This is the cash balance *before* this payment is considered.
-    const cashBalanceBeforeThisPayment = financials.totalRevenue - financials.totalExpenses - valueForCalculation;
+    const cashBalanceBeforeThisPayment = financials.balance - valueForCalculation;
 
     let amountToDistribute = profitFromPayment;
     let deficitCoverage = 0;
@@ -758,5 +763,8 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, paymentValue, fi
     
 
     
+
+    
+
 
     

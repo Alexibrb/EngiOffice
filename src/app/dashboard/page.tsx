@@ -135,7 +135,7 @@ export default function DashboardPage() {
     .filter((a) => a.status === 'pendente')
     .sort((a, b) => a.vencimento.getTime() - b.vencimento.getTime());
 
-  const totalReceivablePaid = services.reduce((acc, curr) => curr.status === 'concluído' ? acc + (curr.valor_total || 0) : acc, 0);
+  const totalReceivablePaid = services.reduce((acc, curr) => curr.valor_total - curr.saldo_devedor, 0);
   const totalPayablePaid = accountsPayable.reduce((acc, curr) => curr.status === 'pago' ? acc + curr.valor : acc, 0);
   const totalCommissionsPaid = commissions.reduce((acc, curr) => curr.status === 'pago' ? acc + curr.valor : acc, 0);
   const balance = totalReceivablePaid - totalPayablePaid - totalCommissionsPaid;
@@ -322,7 +322,7 @@ export default function DashboardPage() {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-500">R$ {totalReceivablePaid.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+            <div className="text-2xl font-bold text-green-500">R$ {services.reduce((acc, curr) => curr.status === 'concluído' ? acc + (curr.valor_total || 0) : acc, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
              <p className="text-xs text-muted-foreground">
                 Soma do valor de todos os serviços concluídos
             </p>
@@ -590,3 +590,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    
