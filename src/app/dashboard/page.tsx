@@ -202,7 +202,7 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
          <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Contas a Receber (Pendente)</CardTitle>
@@ -240,7 +240,19 @@ export default function DashboardPage() {
                   Total de comissões a pagar
                 </p>
               </CardContent>
-            </Card>
+          </Card>
+           <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Contas a Pagar (Total)</CardTitle>
+                  <CircleDollarSign className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                  <div className="text-2xl font-bold text-red-500">R$ {totalPayable.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                    <p className="text-xs text-muted-foreground">
+                      Soma de todas as contas
+                  </p>
+              </CardContent>
+          </Card>
        </div>
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
