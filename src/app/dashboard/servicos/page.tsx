@@ -28,7 +28,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { Service, Client, ServiceType, Commission, Account, Employee } from '@/lib/types';
-import { PlusCircle, Search, MoreHorizontal, Loader2, Calendar as CalendarIcon, Wrench, Link as LinkIcon, ExternalLink, ClipboardCopy, XCircle, FileText, CheckCircle, ArrowUp, TrendingUp, HandCoins } from 'lucide-react';
+import { PlusCircle, Search, MoreHorizontal, Loader2, Calendar as CalendarIcon, Wrench, Link as LinkIcon, ExternalLink, ClipboardCopy, XCircle, FileText, CheckCircle, ArrowUp, TrendingUp, HandCoins, Users } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -208,6 +208,7 @@ export default function ServicosPage() {
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [isDistributionDialogOpen, setIsDistributionDialogOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
+  const [distributingService, setDistributingService] = useState<Service | null>(null);
   const [lastPaymentValue, setLastPaymentValue] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [isPaymentLoading, setIsPaymentLoading] = useState(false);
@@ -255,8 +256,7 @@ export default function ServicosPage() {
 
             const allServices = servicesSnap.docs.map(doc => doc.data() as Service);
             const totalRevenue = allServices
-                .filter(s => s.status === 'concluído')
-                .reduce((sum, s) => sum + s.valor_total, 0);
+                .reduce((sum, s) => sum + (s.valor_total - s.saldo_devedor), 0);
 
             const allAccountsPayable = accountsPayableSnap.docs.map(doc => doc.data() as Account);
             const totalExpenses = allAccountsPayable
@@ -380,7 +380,7 @@ export default function ServicosPage() {
         });
         if (serviceData.status === 'concluído') {
              const newService = { ...serviceData, id: newDocRef.id };
-             setEditingService(newService);
+             setDistributingService(newService);
              setLastPaymentValue(newService.valor_total);
              setIsDistributionDialogOpen(true);
         }
@@ -426,11 +426,11 @@ export default function ServicosPage() {
         generateReceipt(editingService, values.valor_pago);
         
         setIsPaymentDialogOpen(false);
-        await fetchServicesAndClients(); // Refresh data to get updated service
-
-        // Trigger distribution dialog
+        
         setLastPaymentValue(values.valor_pago);
+        setDistributingService(editingService);
         setIsDistributionDialogOpen(true);
+        await fetchServicesAndClients(); // Refresh data
 
 
     } catch (error) {
@@ -488,6 +488,12 @@ export default function ServicosPage() {
     setEditingService(service);
     paymentForm.reset({ valor_pago: 0 });
     setIsPaymentDialogOpen(true);
+  };
+
+  const handleDistributionClick = (service: Service) => {
+    setLastPaymentValue(0); // Reset last payment value for manual trigger
+    setDistributingService(service);
+    setIsDistributionDialogOpen(true);
   };
 
   const generateReceipt = (service: Service, paymentValue?: number) => {
@@ -941,9 +947,13 @@ export default function ServicosPage() {
                                 <DropdownMenuItem onClick={() => handleEditClick(service)}>
                                   Editar
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handlePaymentClick(service)} disabled={service.status !== 'em andamento'}>
+                                <DropdownMenuItem onClick={() => handlePaymentClick(service)} disabled={service.status === 'concluído' || service.status === 'cancelado'}>
                                   <HandCoins className="mr-2 h-4 w-4" />
                                   Lançar Pagamento
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleDistributionClick(service)} disabled={service.status === 'cancelado' || service.valor_total === service.saldo_devedor}>
+                                    <Users className="mr-2 h-4 w-4" />
+                                    Distribuir Lucro
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => generateReceipt(service)}>
                                   <FileText className="mr-2 h-4 w-4" />
@@ -1033,11 +1043,11 @@ export default function ServicosPage() {
               </Form>
           </DialogContent>
       </Dialog>
-        {editingService && (
+        {distributingService && (
             <ProfitDistributionDialog
                 isOpen={isDistributionDialogOpen}
                 setIsOpen={setIsDistributionDialogOpen}
-                service={editingService}
+                service={distributingService}
                 paymentValue={lastPaymentValue}
                 financials={financials}
                 toast={toast}
@@ -1060,6 +1070,10 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, paymentValue, fi
     const [isLoading, setIsLoading] = useState(false);
     const [serviceCosts, setServiceCosts] = useState(0);
     const [profitMargin, setProfitMargin] = useState(0);
+
+    const isManualTrigger = paymentValue === 0;
+    const amountPaid = service.valor_total - service.saldo_devedor;
+    const valueForCalculation = isManualTrigger ? amountPaid : paymentValue;
 
     useEffect(() => {
         const fetchCostsAndCalculateMargin = async () => {
@@ -1100,10 +1114,10 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, paymentValue, fi
         fetchCostsAndCalculateMargin();
     }, [isOpen, service, toast]);
 
-    const profitFromPayment = paymentValue * profitMargin;
+    const profitFromPayment = valueForCalculation * profitMargin;
     
     // This is the cash balance *before* this payment is considered.
-    const cashBalanceBeforeThisPayment = financials.totalRevenue - financials.totalExpenses;
+    const cashBalanceBeforeThisPayment = financials.totalRevenue - financials.totalExpenses - valueForCalculation;
 
     let amountToDistribute = profitFromPayment;
     let deficitCoverage = 0;
@@ -1135,7 +1149,7 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, paymentValue, fi
                     cliente_id: service.cliente_id,
                     valor: individualCommission,
                     data: Timestamp.now(),
-                    status: 'pago', // Commissions from profit are always paid
+                    status: 'pago', 
                 };
                 const commissionDocRef = doc(collection(db, 'comissoes'));
                 batch.set(commissionDocRef, commissionData);
@@ -1159,28 +1173,31 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, paymentValue, fi
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogContent className="sm:max-w-lg">
                 <DialogHeader>
-                    <DialogTitle>Distribuir Lucro do Pagamento</DialogTitle>
+                    <DialogTitle>Distribuir Lucro do Serviço</DialogTitle>
                     <DialogDescription>
-                        Revise os cálculos e confirme a distribuição do lucro referente a este pagamento.
+                       {isManualTrigger 
+                        ? `Revisão da distribuição do lucro total já pago para "${service.descricao}".`
+                        : `Distribuição de lucro referente ao último pagamento para "${service.descricao}".`
+                       }
                     </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                     <div className="p-4 border rounded-lg space-y-2 bg-muted/50">
                         <h4 className="font-semibold text-center mb-2">Resumo da Distribuição</h4>
                         <div className="flex justify-between items-center text-sm">
-                            <span className="text-muted-foreground">Valor do Pagamento Recebido:</span>
-                            <span className="font-medium text-green-600">{paymentValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                            <span className="text-muted-foreground">{isManualTrigger ? 'Valor Total Pago:' : 'Valor do Pagamento:'}</span>
+                            <span className="font-medium text-green-600">{valueForCalculation.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
                         </div>
                          <div className="flex justify-between items-center text-sm">
                             <span className="text-muted-foreground">Margem de Lucro do Serviço:</span>
                             <span className="font-medium">{profitMargin.toLocaleString('pt-BR', { style: 'percent', minimumFractionDigits: 2 })}</span>
                         </div>
                         <div className="flex justify-between items-center text-sm">
-                            <span className="text-muted-foreground">Lucro deste Pagamento:</span>
+                            <span className="text-muted-foreground">Lucro deste Montante:</span>
                             <span className="font-medium text-green-600">{profitFromPayment.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
                         </div>
                         <div className="flex justify-between items-center text-sm">
-                            <span className="text-muted-foreground">Saldo de Caixa (antes deste pag.):</span>
+                            <span className="text-muted-foreground">Saldo de Caixa (antes do valor):</span>
                             <span className={cn("font-medium", cashBalanceBeforeThisPayment < 0 ? 'text-red-600' : 'text-green-600')}>{cashBalanceBeforeThisPayment.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
                         </div>
                          {cashBalanceBeforeThisPayment < 0 && (
@@ -1209,7 +1226,7 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, paymentValue, fi
                     </div>
                 </div>
                 <DialogFooter>
-                    <Button variant="ghost" onClick={() => setIsOpen(false)}>Pular</Button>
+                    <Button variant="ghost" onClick={() => setIsOpen(false)}>Fechar</Button>
                     <Button variant="accent" onClick={handleConfirmDistribution} disabled={isLoading || individualCommission <= 0}>
                         {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
                         Confirmar e Lançar

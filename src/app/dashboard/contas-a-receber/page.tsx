@@ -21,15 +21,15 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { useToast } from "@/hooks/use-toast"
-import { collection, getDocs, doc, updateDoc, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, doc, updateDoc, Timestamp, writeBatch } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Calendar as CalendarIcon, Download, ExternalLink, XCircle, ArrowUp, TrendingUp, MoreHorizontal, HandCoins, FileText, Loader2 } from 'lucide-react';
+import { Calendar as CalendarIcon, Download, ExternalLink, XCircle, ArrowUp, TrendingUp, MoreHorizontal, HandCoins, FileText, Loader2, User, Users } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { format, endOfDay, startOfDay } from 'date-fns';
-import type { Client, Service } from '@/lib/types';
+import type { Client, Service, Employee, Account, Commission } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -57,12 +57,21 @@ const paymentSchema = z.object({
 export default function ContasAReceberPage() {
     const [services, setServices] = useState<Service[]>([]);
     const [clients, setClients] = useState<Client[]>([]);
+    const [financials, setFinancials] = useState({
+      totalRevenue: 0,
+      totalExpenses: 0,
+      commissionableEmployees: [] as Employee[],
+    });
     const { toast } = useToast();
     
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
     const [statusFilter, setStatusFilter] = useState<string>('');
 
     const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
+    const [isDistributionDialogOpen, setIsDistributionDialogOpen] = useState(false);
+    const [distributingService, setDistributingService] = useState<Service | null>(null);
+    const [lastPaymentValue, setLastPaymentValue] = useState(0);
+
     const [editingService, setEditingService] = useState<Service | null>(null);
     const [isPaymentLoading, setIsPaymentLoading] = useState(false);
 
@@ -70,6 +79,45 @@ export default function ContasAReceberPage() {
         resolver: zodResolver(paymentSchema),
         defaultValues: { valor_pago: 0 },
     });
+
+    const fetchFinancials = async () => {
+        try {
+            const [servicesSnap, accountsPayableSnap, employeesSnap, commissionsSnap] = await Promise.all([
+                getDocs(collection(db, "servicos")),
+                getDocs(collection(db, "contas_a_pagar")),
+                getDocs(collection(db, "funcionarios")),
+                getDocs(collection(db, "comissoes")),
+            ]);
+
+            const allServices = servicesSnap.docs.map(doc => doc.data() as Service);
+            const totalRevenue = allServices
+                .reduce((sum, s) => sum + (s.valor_total - s.saldo_devedor), 0);
+
+            const allAccountsPayable = accountsPayableSnap.docs.map(doc => doc.data() as Account);
+            const totalExpenses = allAccountsPayable
+                .filter(acc => acc.status === 'pago')
+                .reduce((sum, currentAccount) => sum + currentAccount.valor, 0);
+            
+            const allCommissions = commissionsSnap.docs.map(doc => doc.data() as Commission);
+            const totalCommissionsPaid = allCommissions
+                .filter(c => c.status === 'pago')
+                .reduce((sum, c) => sum + c.valor, 0);
+
+            const allEmployees = employeesSnap.docs.map(doc => ({...doc.data(), id: doc.id }) as Employee);
+            const commissionableEmployees = allEmployees.filter(e => e.tipo_contratacao === 'comissao' && e.status === 'ativo');
+
+            setFinancials({
+                totalRevenue,
+                totalExpenses: totalExpenses + totalCommissionsPaid,
+                commissionableEmployees,
+            });
+
+        } catch (error) {
+            console.error("Erro ao calcular finanças:", error);
+            toast({ variant: "destructive", title: "Erro", description: "Não foi possível carregar os dados financeiros para distribuição." });
+        }
+  };
+
 
     const fetchData = async () => {
         try {
@@ -91,6 +139,7 @@ export default function ContasAReceberPage() {
             const clientsData = clientsSnapshot.docs.map(doc => ({ ...doc.data(), codigo_cliente: doc.id })) as Client[];
             setClients(clientsData);
 
+            await fetchFinancials();
         } catch (error) {
             console.error("Erro ao buscar dados: ", error);
             toast({ variant: "destructive", title: "Erro ao buscar dados", description: "Não foi possível carregar os dados." });
@@ -109,6 +158,11 @@ export default function ContasAReceberPage() {
         setEditingService(service);
         paymentForm.reset({ valor_pago: 0 });
         setIsPaymentDialogOpen(true);
+    };
+
+    const handleDistributionClick = (service: Service) => {
+        setDistributingService(service);
+        setIsDistributionDialogOpen(true);
     };
 
     const generateReceipt = (service: Service, paymentValue?: number) => {
@@ -192,9 +246,11 @@ export default function ContasAReceberPage() {
             generateReceipt(editingService, values.valor_pago);
 
             setIsPaymentDialogOpen(false);
-            setEditingService(null);
-            paymentForm.reset();
+            setLastPaymentValue(values.valor_pago);
+            setDistributingService(editingService);
+            setIsDistributionDialogOpen(true);
             await fetchData();
+
 
         } catch (error) {
             console.error("Erro ao processar pagamento: ", error);
@@ -375,6 +431,7 @@ export default function ContasAReceberPage() {
                         totalSaldo={filteredSaldoDevedor}
                         onPayment={handlePaymentClick}
                         onReceipt={generateReceipt}
+                        onDistribute={handleDistributionClick}
                     />
                 </CardContent>
             </Card>
@@ -412,18 +469,30 @@ export default function ContasAReceberPage() {
                     </Form>
                 </DialogContent>
             </Dialog>
+            {distributingService && (
+            <ProfitDistributionDialog
+                isOpen={isDistributionDialogOpen}
+                setIsOpen={setIsDistributionDialogOpen}
+                service={distributingService}
+                paymentValue={lastPaymentValue}
+                financials={financials}
+                toast={toast}
+                onDistributionComplete={fetchData}
+            />
+        )}
         </div>
     );
 }
 
 
-function ReceivableTableComponent({ services, getClientName, totalValor, totalSaldo, onPayment, onReceipt }: { 
+function ReceivableTableComponent({ services, getClientName, totalValor, totalSaldo, onPayment, onReceipt, onDistribute }: { 
     services: Service[], 
     getClientName: (id: string) => string,
     totalValor: number,
     totalSaldo: number,
     onPayment: (service: Service) => void,
     onReceipt: (service: Service) => void,
+    onDistribute: (service: Service) => void,
 }) {
     const router = useRouter();
 
@@ -474,9 +543,13 @@ function ReceivableTableComponent({ services, getClientName, totalValor, totalSa
                                             <ExternalLink className="mr-2 h-4 w-4" />
                                             Ver/Editar Serviço
                                         </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => onPayment(service)} disabled={service.forma_pagamento !== 'a_prazo' || service.status !== 'em andamento'}>
+                                        <DropdownMenuItem onClick={() => onPayment(service)} disabled={service.status === 'concluído' || service.status === 'cancelado'}>
                                             <HandCoins className="mr-2 h-4 w-4" />
                                             Lançar Pagamento
+                                        </DropdownMenuItem>
+                                         <DropdownMenuItem onClick={() => onDistribute(service)} disabled={service.status === 'cancelado' || service.valor_total === service.saldo_devedor}>
+                                            <Users className="mr-2 h-4 w-4" />
+                                            Distribuir Lucro
                                         </DropdownMenuItem>
                                         <DropdownMenuItem onClick={() => onReceipt(service)}>
                                             <FileText className="mr-2 h-4 w-4" />
@@ -506,6 +579,185 @@ function ReceivableTableComponent({ services, getClientName, totalValor, totalSa
                 </TableFooter>
             </Table>
         </div>
+    );
+}
+
+function ProfitDistributionDialog({ isOpen, setIsOpen, service, paymentValue, financials, toast, onDistributionComplete }: {
+    isOpen: boolean;
+    setIsOpen: (isOpen: boolean) => void;
+    service: Service;
+    paymentValue: number;
+    financials: { totalRevenue: number; totalExpenses: number; commissionableEmployees: Employee[] };
+    toast: any;
+    onDistributionComplete: () => void;
+}) {
+    const [isLoading, setIsLoading] = useState(false);
+    const [serviceCosts, setServiceCosts] = useState(0);
+    const [profitMargin, setProfitMargin] = useState(0);
+
+    const isManualTrigger = paymentValue === 0;
+    const amountPaid = service.valor_total - service.saldo_devedor;
+    const valueForCalculation = isManualTrigger ? amountPaid : paymentValue;
+
+    useEffect(() => {
+        const fetchCostsAndCalculateMargin = async () => {
+            if (!service || !isOpen) return;
+            
+            setIsLoading(true);
+            try {
+                const accountsPayableSnap = await getDocs(collection(db, 'contas_a_pagar'));
+                const accountsPayable = accountsPayableSnap.docs.map(doc => doc.data() as Account);
+                const relatedExpenses = accountsPayable
+                    .filter(acc => acc.servico_id === service.id && acc.status === 'pago')
+                    .reduce((sum, acc) => sum + acc.valor, 0);
+
+                const commissionsSnap = await getDocs(collection(db, 'comissoes'));
+                const commissions = commissionsSnap.docs.map(doc => doc.data() as Commission);
+                const relatedCommissions = commissions
+                    .filter(c => c.servico_id === service.id && c.status === 'pago')
+                    .reduce((sum, c) => sum + c.valor, 0);
+                
+                const totalCosts = relatedExpenses + relatedCommissions;
+                setServiceCosts(totalCosts);
+
+                if (service.valor_total > 0) {
+                    const margin = (service.valor_total - totalCosts) / service.valor_total;
+                    setProfitMargin(margin);
+                } else {
+                    setProfitMargin(0);
+                }
+
+            } catch (error) {
+                console.error("Erro ao buscar custos do serviço:", error);
+                toast({ variant: 'destructive', title: 'Erro', description: 'Não foi possível calcular os custos do serviço.' });
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchCostsAndCalculateMargin();
+    }, [isOpen, service, toast]);
+
+    const profitFromPayment = valueForCalculation * profitMargin;
+    
+    // This is the cash balance *before* this payment is considered.
+    const cashBalanceBeforeThisPayment = financials.totalRevenue - financials.totalExpenses - valueForCalculation;
+
+    let amountToDistribute = profitFromPayment;
+    let deficitCoverage = 0;
+
+    if (cashBalanceBeforeThisPayment < 0) {
+        deficitCoverage = Math.min(profitFromPayment, Math.abs(cashBalanceBeforeThisPayment));
+        amountToDistribute -= deficitCoverage;
+    }
+    
+    amountToDistribute = Math.max(0, amountToDistribute);
+
+    const numEmployees = financials.commissionableEmployees.length;
+    const individualCommission = numEmployees > 0 ? amountToDistribute / numEmployees : 0;
+    
+    const handleConfirmDistribution = async () => {
+        if(numEmployees === 0) {
+            toast({ variant: 'destructive', title: 'Erro', description: 'Nenhum funcionário comissionado ativo encontrado para distribuir o lucro.' });
+            return;
+        }
+        
+        setIsLoading(true);
+        try {
+            const batch = writeBatch(db);
+            
+            financials.commissionableEmployees.forEach(employee => {
+                const commissionData = {
+                    funcionario_id: employee.id,
+                    servico_id: service.id,
+                    cliente_id: service.cliente_id,
+                    valor: individualCommission,
+                    data: Timestamp.now(),
+                    status: 'pago', 
+                };
+                const commissionDocRef = doc(collection(db, 'comissoes'));
+                batch.set(commissionDocRef, commissionData);
+            });
+            
+            await batch.commit();
+
+            toast({ title: 'Sucesso!', description: 'Lucro distribuído e comissões lançadas com sucesso!' });
+            setIsOpen(false);
+            onDistributionComplete();
+        } catch (error) {
+            console.error('Erro ao distribuir lucro:', error);
+            toast({ variant: 'destructive', title: 'Erro', description: 'Ocorreu um erro ao salvar as comissões.' });
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+
+    return (
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogContent className="sm:max-w-lg">
+                <DialogHeader>
+                    <DialogTitle>Distribuir Lucro do Serviço</DialogTitle>
+                    <DialogDescription>
+                       {isManualTrigger 
+                        ? `Revisão da distribuição do lucro total já pago para "${service.descricao}".`
+                        : `Distribuição de lucro referente ao último pagamento para "${service.descricao}".`
+                       }
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                    <div className="p-4 border rounded-lg space-y-2 bg-muted/50">
+                        <h4 className="font-semibold text-center mb-2">Resumo da Distribuição</h4>
+                        <div className="flex justify-between items-center text-sm">
+                            <span className="text-muted-foreground">{isManualTrigger ? 'Valor Total Pago:' : 'Valor do Pagamento:'}</span>
+                            <span className="font-medium text-green-600">{valueForCalculation.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                        </div>
+                         <div className="flex justify-between items-center text-sm">
+                            <span className="text-muted-foreground">Margem de Lucro do Serviço:</span>
+                            <span className="font-medium">{profitMargin.toLocaleString('pt-BR', { style: 'percent', minimumFractionDigits: 2 })}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-sm">
+                            <span className="text-muted-foreground">Lucro deste Montante:</span>
+                            <span className="font-medium text-green-600">{profitFromPayment.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-sm">
+                            <span className="text-muted-foreground">Saldo de Caixa (antes do valor):</span>
+                            <span className={cn("font-medium", cashBalanceBeforeThisPayment < 0 ? 'text-red-600' : 'text-green-600')}>{cashBalanceBeforeThisPayment.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                        </div>
+                         {cashBalanceBeforeThisPayment < 0 && (
+                             <div className="flex justify-between items-center text-sm">
+                                <span className="text-muted-foreground">Cobertura de Déficit:</span>
+                                <span className="font-medium text-orange-500">-{deficitCoverage.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                            </div>
+                         )}
+                        <div className="flex justify-between items-center text-lg border-t pt-2 mt-2">
+                            <span className="font-bold">Valor a ser Distribuído:</span>
+                            <span className="font-bold text-primary">{amountToDistribute.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                        </div>
+                    </div>
+                     <div className="p-4 border rounded-lg space-y-2">
+                        <h4 className="font-semibold text-center mb-2">Comissão por Funcionário</h4>
+                        {numEmployees > 0 ? (
+                            financials.commissionableEmployees.map(emp => (
+                                <div key={emp.id} className="flex justify-between items-center text-sm">
+                                    <span className="text-muted-foreground">{emp.nome}:</span>
+                                    <span className="font-medium text-green-600">{individualCommission.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                </div>
+                            ))
+                        ) : (
+                            <p className="text-center text-sm text-red-500">Nenhum funcionário comissionado ativo encontrado.</p>
+                        )}
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button variant="ghost" onClick={() => setIsOpen(false)}>Fechar</Button>
+                    <Button variant="accent" onClick={handleConfirmDistribution} disabled={isLoading || individualCommission <= 0}>
+                        {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                        Confirmar e Lançar
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     );
 }
 
