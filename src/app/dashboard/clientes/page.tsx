@@ -48,6 +48,7 @@ import {
 } from '@/components/ui/form';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { formatCPF_CNPJ, formatTelefone } from '@/lib/utils';
 
 const addressSchema = z.object({
   street: z.string().optional(),
@@ -384,7 +385,13 @@ export default function ClientesPage() {
                             <FormItem>
                               <FormLabel>CPF/CNPJ</FormLabel>
                               <FormControl>
-                                <Input {...field} />
+                                <Input 
+                                  {...field} 
+                                  onChange={(e) => {
+                                      const { value } = e.target;
+                                      field.onChange(formatCPF_CNPJ(value));
+                                  }}
+                                />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -397,7 +404,14 @@ export default function ClientesPage() {
                             <FormItem>
                               <FormLabel>Telefone</FormLabel>
                               <FormControl>
-                                <Input type="tel" {...field} />
+                                <Input 
+                                  type="tel"
+                                  {...field}
+                                  onChange={(e) => {
+                                      const { value } = e.target;
+                                      field.onChange(formatTelefone(value));
+                                  }}
+                                />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -705,3 +719,4 @@ export default function ClientesPage() {
   );
 }
 
+    

@@ -46,6 +46,8 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { formatCPF_CNPJ, formatTelefone } from '@/lib/utils';
+
 
 const supplierSchema = z.object({
   razao_social: z.string().min(1, { message: 'Razão Social é obrigatória.' }),
@@ -235,7 +237,13 @@ export default function FornecedoresPage() {
                         <FormItem>
                           <FormLabel>CNPJ</FormLabel>
                           <FormControl>
-                            <Input {...field} />
+                            <Input 
+                                {...field}
+                                onChange={(e) => {
+                                    const { value } = e.target;
+                                    field.onChange(formatCPF_CNPJ(value));
+                                }}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -248,7 +256,14 @@ export default function FornecedoresPage() {
                         <FormItem>
                           <FormLabel>Telefone</FormLabel>
                           <FormControl>
-                            <Input type="tel" {...field} />
+                            <Input 
+                                type="tel" 
+                                {...field}
+                                 onChange={(e) => {
+                                    const { value } = e.target;
+                                    field.onChange(formatTelefone(value));
+                                }}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -376,3 +391,5 @@ export default function FornecedoresPage() {
     </div>
   );
 }
+
+    
