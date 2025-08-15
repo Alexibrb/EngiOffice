@@ -256,6 +256,26 @@ export default function ContasAPagarPage() {
         });
         setIsDialogOpen(true);
     };
+    
+    const filteredPayable = accountsPayable
+        .filter(acc => {
+            return statusFilter ? acc.status === statusFilter : true;
+        })
+        .filter(acc => {
+            if (!dateRange?.from) return true;
+            const fromDate = startOfDay(dateRange.from);
+            const toDate = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from);
+            const accDate = acc.vencimento;
+            return accDate >= fromDate && accDate <= toDate;
+        });
+
+    const totalPayablePending = accountsPayable
+      .filter((a) => a.status === 'pendente')
+      .reduce((acc, curr) => acc + curr.valor, 0);
+
+    const totalExpenses = accountsPayable.reduce((acc, curr) => acc + curr.valor, 0);
+
+    const filteredTotal = filteredPayable.reduce((acc, curr) => acc + curr.valor, 0);
 
     const generatePdf = () => {
         const doc = new jsPDF();
@@ -279,8 +299,12 @@ export default function ContasAPagarPage() {
             `R$ ${acc.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
             acc.status,
           ]),
+           foot: [
+                ['Total', '', '', `R$ ${filteredTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, '']
+           ],
           theme: 'striped',
           headStyles: { fillColor: [34, 139, 34] },
+          footStyles: { fillColor: [220, 220, 220], textColor: [0,0,0], fontStyle: 'bold' }
         });
     
         doc.save(`relatorio_contas_a_pagar.pdf`);
@@ -293,30 +317,10 @@ export default function ContasAPagarPage() {
         setStatusFilter('');
     }
 
-    const filteredPayable = accountsPayable
-        .filter(acc => {
-            return statusFilter ? acc.status === statusFilter : true;
-        })
-        .filter(acc => {
-            if (!dateRange?.from) return true;
-            const fromDate = startOfDay(dateRange.from);
-            const toDate = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from);
-            const accDate = acc.vencimento;
-            return accDate >= fromDate && accDate <= toDate;
-        });
-
     const payees: Payee[] = [
         ...suppliers.map(s => ({ id: s.id, nome: s.razao_social, tipo: 'fornecedor' as const, ...s })),
         ...employees.filter(e => e.tipo_contratacao === 'salario_fixo').map(e => ({ id: e.id, nome: e.nome, tipo: 'funcionario' as const, ...e })),
     ];
-    
-    const totalPayablePending = accountsPayable
-      .filter((a) => a.status === 'pendente')
-      .reduce((acc, curr) => acc + curr.valor, 0);
-
-    const totalExpenses = accountsPayable.reduce((acc, curr) => acc + curr.valor, 0);
-
-    const filteredTotal = filteredPayable.reduce((acc, curr) => acc + curr.valor, 0);
 
 
     return (
@@ -582,13 +586,13 @@ function PayableFormComponent({ form, payees, onAddSupplier, onAddProduct, editi
     useEffect(() => {
         if (selectedPayee) {
             form.setValue('tipo_referencia', selectedPayee.tipo);
-             // Only autofill/reset if it's a new account being created
-            if (!editingAccount) {
+             if (!editingAccount) {
                 if (selectedPayee.tipo === 'funcionario') {
                     form.setValue('descricao', 'Pagamento de Salário');
                     form.setValue('valor', (selectedPayee as Employee).salario || 0);
                 } else {
                     form.setValue('valor', 0);
+                    form.setValue('descricao', '');
                 }
             }
         }
@@ -669,7 +673,7 @@ function PayableFormComponent({ form, payees, onAddSupplier, onAddProduct, editi
                 render={({ field }) => (
                     <FormItem>
                         <FormLabel>Valor (R$)</FormLabel>
-                        <FormControl><Input type="number" step="0.01" {...field} disabled={!isSupplier} /></FormControl>
+                        <FormControl><Input type="number" step="0.01" {...field} disabled={form.getValues('tipo_referencia') === 'funcionario' && !editingAccount} /></FormControl>
                         <FormMessage />
                     </FormItem>
                 )}

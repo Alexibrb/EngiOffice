@@ -69,6 +69,26 @@ export default function ContasAReceberPage() {
     const getClientName = (id: string) => {
         return clients.find(c => c.codigo_cliente === id)?.nome_completo || 'Desconhecido';
     };
+    
+    const filteredReceivable = services
+        .filter(service => {
+            return statusFilter ? service.status === statusFilter : true;
+        })
+        .filter(service => {
+            if (!dateRange?.from) return true;
+            const fromDate = startOfDay(dateRange.from);
+            const toDate = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from);
+            const serviceDate = service.data_cadastro;
+            return serviceDate >= fromDate && serviceDate <= toDate;
+        });
+
+    const totalReceivablePending = services
+        .filter((s) => s.status === 'em andamento')
+        .reduce((acc, curr) => acc + curr.valor, 0);
+
+    const totalReceivablePaid = services.reduce((acc, curr) => curr.status === 'concluído' ? acc + curr.valor : acc, 0);
+
+    const filteredTotal = filteredReceivable.reduce((acc, curr) => acc + curr.valor, 0);
 
     const generatePdf = () => {
         const doc = new jsPDF();
@@ -92,8 +112,12 @@ export default function ContasAReceberPage() {
             `R$ ${service.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
             service.status,
             ]),
+            foot: [
+                ['Total', '', '', `R$ ${filteredTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, '']
+            ],
             theme: 'striped',
             headStyles: { fillColor: [34, 139, 34] },
+            footStyles: { fillColor: [220, 220, 220], textColor: [0,0,0], fontStyle: 'bold' }
         });
     
         doc.save(`relatorio_financeiro_receber.pdf`);
@@ -103,26 +127,6 @@ export default function ContasAReceberPage() {
         setDateRange(undefined);
         setStatusFilter('');
     }
-
-    const filteredReceivable = services
-        .filter(service => {
-            return statusFilter ? service.status === statusFilter : true;
-        })
-        .filter(service => {
-            if (!dateRange?.from) return true;
-            const fromDate = startOfDay(dateRange.from);
-            const toDate = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from);
-            const serviceDate = service.data_cadastro;
-            return serviceDate >= fromDate && serviceDate <= toDate;
-        });
-
-    const totalReceivablePending = services
-        .filter((s) => s.status === 'em andamento')
-        .reduce((acc, curr) => acc + curr.valor, 0);
-
-    const totalReceivablePaid = services.reduce((acc, curr) => curr.status === 'concluído' ? acc + curr.valor : acc, 0);
-
-    const filteredTotal = filteredReceivable.reduce((acc, curr) => acc + curr.valor, 0);
 
     return (
         <div className="flex flex-col gap-8">
