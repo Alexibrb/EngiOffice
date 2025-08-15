@@ -77,6 +77,7 @@ export type Account = {
     valor: number;
     vencimento: Date; 
     status: 'pago' | 'pendente';
+    servico_id?: string;
 }
 
 export type Commission = {

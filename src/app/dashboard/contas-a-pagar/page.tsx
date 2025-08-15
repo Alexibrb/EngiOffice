@@ -52,7 +52,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { format, endOfDay, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import type { Account, Supplier, Employee, Payee } from '@/lib/types';
+import type { Account, Supplier, Employee, Payee, Service } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -64,14 +64,17 @@ const accountSchema = z.object({
   descricao: z.string().min(1, 'Descrição é obrigatória.'),
   referencia_id: z.string().min(1, 'Favorecido é obrigatório.'),
   tipo_referencia: z.enum(['fornecedor', 'funcionario']).optional(),
-  valor: z.any().refine(val => !isNaN(parseFloat(String(val).replace(',', '.'))), {
-      message: 'Valor deve ser um número válido.',
-  }).refine(val => parseFloat(String(val).replace(',', '.')) > 0, {
-      message: 'Valor deve ser maior que zero.',
+  valor: z.any().refine(val => {
+    const num = parseFloat(String(val).replace(',', '.'));
+    return !isNaN(num) && num > 0;
+  }, {
+    message: 'Valor deve ser maior que zero.',
   }),
   vencimento: z.date({ required_error: 'Data de vencimento é obrigatória.' }),
   status: z.enum(['pendente', 'pago']),
+  servico_id: z.string().optional(),
 });
+
 
 const supplierSchema = z.object({
   razao_social: z.string().min(1, { message: 'Razão Social é obrigatória.' }),
@@ -87,6 +90,7 @@ export default function ContasAPagarPage() {
     const [accountsPayable, setAccountsPayable] = useState<Account[]>([]);
     const [suppliers, setSuppliers] = useState<Supplier[]>([]);
     const [employees, setEmployees] = useState<Employee[]>([]);
+    const [services, setServices] = useState<Service[]>([]);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isSupplierDialogOpen, setIsSupplierDialogOpen] = useState(false);
     const [isAddProductDialogOpen, setIsAddProductDialogOpen] = useState(false);
@@ -103,7 +107,7 @@ export default function ContasAPagarPage() {
     const form = useForm<z.infer<typeof accountSchema>>({
         resolver: zodResolver(accountSchema),
         defaultValues: {
-            valor: 0,
+            valor: '0,00',
         }
     });
     
@@ -131,6 +135,11 @@ export default function ContasAPagarPage() {
         const employeesData = employeesSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Employee[];
         setEmployees(employeesData);
     }
+    const fetchServices = async () => {
+        const servicesSnapshot = await getDocs(collection(db, "servicos"));
+        const servicesData = servicesSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Service[];
+        setServices(servicesData);
+    }
 
     const fetchData = async () => {
         try {
@@ -138,6 +147,7 @@ export default function ContasAPagarPage() {
             
             await fetchSuppliers();
             await fetchEmployees();
+            await fetchServices();
 
             const payableData = payableSnapshot.docs.map(doc => {
                 const data = doc.data();
@@ -186,7 +196,7 @@ export default function ContasAPagarPage() {
         try {
              const submissionValues = {
                 ...values,
-                valor: parseFloat(String(values.valor).replace(',', '.')),
+                valor: parseFloat(String(values.valor).replace('.', '').replace(',', '.')),
             };
 
             if (editingAccount) {
@@ -253,9 +263,10 @@ export default function ContasAPagarPage() {
         form.reset({
             descricao: '',
             referencia_id: '',
-            valor: 0,
+            valor: '0,00',
             status: 'pendente',
-            vencimento: new Date()
+            vencimento: new Date(),
+            servico_id: '',
         });
         setIsDialogOpen(true);
     };
@@ -264,7 +275,7 @@ export default function ContasAPagarPage() {
         setEditingAccount(account);
         form.reset({
             ...account,
-            valor: account.valor, 
+            valor: String(account.valor).replace('.',','), 
             vencimento: account.vencimento instanceof Date ? account.vencimento : new Date(account.vencimento),
         });
         setIsDialogOpen(true);
@@ -466,6 +477,7 @@ export default function ContasAPagarPage() {
                             <PayableFormComponent 
                                 form={form} 
                                 payees={payees} 
+                                services={services}
                                 onAddSupplier={() => setIsSupplierDialogOpen(true)}
                                 onAddProduct={() => setIsAddProductDialogOpen(true)}
                                 editingAccount={editingAccount}
@@ -584,9 +596,10 @@ export default function ContasAPagarPage() {
     );
 }
 
-function PayableFormComponent({ form, payees, onAddSupplier, onAddProduct, editingAccount }: { 
+function PayableFormComponent({ form, payees, services, onAddSupplier, onAddProduct, editingAccount }: { 
     form: any, 
     payees: Payee[], 
+    services: Service[],
     onAddSupplier: () => void,
     onAddProduct: () => void,
     editingAccount: Account | null
@@ -596,6 +609,21 @@ function PayableFormComponent({ form, payees, onAddSupplier, onAddProduct, editi
 
     const isSupplier = selectedPayee?.tipo === 'fornecedor';
     
+    useEffect(() => {
+        if (payeeId && !editingAccount) {
+             const payee = payees.find(p => p.id === payeeId);
+            if (payee) {
+                form.setValue('tipo_referencia', payee.tipo);
+                form.setValue('descricao', '');
+                if (payee.tipo === 'funcionario') {
+                    form.setValue('descricao', 'Pagamento de Salário');
+                    const salary = (payee as Employee).salario || 0;
+                    form.setValue('valor', salary.toLocaleString('pt-BR', { minimumFractionDigits: 2 }), { shouldValidate: true });
+                }
+            }
+        }
+    }, [payeeId, form, payees, editingAccount]);
+
     return (
          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField
@@ -605,18 +633,11 @@ function PayableFormComponent({ form, payees, onAddSupplier, onAddProduct, editi
                     <FormItem>
                         <FormLabel>Favorecido *</FormLabel>
                         <div className="flex items-center gap-2">
-                            <Select onValueChange={(value) => {
-                                field.onChange(value);
-                                const payee = payees.find(p => p.id === value);
-                                if (payee) {
-                                    form.setValue('tipo_referencia', payee.tipo);
-                                    form.setValue('descricao', '');
-                                    if (payee.tipo === 'funcionario') {
-                                        form.setValue('descricao', 'Pagamento de Salário');
-                                        form.setValue('valor', (payee as Employee).salario || 0, { shouldValidate: true });
-                                    }
-                                }
-                            }} value={field.value} defaultValue={field.value}>
+                            <Select 
+                                onValueChange={field.onChange} 
+                                value={field.value} 
+                                defaultValue={field.value}
+                            >
                                 <FormControl>
                                     <SelectTrigger>
                                         <SelectValue placeholder="Selecione o Favorecido" />
@@ -683,6 +704,7 @@ function PayableFormComponent({ form, payees, onAddSupplier, onAddProduct, editi
                              <Input 
                                 type="text"
                                 {...field}
+                                onFocus={(e) => e.target.select()}
                             />
                         </FormControl>
                         <FormMessage />
@@ -710,6 +732,30 @@ function PayableFormComponent({ form, payees, onAddSupplier, onAddProduct, editi
                             <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus/>
                         </PopoverContent>
                         </Popover>
+                        <FormMessage />
+                    </FormItem>
+                )}
+            />
+             <FormField
+                control={form.control}
+                name="servico_id"
+                render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Vincular ao Serviço (Opcional)</FormLabel>
+                         <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                            <FormControl>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Selecione um serviço" />
+                                </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                                {services.map(s => (
+                                    <SelectItem key={s.id} value={s.id}>
+                                        {s.descricao}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                         <FormMessage />
                     </FormItem>
                 )}
@@ -883,16 +929,3 @@ function PayableTableComponent({ accounts, getPayeeName, onEdit, onDelete, total
         </div>
     );
 }
-
-    
-
-    
-
-    
-
-
-
-
-    
-
-    

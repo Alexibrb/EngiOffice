@@ -27,7 +27,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import type { Service, Client, ServiceType } from '@/lib/types';
+import type { Service, Client, ServiceType, Commission, Account, Employee } from '@/lib/types';
 import { PlusCircle, Search, MoreHorizontal, Loader2, Calendar as CalendarIcon, Wrench, Link as LinkIcon, ExternalLink, ClipboardCopy, XCircle, FileText, CheckCircle, ArrowUp, TrendingUp, HandCoins } from 'lucide-react';
 import {
   DropdownMenu,
@@ -36,7 +36,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { collection, addDoc, getDocs, doc, setDoc, deleteDoc, Timestamp, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, doc, setDoc, deleteDoc, Timestamp, updateDoc, writeBatch } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from "@/hooks/use-toast"
 import {
@@ -206,9 +206,15 @@ export default function ServicosPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isServiceTypeDialogOpen, setIsServiceTypeDialogOpen] = useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
+  const [isDistributionDialogOpen, setIsDistributionDialogOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isPaymentLoading, setIsPaymentLoading] = useState(false);
+  const [financials, setFinancials] = useState({
+      totalRevenue: 0,
+      totalExpenses: 0,
+      commissionableEmployees: [] as Employee[],
+  });
   const { toast } = useToast();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -236,6 +242,46 @@ export default function ServicosPage() {
   });
 
   const anexosValue = useWatch({ control: form.control, name: 'anexos' });
+
+  const fetchFinancials = async () => {
+        try {
+            const [servicesSnap, accountsPayableSnap, employeesSnap, commissionsSnap] = await Promise.all([
+                getDocs(collection(db, "servicos")),
+                getDocs(collection(db, "contas_a_pagar")),
+                getDocs(collection(db, "funcionarios")),
+                getDocs(collection(db, "comissoes")),
+            ]);
+
+            const allServices = servicesSnap.docs.map(doc => doc.data() as Service);
+            const totalRevenue = allServices
+                .filter(s => s.status === 'concluído')
+                .reduce((acc, s) => acc + s.valor_total, 0);
+
+            const allAccountsPayable = accountsPayableSnap.docs.map(doc => doc.data() as Account);
+            const totalExpenses = allAccountsPayable
+                .filter(acc => acc.status === 'pago')
+                .reduce((acc, acc) => acc + acc.valor, 0);
+            
+            const allCommissions = commissionsSnap.docs.map(doc => doc.data() as Commission);
+            const totalCommissionsPaid = allCommissions
+                .filter(c => c.status === 'pago')
+                .reduce((acc, c) => acc + c.valor, 0);
+
+            const allEmployees = employeesSnap.docs.map(doc => ({...doc.data(), id: doc.id }) as Employee);
+            const commissionableEmployees = allEmployees.filter(e => e.tipo_contratacao === 'comissao' && e.status === 'ativo');
+
+            setFinancials({
+                totalRevenue,
+                totalExpenses: totalExpenses + totalCommissionsPaid,
+                commissionableEmployees,
+            });
+
+        } catch (error) {
+            console.error("Erro ao calcular finanças:", error);
+            toast({ variant: "destructive", title: "Erro", description: "Não foi possível carregar os dados financeiros para distribuição." });
+        }
+  };
+
 
   const fetchServiceTypes = async () => {
     try {
@@ -278,6 +324,8 @@ export default function ServicosPage() {
       setClients(clientsData);
 
       await fetchServiceTypes();
+      await fetchFinancials();
+
 
       const editId = searchParams.get('edit');
       if (editId) {
@@ -429,6 +477,11 @@ export default function ServicosPage() {
     setEditingService(service);
     paymentForm.reset({ valor_pago: 0 });
     setIsPaymentDialogOpen(true);
+  };
+
+  const handleDistributionClick = (service: Service) => {
+      setEditingService(service);
+      setIsDistributionDialogOpen(true);
   };
 
 
@@ -883,9 +936,13 @@ export default function ServicosPage() {
                                 <DropdownMenuItem onClick={() => handleEditClick(service)}>
                                   Editar
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handlePaymentClick(service)} disabled={service.forma_pagamento !== 'a_prazo' || service.status !== 'em andamento'}>
+                                <DropdownMenuItem onClick={() => handlePaymentClick(service)} disabled={service.status !== 'em andamento'}>
                                   <HandCoins className="mr-2 h-4 w-4" />
                                   Lançar Pagamento
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleDistributionClick(service)} disabled={service.status !== 'concluído'}>
+                                  <HandCoins className="mr-2 h-4 w-4" />
+                                  Distribuir Lucro
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => generateReceipt(service)}>
                                   <FileText className="mr-2 h-4 w-4" />
@@ -975,7 +1032,162 @@ export default function ServicosPage() {
               </Form>
           </DialogContent>
       </Dialog>
-
+        {editingService && (
+            <ProfitDistributionDialog
+                isOpen={isDistributionDialogOpen}
+                setIsOpen={setIsDistributionDialogOpen}
+                service={editingService}
+                financials={financials}
+                toast={toast}
+                onDistributionComplete={fetchServicesAndClients}
+            />
+        )}
     </div>
   );
 }
+
+function ProfitDistributionDialog({ isOpen, setIsOpen, service, financials, toast, onDistributionComplete }: {
+    isOpen: boolean;
+    setIsOpen: (isOpen: boolean) => void;
+    service: Service;
+    financials: { totalRevenue: number; totalExpenses: number; commissionableEmployees: Employee[] };
+    toast: any;
+    onDistributionComplete: () => void;
+}) {
+    const [isLoading, setIsLoading] = useState(false);
+    const [serviceCosts, setServiceCosts] = useState(0);
+
+    useEffect(() => {
+        const fetchCosts = async () => {
+            if (!service) return;
+
+            const accountsPayableSnap = await getDocs(collection(db, 'contas_a_pagar'));
+            const accountsPayable = accountsPayableSnap.docs.map(doc => doc.data() as Account);
+            const relatedExpenses = accountsPayable
+                .filter(acc => acc.servico_id === service.id && acc.status === 'pago')
+                .reduce((sum, acc) => sum + acc.valor, 0);
+
+            const commissionsSnap = await getDocs(collection(db, 'comissoes'));
+            const commissions = commissionsSnap.docs.map(doc => doc.data() as Commission);
+            const relatedCommissions = commissions
+                .filter(c => c.servico_id === service.id && c.status === 'pago')
+                .reduce((sum, c) => sum + c.valor, 0);
+
+            setServiceCosts(relatedExpenses + relatedCommissions);
+        };
+
+        if (isOpen) {
+            fetchCosts();
+        }
+    }, [isOpen, service]);
+
+    const cashBalance = financials.totalRevenue - financials.totalExpenses;
+    const serviceProfit = service.valor_total - serviceCosts;
+    
+    let amountToDistribute = serviceProfit;
+    let deficitCoverage = 0;
+
+    if (cashBalance < 0) {
+        deficitCoverage = Math.min(serviceProfit, Math.abs(cashBalance));
+        amountToDistribute -= deficitCoverage;
+    }
+    
+    amountToDistribute = Math.max(0, amountToDistribute); // Garante que não seja negativo
+
+    const numEmployees = financials.commissionableEmployees.length;
+    const individualCommission = numEmployees > 0 ? amountToDistribute / numEmployees : 0;
+    
+    const handleConfirmDistribution = async () => {
+        if(numEmployees === 0) {
+            toast({ variant: 'destructive', title: 'Erro', description: 'Nenhum funcionário comissionado ativo encontrado para distribuir o lucro.' });
+            return;
+        }
+        
+        setIsLoading(true);
+        try {
+            const batch = writeBatch(db);
+            
+            financials.commissionableEmployees.forEach(employee => {
+                const commissionData = {
+                    funcionario_id: employee.id,
+                    servico_id: service.id,
+                    cliente_id: service.cliente_id,
+                    valor: individualCommission,
+                    data: Timestamp.now(),
+                    status: 'pago',
+                };
+                const commissionDocRef = doc(collection(db, 'comissoes'));
+                batch.set(commissionDocRef, commissionData);
+            });
+            
+            await batch.commit();
+
+            toast({ title: 'Sucesso!', description: 'Lucro distribuído e comissões lançadas com sucesso!' });
+            setIsOpen(false);
+            onDistributionComplete();
+        } catch (error) {
+            console.error('Erro ao distribuir lucro:', error);
+            toast({ variant: 'destructive', title: 'Erro', description: 'Ocorreu um erro ao salvar as comissões.' });
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+
+    return (
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogContent className="sm:max-w-lg">
+                <DialogHeader>
+                    <DialogTitle>Distribuir Lucro do Serviço</DialogTitle>
+                    <DialogDescription>
+                        Revise os cálculos e confirme a distribuição do lucro para os funcionários comissionados.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                    <div className="p-4 border rounded-lg space-y-2 bg-muted/50">
+                        <h4 className="font-semibold text-center mb-2">Resumo da Distribuição</h4>
+                        <div className="flex justify-between items-center text-sm">
+                            <span className="text-muted-foreground">Lucro Bruto do Serviço:</span>
+                            <span className="font-medium text-green-600">{serviceProfit.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-sm">
+                            <span className="text-muted-foreground">Saldo de Caixa Atual:</span>
+                            <span className={cn("font-medium", cashBalance < 0 ? 'text-red-600' : 'text-green-600')}>{cashBalance.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                        </div>
+                         {cashBalance < 0 && (
+                             <div className="flex justify-between items-center text-sm">
+                                <span className="text-muted-foreground">Cobertura de Déficit:</span>
+                                <span className="font-medium text-orange-500">-{deficitCoverage.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                            </div>
+                         )}
+                        <div className="flex justify-between items-center text-lg border-t pt-2 mt-2">
+                            <span className="font-bold">Valor a ser Distribuído:</span>
+                            <span className="font-bold text-primary">{amountToDistribute.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                        </div>
+                    </div>
+                     <div className="p-4 border rounded-lg space-y-2">
+                        <h4 className="font-semibold text-center mb-2">Comissão por Funcionário</h4>
+                        {numEmployees > 0 ? (
+                            financials.commissionableEmployees.map(emp => (
+                                <div key={emp.id} className="flex justify-between items-center text-sm">
+                                    <span className="text-muted-foreground">{emp.nome}:</span>
+                                    <span className="font-medium text-green-600">{individualCommission.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                </div>
+                            ))
+                        ) : (
+                            <p className="text-center text-sm text-red-500">Nenhum funcionário comissionado ativo encontrado.</p>
+                        )}
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button variant="ghost" onClick={() => setIsOpen(false)}>Cancelar</Button>
+                    <Button variant="accent" onClick={handleConfirmDistribution} disabled={isLoading || individualCommission <= 0}>
+                        {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                        Confirmar e Lançar
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
