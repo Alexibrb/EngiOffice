@@ -55,31 +55,25 @@ export function formatCEP(value: string): string {
 }
 
 export function formatCurrency(value: string): string {
-  if (!value) return '';
-  let numericValue = value.replace(/\D/g, '');
+    if (!value) return '';
+    let numericValue = value.replace(/\D/g, '');
 
-  if (numericValue === '') return '';
+    if (numericValue === '') return '0,00';
+    
+    // Remove leading zeros, unless it's the only digit
+    if (numericValue.length > 1) {
+        numericValue = numericValue.replace(/^0+/, '');
+    }
 
-  // Remove leading zeros
-  numericValue = numericValue.replace(/^0+/, '');
-
-  if (numericValue === '') return '0,00';
-  
-  // Pad with leading zeros if necessary to have at least 3 digits
-  if(numericValue.length < 3) {
+    // Pad with leading zeros if necessary
     numericValue = numericValue.padStart(3, '0');
-  }
 
-  // Insert comma for decimals
-  const integerPart = numericValue.slice(0, -2);
-  const decimalPart = numericValue.slice(-2);
-  
-  let formattedIntegerPart = '';
-  if (integerPart.length > 3) {
-      formattedIntegerPart = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-  } else {
-      formattedIntegerPart = integerPart;
-  }
-  
-  return `${formattedIntegerPart},${decimalPart}`;
+    // Insert comma for decimals
+    const integerPart = numericValue.slice(0, -2);
+    const decimalPart = numericValue.slice(-2);
+    
+    // Format integer part with dots
+    const formattedIntegerPart = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    
+    return `${formattedIntegerPart},${decimalPart}`;
 }

@@ -591,20 +591,24 @@ function PayableFormComponent({ form, payees, onAddSupplier, onAddProduct, editi
 
     const isSupplier = selectedPayee?.tipo === 'fornecedor';
     
-    useEffect(() => {
-        if (selectedPayee) {
-            form.setValue('tipo_referencia', selectedPayee.tipo);
-             if (!editingAccount) {
-                if (selectedPayee.tipo === 'funcionario') {
-                    form.setValue('descricao', 'Pagamento de Salário');
-                    form.setValue('valor', (selectedPayee as Employee).salario || 0);
-                } else {
-                    form.setValue('valor', 0);
-                    form.setValue('descricao', '');
-                }
-            }
-        }
-    }, [selectedPayee, editingAccount, form]);
+    // This useEffect was causing the issues. It was resetting fields on every re-render
+    // related to the selectedPayee. It's better to handle these changes in the `onValueChange`
+    // of the Select component.
+    //
+    // useEffect(() => {
+    //     if (selectedPayee) {
+    //         form.setValue('tipo_referencia', selectedPayee.tipo);
+    //          if (!editingAccount) {
+    //             if (selectedPayee.tipo === 'funcionario') {
+    //                 form.setValue('descricao', 'Pagamento de Salário');
+    //                 form.setValue('valor', (selectedPayee as Employee).salario || 0);
+    //             } else {
+    //                 form.setValue('valor', 0);
+    //                 form.setValue('descricao', '');
+    //             }
+    //         }
+    //     }
+    // }, [selectedPayee, editingAccount, form]);
 
 
     return (
@@ -618,6 +622,20 @@ function PayableFormComponent({ form, payees, onAddSupplier, onAddProduct, editi
                         <div className="flex items-center gap-2">
                             <Select onValueChange={(value) => {
                                 field.onChange(value);
+                                const payee = payees.find(p => p.id === value);
+                                if (payee) {
+                                    form.setValue('tipo_referencia', payee.tipo);
+                                     if (!editingAccount) {
+                                        if (payee.tipo === 'funcionario') {
+                                            form.setValue('descricao', 'Pagamento de Salário');
+                                            form.setValue('valor', (payee as Employee).salario || 0, { shouldValidate: true });
+                                        } else {
+                                            // Reset description and value for a new supplier selection
+                                            form.setValue('descricao', '');
+                                            form.setValue('valor', 0, { shouldValidate: true });
+                                        }
+                                    }
+                                }
                             }} value={field.value} defaultValue={field.value}>
                                 <FormControl>
                                     <SelectTrigger>
@@ -678,7 +696,7 @@ function PayableFormComponent({ form, payees, onAddSupplier, onAddProduct, editi
             <FormField
                 control={form.control}
                 name="valor"
-                render={({ field: { onChange, ...restField } }) => (
+                render={({ field: { onChange, value, ...restField } }) => (
                     <FormItem>
                         <FormLabel>Valor (R$)</FormLabel>
                         <FormControl>
@@ -687,9 +705,12 @@ function PayableFormComponent({ form, payees, onAddSupplier, onAddProduct, editi
                                 type="text"
                                 inputMode="decimal"
                                 disabled={form.getValues('tipo_referencia') === 'funcionario' && !editingAccount}
+                                value={typeof value === 'number' ? formatCurrency(String(value)) : value}
                                 onChange={(e) => {
-                                    const formattedValue = formatCurrency(e.target.value);
-                                    onChange(formattedValue);
+                                    const rawValue = e.target.value.replace(/\D/g, '');
+                                    const numericValue = parseFloat(rawValue) / 100;
+                                    onChange(numericValue);
+                                    form.setValue('valor', numericValue, { shouldValidate: true, shouldDirty: true });
                                 }}
                             />
                         </FormControl>
@@ -897,3 +918,4 @@ function PayableTableComponent({ accounts, getPayeeName, onEdit, onDelete, total
     
 
     
+
