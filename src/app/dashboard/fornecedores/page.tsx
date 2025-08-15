@@ -51,8 +51,12 @@ import { formatCPF_CNPJ, formatTelefone } from '@/lib/utils';
 
 const supplierSchema = z.object({
   razao_social: z.string().min(1, { message: 'Razão Social é obrigatória.' }),
-  cnpj: z.string().optional(),
-  telefone: z.string().optional(),
+  cnpj: z.string().optional().refine(val => !val || val.length === 18, {
+    message: 'CNPJ inválido.',
+  }),
+  telefone: z.string().optional().refine(val => !val || val.length >= 14, {
+    message: 'Telefone inválido.',
+  }),
   email: z.string().email({ message: 'Email inválido.' }).optional().or(z.literal('')),
   endereco: z.string().optional(),
   produtos_servicos: z.string().optional(),
@@ -391,5 +395,7 @@ export default function FornecedoresPage() {
     </div>
   );
 }
+
+    
 
     

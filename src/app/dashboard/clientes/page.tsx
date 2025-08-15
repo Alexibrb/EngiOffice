@@ -56,14 +56,20 @@ const addressSchema = z.object({
   neighborhood: z.string().optional(),
   city: z.string().optional(),
   state: z.string().optional(),
-  zip: z.string().optional(),
+  zip: z.string().optional().refine(val => !val || val.length === 9, {
+    message: 'CEP deve ter 8 dígitos.',
+  }),
 });
 
 const clientSchema = z.object({
   nome_completo: z.string().min(1, { message: 'Nome completo é obrigatório.' }),
   rg: z.string().optional(),
-  cpf_cnpj: z.string().optional(),
-  telefone: z.string().optional(),
+  cpf_cnpj: z.string().optional().refine(val => !val || val.length === 14 || val.length === 18, {
+    message: 'CPF/CNPJ inválido.',
+  }),
+  telefone: z.string().optional().refine(val => !val || val.length >= 14, {
+    message: 'Telefone inválido.',
+  }),
   endereco_residencial: addressSchema.optional(),
   endereco_obra: addressSchema.optional(),
   coordenadas: z.object({
@@ -730,3 +736,5 @@ export default function ClientesPage() {
     </div>
   );
 }
+
+    
