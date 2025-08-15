@@ -52,7 +52,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import type { Account, Client, Supplier } from '@/lib/types';
+import type { Account, Client, Supplier, Service } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -63,18 +63,17 @@ const accountSchema = z.object({
   referencia_id: z.string().min(1, 'Referência é obrigatória.'),
   valor: z.coerce.number().min(0.01, 'Valor deve ser maior que zero.'),
   vencimento: z.date({ required_error: 'Data de vencimento é obrigatória.' }),
-  status: z.enum(['pendente', 'pago', 'recebido']),
+  status: z.enum(['pendente', 'pago']),
 });
 
 
 export default function FinanceiroPage() {
     const [accountsPayable, setAccountsPayable] = useState<Account[]>([]);
-    const [accountsReceivable, setAccountsReceivable] = useState<Account[]>([]);
+    const [services, setServices] = useState<Service[]>([]);
     const [clients, setClients] = useState<Client[]>([]);
     const [suppliers, setSuppliers] = useState<Supplier[]>([]);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingAccount, setEditingAccount] = useState<Account | null>(null);
-    const [accountType, setAccountType] = useState<'pagar' | 'receber'>('pagar');
     const [isLoading, setIsLoading] = useState(false);
     const { toast } = useToast();
 
@@ -84,9 +83,9 @@ export default function FinanceiroPage() {
 
     const fetchData = async () => {
         try {
-            const [payableSnapshot, receivableSnapshot, clientsSnapshot, suppliersSnapshot] = await Promise.all([
+            const [payableSnapshot, servicesSnapshot, clientsSnapshot, suppliersSnapshot] = await Promise.all([
                 getDocs(collection(db, "contas_a_pagar")),
-                getDocs(collection(db, "contas_a_receber")),
+                getDocs(collection(db, "servicos")),
                 getDocs(collection(db, "clientes")),
                 getDocs(collection(db, "fornecedores")),
             ]);
@@ -96,12 +95,12 @@ export default function FinanceiroPage() {
                 return { ...data, id: doc.id, vencimento: data.vencimento.toDate() } as Account;
             });
             setAccountsPayable(payableData);
-
-            const receivableData = receivableSnapshot.docs.map(doc => {
+            
+            const servicesData = servicesSnapshot.docs.map(doc => {
                 const data = doc.data();
-                return { ...data, id: doc.id, vencimento: data.vencimento.toDate() } as Account;
+                return { ...data, id: doc.id, prazo: data.prazo.toDate() } as Service;
             });
-            setAccountsReceivable(receivableData);
+            setServices(servicesData);
 
             const clientsData = clientsSnapshot.docs.map(doc => ({ ...doc.data(), codigo_cliente: doc.id })) as Client[];
             setClients(clientsData);
@@ -119,17 +118,17 @@ export default function FinanceiroPage() {
         fetchData();
     }, []);
 
-    const getReferenceName = (id: string) => {
-        const client = clients.find(c => c.codigo_cliente === id);
-        if (client) return client.nome_completo;
-        const supplier = suppliers.find(s => s.id === id);
-        if (supplier) return supplier.razao_social;
-        return 'Desconhecido';
+    const getClientName = (id: string) => {
+        return clients.find(c => c.codigo_cliente === id)?.nome_completo || 'Desconhecido';
+    };
+
+    const getSupplierName = (id: string) => {
+        return suppliers.find(s => s.id === id)?.razao_social || 'Desconhecido';
     };
 
     const handleSaveAccount = async (values: z.infer<typeof accountSchema>) => {
         setIsLoading(true);
-        const collectionName = accountType === 'pagar' ? 'contas_a_pagar' : 'contas_a_receber';
+        const collectionName = 'contas_a_pagar';
         try {
             if (editingAccount) {
                 const docRef = doc(db, collectionName, editingAccount.id);
@@ -151,8 +150,8 @@ export default function FinanceiroPage() {
         }
     };
     
-    const handleDeleteAccount = async (accountId: string, type: 'pagar' | 'receber') => {
-        const collectionName = type === 'pagar' ? 'contas_a_pagar' : 'contas_a_receber';
+    const handleDeleteAccount = async (accountId: string) => {
+        const collectionName = 'contas_a_pagar';
         try {
             await deleteDoc(doc(db, collectionName, accountId));
             toast({ title: "Sucesso!", description: "Conta excluída com sucesso." });
@@ -163,21 +162,19 @@ export default function FinanceiroPage() {
         }
     };
 
-    const handleAddNewClick = (type: 'pagar' | 'receber') => {
-        setAccountType(type);
+    const handleAddNewClick = () => {
         setEditingAccount(null);
         form.reset({
             descricao: '',
             referencia_id: '',
             valor: 0,
-            status: type === 'pagar' ? 'pendente' : 'pendente',
+            status: 'pendente',
             vencimento: new Date()
         });
         setIsDialogOpen(true);
     };
 
-    const handleEditClick = (account: Account, type: 'pagar' | 'receber') => {
-        setAccountType(type);
+    const handleEditClick = (account: Account) => {
         setEditingAccount(account);
         form.reset({
             ...account,
@@ -186,10 +183,9 @@ export default function FinanceiroPage() {
         setIsDialogOpen(true);
     };
 
-    const generateFinancialPdf = (type: 'pagar' | 'receber') => {
+    const generatePdf = (type: 'pagar' | 'receber') => {
         const doc = new jsPDF();
-        const title = type === 'pagar' ? 'Relatório de Contas a Pagar' : 'Relatório de Contas a Receber';
-        const data = type === 'pagar' ? accountsPayable : accountsReceivable;
+        const title = type === 'pagar' ? 'Relatório de Contas a Pagar' : 'Relatório de Contas a Receber (Serviços)';
         
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(16);
@@ -199,26 +195,38 @@ export default function FinanceiroPage() {
         doc.setFontSize(10);
         doc.text(`Data de Emissão: ${new Date().toLocaleDateString('pt-BR')}`, 14, 28);
     
-        autoTable(doc, {
-          startY: 35,
-          head: [['Descrição', 'Referência', 'Vencimento', 'Valor', 'Status']],
-          body: data.map((acc) => [
-            acc.descricao,
-            getReferenceName(acc.referencia_id),
-            format(acc.vencimento, 'dd/MM/yyyy'),
-            `R$ ${acc.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
-            acc.status,
-          ]),
-          theme: 'striped',
-          headStyles: { fillColor: [52, 152, 219] },
-        });
+        if (type === 'pagar') {
+            autoTable(doc, {
+              startY: 35,
+              head: [['Descrição', 'Referência', 'Vencimento', 'Valor', 'Status']],
+              body: accountsPayable.map((acc) => [
+                acc.descricao,
+                getSupplierName(acc.referencia_id),
+                format(acc.vencimento, 'dd/MM/yyyy'),
+                `R$ ${acc.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+                acc.status,
+              ]),
+              theme: 'striped',
+              headStyles: { fillColor: [52, 152, 219] },
+            });
+        } else {
+             autoTable(doc, {
+              startY: 35,
+              head: [['Descrição', 'Cliente', 'Prazo', 'Valor', 'Status']],
+              body: services.map((service) => [
+                service.descricao,
+                getClientName(service.cliente_id),
+                format(service.prazo, 'dd/MM/yyyy'),
+                `R$ ${service.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+                service.status,
+              ]),
+              theme: 'striped',
+              headStyles: { fillColor: [52, 152, 219] },
+            });
+        }
     
         doc.save(`relatorio_financeiro_${type}.pdf`);
       };
-
-    const dialogTitle = `${editingAccount ? 'Editar' : 'Adicionar'} Conta a ${accountType === 'pagar' ? 'Pagar' : 'Receber'}`;
-    const referenceList = accountType === 'pagar' ? suppliers : clients;
-    const referenceLabel = accountType === 'pagar' ? 'Fornecedor' : 'Cliente';
 
     return (
         <div className="flex flex-col gap-8">
@@ -235,7 +243,6 @@ export default function FinanceiroPage() {
                     <TabsTrigger value="receivable">Contas a Receber</TabsTrigger>
                 </TabsList>
 
-                {/* Contas a Pagar */}
                 <TabsContent value="payable">
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between">
@@ -244,21 +251,20 @@ export default function FinanceiroPage() {
                                 <CardDescription>Faturas e despesas a serem pagas.</CardDescription>
                             </div>
                             <div className="flex gap-2">
-                                <Button onClick={() => generateFinancialPdf('pagar')} variant="outline">
+                                <Button onClick={() => generatePdf('pagar')} variant="outline">
                                     <Download className="mr-2 h-4 w-4" />
                                     Exportar PDF
                                 </Button>
-                                <Button onClick={() => handleAddNewClick('pagar')}>
+                                <Button onClick={handleAddNewClick}>
                                     <PlusCircle className="mr-2 h-4 w-4" />
                                     Adicionar
                                 </Button>
                             </div>
                         </CardHeader>
                         <CardContent>
-                            <TableComponent 
+                            <PayableTableComponent 
                                 accounts={accountsPayable} 
-                                type="pagar" 
-                                getReferenceName={getReferenceName} 
+                                getReferenceName={getSupplierName} 
                                 onEdit={handleEditClick} 
                                 onDelete={handleDeleteAccount} 
                             />
@@ -266,43 +272,32 @@ export default function FinanceiroPage() {
                     </Card>
                 </TabsContent>
 
-                {/* Contas a Receber */}
                 <TabsContent value="receivable">
                     <Card>
                          <CardHeader className="flex flex-row items-center justify-between">
                             <div>
                                 <CardTitle>Contas a Receber</CardTitle>
-                                <CardDescription>Valores a serem recebidos dos clientes.</CardDescription>
+                                <CardDescription>Serviços prestados a serem recebidos dos clientes.</CardDescription>
                             </div>
-                            <div className="flex gap-2">
-                                <Button onClick={() => generateFinancialPdf('receber')} variant="outline">
-                                    <Download className="mr-2 h-4 w-4" />
-                                    Exportar PDF
-                                </Button>
-                                <Button onClick={() => handleAddNewClick('receber')}>
-                                    <PlusCircle className="mr-2 h-4 w-4" />
-                                    Adicionar
-                                </Button>
-                            </div>
+                             <Button onClick={() => generatePdf('receber')} variant="outline">
+                                <Download className="mr-2 h-4 w-4" />
+                                Exportar PDF
+                            </Button>
                         </CardHeader>
                         <CardContent>
-                            <TableComponent 
-                                accounts={accountsReceivable} 
-                                type="receber" 
-                                getReferenceName={getReferenceName} 
-                                onEdit={handleEditClick} 
-                                onDelete={handleDeleteAccount} 
+                            <ReceivableTableComponent 
+                                services={services} 
+                                getClientName={getClientName} 
                             />
                         </CardContent>
                     </Card>
                 </TabsContent>
             </Tabs>
 
-            {/* Dialog para Adicionar/Editar */}
-             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
-                        <DialogTitle className="font-headline">{dialogTitle}</DialogTitle>
+                        <DialogTitle className="font-headline">{editingAccount ? 'Editar' : 'Adicionar'} Conta a Pagar</DialogTitle>
                         <DialogDescription>
                             Preencha os dados da conta.
                         </DialogDescription>
@@ -326,17 +321,17 @@ export default function FinanceiroPage() {
                                     name="referencia_id"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>{referenceLabel} *</FormLabel>
+                                            <FormLabel>Fornecedor *</FormLabel>
                                             <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
                                                 <FormControl>
                                                     <SelectTrigger>
-                                                        <SelectValue placeholder={`Selecione o ${referenceLabel.toLowerCase()}`} />
+                                                        <SelectValue placeholder="Selecione o Fornecedor" />
                                                     </SelectTrigger>
                                                 </FormControl>
                                                 <SelectContent>
-                                                    {referenceList.map(ref => (
-                                                        <SelectItem key={accountType === 'pagar' ? ref.id : ref.codigo_cliente} value={accountType === 'pagar' ? ref.id : ref.codigo_cliente}>
-                                                            {accountType === 'pagar' ? ref.razao_social : ref.nome_completo}
+                                                    {suppliers.map(ref => (
+                                                        <SelectItem key={ref.id} value={ref.id}>
+                                                            {ref.razao_social}
                                                         </SelectItem>
                                                     ))}
                                                 </SelectContent>
@@ -391,11 +386,7 @@ export default function FinanceiroPage() {
                                                 <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                                                 <SelectContent>
                                                     <SelectItem value="pendente">Pendente</SelectItem>
-                                                    {accountType === 'pagar' ? (
-                                                        <SelectItem value="pago">Pago</SelectItem>
-                                                    ) : (
-                                                        <SelectItem value="recebido">Recebido</SelectItem>
-                                                    )}
+                                                    <SelectItem value="pago">Pago</SelectItem>
                                                 </SelectContent>
                                             </Select>
                                             <FormMessage />
@@ -419,12 +410,11 @@ export default function FinanceiroPage() {
 }
 
 
-function TableComponent({ accounts, type, getReferenceName, onEdit, onDelete }: { 
+function PayableTableComponent({ accounts, getReferenceName, onEdit, onDelete }: { 
     accounts: Account[], 
-    type: 'pagar' | 'receber', 
     getReferenceName: (id: string) => string, 
-    onEdit: (account: Account, type: 'pagar' | 'receber') => void, 
-    onDelete: (id: string, type: 'pagar' | 'receber') => void 
+    onEdit: (account: Account) => void, 
+    onDelete: (id: string) => void 
 }) {
     return (
         <div className="border rounded-lg">
@@ -432,7 +422,7 @@ function TableComponent({ accounts, type, getReferenceName, onEdit, onDelete }: 
                 <TableHeader>
                     <TableRow>
                         <TableHead>Descrição</TableHead>
-                        <TableHead>Referência</TableHead>
+                        <TableHead>Fornecedor</TableHead>
                         <TableHead>Vencimento</TableHead>
                         <TableHead>Valor</TableHead>
                         <TableHead>Status</TableHead>
@@ -456,7 +446,7 @@ function TableComponent({ accounts, type, getReferenceName, onEdit, onDelete }: 
                                     <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
                                         <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                                        <DropdownMenuItem onClick={() => onEdit(account, type)}>Editar</DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => onEdit(account)}>Editar</DropdownMenuItem>
                                         <AlertDialog>
                                             <AlertDialogTrigger asChild><DropdownMenuItem onSelect={(e) => e.preventDefault()}>Excluir</DropdownMenuItem></AlertDialogTrigger>
                                             <AlertDialogContent>
@@ -466,7 +456,7 @@ function TableComponent({ accounts, type, getReferenceName, onEdit, onDelete }: 
                                                 </AlertDialogHeader>
                                                 <AlertDialogFooter>
                                                     <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                                    <AlertDialogAction onClick={() => onDelete(account.id, type)}>Excluir</AlertDialogAction>
+                                                    <AlertDialogAction onClick={() => onDelete(account.id)}>Excluir</AlertDialogAction>
                                                 </AlertDialogFooter>
                                             </AlertDialogContent>
                                         </AlertDialog>
@@ -485,4 +475,46 @@ function TableComponent({ accounts, type, getReferenceName, onEdit, onDelete }: 
     );
 }
 
-    
+function ReceivableTableComponent({ services, getClientName }: { 
+    services: Service[], 
+    getClientName: (id: string) => string
+}) {
+    return (
+        <div className="border rounded-lg">
+            <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead>Serviço</TableHead>
+                        <TableHead>Cliente</TableHead>
+                        <TableHead>Prazo Final</TableHead>
+                        <TableHead>Valor</TableHead>
+                        <TableHead>Status</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {services.length > 0 ? services.map((service) => (
+                        <TableRow key={service.id}>
+                            <TableCell className="font-medium">{service.descricao}</TableCell>
+                            <TableCell>{getClientName(service.cliente_id)}</TableCell>
+                            <TableCell>{format(service.prazo, 'dd/MM/yyyy')}</TableCell>
+                            <TableCell>R$ {service.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
+                            <TableCell>
+                                <Badge variant={
+                                    service.status === 'concluído' ? 'secondary' :
+                                    service.status === 'cancelado' ? 'destructive' :
+                                    'default'
+                                }>
+                                    {service.status}
+                                </Badge>
+                            </TableCell>
+                        </TableRow>
+                    )) : (
+                        <TableRow>
+                            <TableCell colSpan={5} className="h-24 text-center">Nenhum serviço encontrado.</TableCell>
+                        </TableRow>
+                    )}
+                </TableBody>
+            </Table>
+        </div>
+    );
+}

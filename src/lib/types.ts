@@ -64,7 +64,7 @@ export type Account = {
     referencia_id: string; 
     valor: number;
     vencimento: Date; 
-    status: 'pago' | 'pendente' | 'recebido';
+    status: 'pago' | 'pendente';
 }
 
 export type CashFlow = {
