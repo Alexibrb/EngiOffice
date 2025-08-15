@@ -36,7 +36,7 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import { collection, addDoc, getDocs, doc, setDoc, deleteDoc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { PlusCircle, MoreHorizontal, Loader2, Calendar as CalendarIcon, Download, ExternalLink } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Loader2, Calendar as CalendarIcon, Download, ExternalLink, ArrowDown, ArrowUp, CircleDollarSign } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -241,6 +241,16 @@ export default function FinanceiroPage() {
         doc.save(`relatorio_financeiro_${type}.pdf`);
       };
 
+    const totalPayablePending = accountsPayable
+        .filter((a) => a.status === 'pendente')
+        .reduce((acc, curr) => acc + curr.valor, 0);
+
+    const totalPayable = accountsPayable.reduce((acc, curr) => acc + curr.valor, 0);
+
+    const totalReceivable = services
+        .filter((s) => s.status !== 'cancelado')
+        .reduce((acc, curr) => acc + curr.valor, 0);
+
     return (
         <div className="flex flex-col gap-8">
             <div>
@@ -250,6 +260,45 @@ export default function FinanceiroPage() {
                 </p>
             </div>
             
+            <div className="grid gap-4 md:grid-cols-3">
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Contas a Receber (Total)</CardTitle>
+                        <ArrowUp className="h-4 w-4 text-green-500" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">R$ {totalReceivable.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                        <p className="text-xs text-muted-foreground">
+                            Soma de todos os serviços não cancelados
+                        </p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Contas a Pagar (Pendente)</CardTitle>
+                        <ArrowDown className="h-4 w-4 text-red-500" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">R$ {totalPayablePending.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                         <p className="text-xs text-muted-foreground">
+                            Soma de todas as contas pendentes
+                        </p>
+                    </CardContent>
+                </Card>
+                 <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Contas a Pagar (Total)</CardTitle>
+                        <CircleDollarSign className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">R$ {totalPayable.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                         <p className="text-xs text-muted-foreground">
+                            Soma de todas as contas
+                        </p>
+                    </CardContent>
+                </Card>
+            </div>
+
             <Tabs defaultValue="payable">
                 <TabsList className="grid w-full grid-cols-2">
                     <TabsTrigger value="payable">Contas a Pagar</TabsTrigger>
