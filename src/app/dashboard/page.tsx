@@ -18,10 +18,12 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { Service, Account, Client, Commission } from '@/lib/types';
 import { format, isPast } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import jsPDF from 'jspdf';
 import {
   Activity,
   CircleDollarSign,
@@ -35,10 +37,22 @@ import {
   CheckCircle,
   CreditCard,
   TrendingUp,
+  MoreHorizontal,
+  FileText,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { useToast } from "@/hooks/use-toast"
+
 
 export default function DashboardPage() {
   const [services, setServices] = useState<Service[]>([]);
@@ -47,9 +61,9 @@ export default function DashboardPage() {
   const [commissions, setCommissions] = useState<Commission[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
+  const { toast } = useToast();
 
-  useEffect(() => {
-    const fetchData = async () => {
+  const fetchData = async () => {
       try {
         const [servicesSnapshot, payableSnapshot, clientsSnapshot, commissionsSnapshot] = await Promise.all([
           getDocs(collection(db, "servicos")),
@@ -87,6 +101,7 @@ export default function DashboardPage() {
       }
     };
 
+  useEffect(() => {
     fetchData();
   }, []);
 
@@ -123,7 +138,6 @@ export default function DashboardPage() {
 
   const totalExpenses = accountsPayable.reduce((acc, curr) => acc + curr.valor, 0);
 
-
   const handlePayAccount = (accountId: string) => {
     router.push(`/dashboard/contas-a-pagar?editPayable=${accountId}`);
   };
@@ -131,6 +145,82 @@ export default function DashboardPage() {
   const handleEditService = (serviceId: string) => {
     router.push(`/dashboard/servicos?edit=${serviceId}`);
   };
+
+  const handlePaymentClick = (serviceId: string) => {
+    router.push(`/dashboard/servicos?edit=${serviceId}`);
+  };
+  
+  const handleDeleteService = async (serviceId: string) => {
+    try {
+      await deleteDoc(doc(db, "servicos", serviceId));
+      toast({
+        title: "Sucesso!",
+        description: "Serviço excluído com sucesso.",
+      });
+      await fetchData();
+    } catch (error) {
+      console.error("Erro ao excluir serviço: ", error);
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Ocorreu um erro ao excluir o serviço.",
+      });
+    }
+  };
+
+  const generateReceipt = (service: Service) => {
+    const client = clients.find(c => c.codigo_cliente === service.cliente_id);
+    if (!client) {
+        toast({ variant: 'destructive', title: 'Erro', description: 'Cliente não encontrado para gerar o recibo.' });
+        return;
+    }
+
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+
+    // Cabeçalho
+    doc.setFontSize(20);
+    doc.setFont('helvetica', 'bold');
+    doc.text('RECIBO DE PAGAMENTO', pageWidth / 2, 20, { align: 'center' });
+
+    // Informações da Empresa
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'normal');
+    doc.text('EngiFlow - Soluções em Engenharia', 20, 40);
+    doc.text('CNPJ: 00.000.000/0001-00', 20, 46);
+    doc.text('contato@engiflow.com', 20, 52);
+
+    doc.setLineWidth(0.5);
+    doc.line(20, 60, pageWidth - 20, 60);
+
+    // Valor
+    doc.setFontSize(14);
+    doc.text('Valor:', 20, 70);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`R$ ${service.valor_total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, pageWidth - 20, 70, { align: 'right' });
+    
+    doc.setFont('helvetica', 'normal');
+    doc.setLineWidth(0.2);
+    doc.line(20, 75, pageWidth - 20, 75);
+
+    // Corpo do Recibo
+    doc.setFontSize(12);
+    const obraAddress = (client.endereco_obra && client.endereco_obra.street) ? `${client.endereco_obra.street}, ${client.endereco_obra.number} - ${client.endereco_obra.neighborhood}, ${client.endereco_obra.city} - ${client.endereco_obra.state}` : 'Endereço da obra não informado';
+    const receiptText = `Recebemos de ${client.nome_completo}, CPF/CNPJ nº ${client.cpf_cnpj || 'Não informado'}, a importância de R$ ${service.valor_total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} referente ao pagamento pelo serviço de "${service.descricao}".\n\nEndereço da Obra: ${obraAddress}`;
+    const splitText = doc.splitTextToSize(receiptText, pageWidth - 40);
+    doc.text(splitText, 20, 90);
+
+    // Data e Assinatura
+    const today = format(new Date(), "d 'de' MMMM 'de' yyyy", { locale: ptBR });
+    doc.text(`${(client.endereco_residencial && client.endereco_residencial.city) ? client.endereco_residencial.city : 'Localidade não informada'}, ${today}.`, 20, 160);
+    
+    doc.line(pageWidth / 2 - 40, 190, pageWidth / 2 + 40, 190);
+    doc.text('EngiFlow', pageWidth / 2, 195, { align: 'center' });
+
+
+    doc.save(`recibo_${client.nome_completo.replace(/\s/g, '_')}_${service.id}.pdf`);
+  };
+
 
   if (isLoading) {
     return (
@@ -275,7 +365,7 @@ export default function DashboardPage() {
                   <TableHead>Valor Total</TableHead>
                   <TableHead>Saldo Devedor</TableHead>
                   <TableHead>Status</TableHead>
-                   <TableHead>Ações</TableHead>
+                   <TableHead><span className="sr-only">Ações</span></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -294,14 +384,49 @@ export default function DashboardPage() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEditService(service.id)}
-                      >
-                        <ExternalLink className="mr-2 h-3 w-3" />
-                        Ver/Editar
-                      </Button>
+                       <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button aria-haspopup="true" size="icon" variant="ghost">
+                                <MoreHorizontal className="h-4 w-4" />
+                                <span className="sr-only">Toggle menu</span>
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                                <DropdownMenuItem onClick={() => handleEditService(service.id)}>
+                                  Editar
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handlePaymentClick(service.id)} disabled={service.forma_pagamento !== 'a_prazo' || service.status !== 'em andamento'}>
+                                  <HandCoins className="mr-2 h-4 w-4" />
+                                  Lançar Pagamento
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => generateReceipt(service)}>
+                                  <FileText className="mr-2 h-4 w-4" />
+                                  Gerar Recibo
+                                </DropdownMenuItem>
+                                <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600">
+                                        Excluir
+                                    </DropdownMenuItem>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                    <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        Essa ação não pode ser desfeita. Isso excluirá permanentemente o serviço.
+                                    </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => handleDeleteService(service.id)} variant="destructive">
+                                        Excluir
+                                    </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                                </AlertDialog>
+                            </DropdownMenuContent>
+                            </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 )) : (
@@ -371,5 +496,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-    
