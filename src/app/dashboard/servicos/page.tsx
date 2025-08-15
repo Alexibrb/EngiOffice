@@ -52,7 +52,7 @@ import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
-import { format, addDays } from 'date-fns';
+import { format, endOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -392,9 +392,9 @@ export default function ServicosPage() {
     .filter(service => {
         if (!dateRange?.from) return true;
         const fromDate = dateRange.from;
-        const toDate = dateRange.to ? dateRange.to : fromDate;
+        const toDate = dateRange.to ? endOfDay(dateRange.to) : fromDate;
         const serviceDate = service.data_cadastro;
-        return serviceDate >= fromDate && serviceDate <= addDays(toDate, 1);
+        return serviceDate >= fromDate && serviceDate <= toDate;
     });
 
     const filteredTotal = filteredServices.reduce((acc, curr) => acc + curr.valor, 0);
@@ -756,3 +756,5 @@ export default function ServicosPage() {
     </div>
   );
 }
+
+    

@@ -23,7 +23,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
-import { format, addDays } from 'date-fns';
+import { format, endOfDay } from 'date-fns';
 import type { Client, Service } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import jsPDF from 'jspdf';
@@ -111,9 +111,9 @@ export default function ContasAReceberPage() {
         .filter(service => {
             if (!dateRange?.from) return true;
             const fromDate = dateRange.from;
-            const toDate = dateRange.to ? dateRange.to : fromDate;
+            const toDate = dateRange.to ? endOfDay(dateRange.to) : fromDate;
             const serviceDate = service.data_cadastro;
-            return serviceDate >= fromDate && serviceDate <= addDays(toDate, 1);
+            return serviceDate >= fromDate && serviceDate <= toDate;
         });
 
     const totalReceivablePending = services
@@ -308,3 +308,5 @@ function ReceivableTableComponent({ services, getClientName, total }: {
         </div>
     );
 }
+
+    
