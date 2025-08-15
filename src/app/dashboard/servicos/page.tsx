@@ -76,7 +76,6 @@ const serviceTypeSchema = z.object({
   descricao: z.string().min(1, { message: 'Descrição é obrigatória.' }),
 });
 
-
 const paymentSchema = z.object({
   valor_pago: z.coerce.number().min(0.01, "O valor deve ser maior que zero.")
 });
@@ -514,7 +513,7 @@ export default function ServicosPage() {
     const ongoingServicesCount = services.filter((s) => s.status === 'em andamento').length;
     const completedServicesCount = services.filter((s) => s.status === 'concluído').length;
     const totalReceivablePaid = services.reduce((acc, curr) => curr.status === 'concluído' ? acc + (curr.valor_total || 0) : acc, 0);
-    const totalReceivablePending = services.filter((s) => s.status === 'em andamento').reduce((acc, curr) => acc + (curr.valor_total || 0), 0);
+    const totalReceivablePending = services.reduce((acc, curr) => acc + (curr.saldo_devedor || 0), 0);
 
   return (
     <div className="flex flex-col gap-8">
@@ -570,7 +569,7 @@ export default function ServicosPage() {
               <CardContent>
                   <div className="text-2xl font-bold text-green-500">R$ {totalReceivablePending.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
                   <p className="text-xs text-muted-foreground">
-                      Soma de todos os serviços "em andamento"
+                      Soma de todos os saldos devedores
                   </p>
               </CardContent>
           </Card>
