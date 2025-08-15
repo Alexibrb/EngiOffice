@@ -49,7 +49,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { cn } from '@/lib/utils';
+import { cn, formatCurrency } from '@/lib/utils';
 import { format, endOfDay, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { Account, Supplier, Employee, Payee } from '@/lib/types';
@@ -98,6 +98,9 @@ export default function ContasAPagarPage() {
 
     const form = useForm<z.infer<typeof accountSchema>>({
         resolver: zodResolver(accountSchema),
+        defaultValues: {
+            valor: 0,
+        }
     });
     
     const supplierForm = useForm<z.infer<typeof supplierSchema>>({
@@ -257,7 +260,7 @@ export default function ContasAPagarPage() {
         setEditingAccount(account);
         form.reset({
             ...account,
-            valor: account.valor, // Zod handles coercion, keep as number for form
+            valor: account.valor, 
             vencimento: account.vencimento instanceof Date ? account.vencimento : new Date(account.vencimento),
         });
         setIsDialogOpen(true);
@@ -603,15 +606,10 @@ function PayableFormComponent({ form, payees, onAddSupplier, onAddProduct, editi
                                 const payee = payees.find(p => p.id === value);
                                 if (payee) {
                                     form.setValue('tipo_referencia', payee.tipo);
-                                     if (!editingAccount) {
-                                        if (payee.tipo === 'funcionario') {
-                                            form.setValue('descricao', 'Pagamento de Salário');
-                                            form.setValue('valor', (payee as Employee).salario || 0, { shouldValidate: true });
-                                        } else {
-                                            // Reset description and value for a new supplier selection
-                                            form.setValue('descricao', '');
-                                            form.setValue('valor', 0, { shouldValidate: true });
-                                        }
+                                    form.setValue('descricao', '');
+                                    if (payee.tipo === 'funcionario') {
+                                        form.setValue('descricao', 'Pagamento de Salário');
+                                        form.setValue('valor', (payee as Employee).salario || 0, { shouldValidate: true });
                                     }
                                 }
                             }} value={field.value} defaultValue={field.value}>
@@ -679,10 +677,15 @@ function PayableFormComponent({ form, payees, onAddSupplier, onAddProduct, editi
                         <FormLabel>Valor (R$)</FormLabel>
                         <FormControl>
                              <Input 
-                                type="number"
-                                step="0.01"
+                                type="text"
                                 disabled={form.getValues('tipo_referencia') === 'funcionario' && !editingAccount}
                                 {...field}
+                                value={typeof field.value === 'number' ? formatCurrency(field.value.toString()) : field.value}
+                                onChange={(e) => {
+                                    const formattedValue = formatCurrency(e.target.value);
+                                    const numericValue = parseFloat(formattedValue.replace(/\./g, '').replace(',', '.'));
+                                    field.onChange(numericValue); 
+                                }}
                             />
                         </FormControl>
                         <FormMessage />
@@ -892,5 +895,7 @@ function PayableTableComponent({ accounts, getPayeeName, onEdit, onDelete, total
 
 
 
+
+    
 
     

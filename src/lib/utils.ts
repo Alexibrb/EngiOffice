@@ -53,3 +53,25 @@ export function formatCEP(value: string): string {
     .replace(/(\d{5})(\d)/, '$1-$2')
     .slice(0, 9);
 }
+
+export function formatCurrency(value: string): string {
+  if (!value) return '';
+  let numericValue = value.replace(/\D/g, '');
+
+  if (numericValue === '') return '';
+
+  // Converte para número e divide por 100 para ter o valor decimal
+  const numberValue = parseFloat(numericValue) / 100;
+
+  // Formata como BRL
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+    minimumFractionDigits: 2,
+  })
+    .format(numberValue)
+    .replace('R$', '')
+    .trim();
+}
+
+    
