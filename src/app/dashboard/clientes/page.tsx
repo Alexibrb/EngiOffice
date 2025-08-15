@@ -22,7 +22,6 @@ import {
 } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { mockClients } from '@/lib/data';
 import type { Client, Address } from '@/lib/types';
 import { PlusCircle, Search } from 'lucide-react';
 import {
@@ -36,6 +35,7 @@ import { MoreHorizontal } from "lucide-react"
 import { collection, addDoc, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from "@/hooks/use-toast"
+import { Separator } from '@/components/ui/separator';
 
 
 export default function ClientesPage() {
@@ -74,10 +74,18 @@ export default function ClientesPage() {
         street: resStreet,
         number: resNumber,
         neighborhood: resNeighborhood,
+        city: '',
+        state: '',
+        zip: '',
       };
 
       const workAddress: Partial<Address> = {
         street: workStreet,
+        number: '',
+        neighborhood: '',
+        city: '',
+        state: '',
+        zip: '',
       };
 
       await addDoc(collection(db, 'clientes'), {
@@ -154,53 +162,71 @@ export default function ClientesPage() {
               Adicionar Cliente
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+          <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
            <form onSubmit={handleSaveClient}>
             <DialogHeader>
               <DialogTitle className="font-headline">Adicionar Novo Cliente</DialogTitle>
               <DialogDescription>
-                Preencha os dados do novo cliente.
+                Preencha os dados do novo cliente. Campos marcados com * são obrigatórios.
               </DialogDescription>
             </DialogHeader>
-            <div className="grid gap-4 py-4">
-              {/* Form fields */}
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="name" className="text-right">
-                  Nome
-                </Label>
-                <Input id="name" className="col-span-3" value={nomeCompleto} onChange={(e) => setNomeCompleto(e.target.value)} required />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="cpfCnpj" className="text-right">
-                  CPF/CNPJ
-                </Label>
-                <Input id="cpfCnpj" className="col-span-3" value={cpfCnpj} onChange={(e) => setCpfCnpj(e.target.value)} />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="phone" className="text-right">
-                  Telefone
-                </Label>
-                <Input id="phone" className="col-span-3" value={telefone} onChange={(e) => setTelefone(e.target.value)} />
-              </div>
-              <h3 className="col-span-4 font-semibold mt-4">Endereço Residencial</h3>
-              <div className="grid grid-cols-4 items-center gap-4">
-                 <Label htmlFor="res-street" className="text-right">Rua</Label>
-                 <Input id="res-street" className="col-span-3" value={resStreet} onChange={(e) => setResStreet(e.target.value)} />
-              </div>
-               <div className="grid grid-cols-4 items-center gap-4">
-                 <Label htmlFor="res-number" className="text-right">Número</Label>
-                 <Input id="res-number" className="col-span-1" value={resNumber} onChange={(e) => setResNumber(e.target.value)} />
-                  <Label htmlFor="res-neighborhood" className="text-right">Bairro</Label>
-                 <Input id="res-neighborhood" className="col-span-2" value={resNeighborhood} onChange={(e) => setResNeighborhood(e.target.value)} />
-              </div>
-              <h3 className="col-span-4 font-semibold mt-4">Endereço da Obra</h3>
-               <div className="grid grid-cols-4 items-center gap-4">
-                 <Label htmlFor="work-street" className="text-right">Rua</Label>
-                 <Input id="work-street" className="col-span-3" value={workStreet} onChange={(e) => setWorkStreet(e.target.value)} />
-              </div>
+            
+            <div className="py-4 flex flex-col gap-6">
+                <div>
+                    <h3 className="text-lg font-medium mb-4">Dados Pessoais</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="grid gap-2">
+                            <Label htmlFor="name">Nome Completo *</Label>
+                            <Input id="name" value={nomeCompleto} onChange={(e) => setNomeCompleto(e.target.value)} required />
+                        </div>
+                         <div className="grid gap-2">
+                            <Label htmlFor="cpfCnpj">CPF/CNPJ</Label>
+                            <Input id="cpfCnpj" value={cpfCnpj} onChange={(e) => setCpfCnpj(e.target.value)} />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="phone">Telefone</Label>
+                            <Input id="phone" type="tel" value={telefone} onChange={(e) => setTelefone(e.target.value)} />
+                        </div>
+                    </div>
+                </div>
+
+                <Separator />
+
+                <div>
+                    <h3 className="text-lg font-medium mb-4">Endereço Residencial</h3>
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="grid gap-2 md:col-span-2">
+                            <Label htmlFor="res-street">Rua</Label>
+                            <Input id="res-street" value={resStreet} onChange={(e) => setResStreet(e.target.value)} />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="res-number">Número</Label>
+                            <Input id="res-number" value={resNumber} onChange={(e) => setResNumber(e.target.value)} />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="res-neighborhood">Bairro</Label>
+                            <Input id="res-neighborhood" value={resNeighborhood} onChange={(e) => setResNeighborhood(e.target.value)} />
+                        </div>
+                    </div>
+                </div>
+
+                <Separator />
+
+                <div>
+                    <h3 className="text-lg font-medium mb-4">Endereço da Obra</h3>
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="grid gap-2 md:col-span-2">
+                            <Label htmlFor="work-street">Rua</Label>
+                            <Input id="work-street" value={workStreet} onChange={(e) => setWorkStreet(e.target.value)} />
+                        </div>
+                    </div>
+                </div>
+
             </div>
+
             <DialogFooter>
-              <Button type="submit" variant="accent">Salvar Cliente</Button>
+               <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
+               <Button type="submit" variant="accent">Salvar Cliente</Button>
             </DialogFooter>
             </form>
           </DialogContent>
