@@ -60,8 +60,15 @@ export function formatCurrency(value: string): string {
 
   if (numericValue === '') return '';
 
-  // Pad with leading zeros if necessary
-  numericValue = numericValue.padStart(3, '0');
+  // Remove leading zeros
+  numericValue = numericValue.replace(/^0+/, '');
+
+  if (numericValue === '') return '0,00';
+  
+  // Pad with leading zeros if necessary to have at least 3 digits
+  if(numericValue.length < 3) {
+    numericValue = numericValue.padStart(3, '0');
+  }
 
   // Insert comma for decimals
   const integerPart = numericValue.slice(0, -2);
@@ -74,10 +81,5 @@ export function formatCurrency(value: string): string {
       formattedIntegerPart = integerPart;
   }
   
-  if(formattedIntegerPart === '0' || formattedIntegerPart === '00') {
-    formattedIntegerPart = '0';
-  }
-
-
   return `${formattedIntegerPart},${decimalPart}`;
 }
