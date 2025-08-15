@@ -27,6 +27,10 @@ import { db } from '@/lib/firebase';
 import { useToast } from "@/hooks/use-toast"
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
+
+type ReportType = 'clients' | 'suppliers' | 'services' | 'accountsPayable';
 
 
 export default function RelatoriosPage() {
@@ -35,6 +39,7 @@ export default function RelatoriosPage() {
   const [services, setServices] = useState<Service[]>([]);
   const [accountsPayable, setAccountsPayable] = useState<Account[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedReport, setSelectedReport] = useState<ReportType>('clients');
   const { toast } = useToast();
 
   const fetchData = async () => {
@@ -91,7 +96,7 @@ export default function RelatoriosPage() {
   };
 
 
-  const generatePdf = (type: 'clients' | 'suppliers' | 'services' | 'accountsPayable') => {
+  const generatePdf = (type: ReportType) => {
     let data;
     let head: string[][];
     let body: any[][];
@@ -178,6 +183,109 @@ export default function RelatoriosPage() {
     });
     doc.save(fileName);
   };
+  
+  const renderReportCard = () => {
+    switch (selectedReport) {
+      case 'clients':
+        return (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Relatório de Clientes</CardTitle>
+                <CardDescription>Visualize e exporte a lista de todos os clientes cadastrados.</CardDescription>
+              </div>
+              <Button onClick={() => generatePdf('clients')} variant="accent"><Download className="mr-2 h-4 w-4" />Exportar PDF</Button>
+            </CardHeader>
+            <CardContent>
+              <div className="border rounded-lg">
+                <Table>
+                  <TableHeader><TableRow><TableHead>Nome</TableHead><TableHead>CPF/CNPJ</TableHead><TableHead>Telefone</TableHead><TableHead>Cidade</TableHead></TableRow></TableHeader>
+                  <TableBody>
+                    {clients.length > 0 ? clients.slice(0, 10).map((client) => (
+                      <TableRow key={client.codigo_cliente}><TableCell className="font-medium">{client.nome_completo}</TableCell><TableCell>{client.cpf_cnpj || '-'}</TableCell><TableCell>{client.telefone || '-'}</TableCell><TableCell>{client.endereco_residencial?.city || '-'}</TableCell></TableRow>
+                    )) : (<TableRow><TableCell colSpan={4} className="h-24 text-center">Nenhum cliente encontrado.</TableCell></TableRow>)}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      case 'suppliers':
+        return (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Relatório de Fornecedores</CardTitle>
+                <CardDescription>Exporte a lista completa de fornecedores.</CardDescription>
+              </div>
+              <Button onClick={() => generatePdf('suppliers')} variant="accent"><Download className="mr-2 h-4 w-4" />Exportar PDF</Button>
+            </CardHeader>
+            <CardContent>
+              <div className="border rounded-lg">
+                <Table>
+                  <TableHeader><TableRow><TableHead>Razão Social</TableHead><TableHead>CNPJ</TableHead><TableHead>Telefone</TableHead><TableHead>Email</TableHead></TableRow></TableHeader>
+                  <TableBody>
+                    {suppliers.length > 0 ? suppliers.slice(0, 10).map((s) => (
+                      <TableRow key={s.id}><TableCell className="font-medium">{s.razao_social}</TableCell><TableCell>{s.cnpj || '-'}</TableCell><TableCell>{s.telefone || '-'}</TableCell><TableCell>{s.email || '-'}</TableCell></TableRow>
+                    )) : (<TableRow><TableCell colSpan={4} className="h-24 text-center">Nenhum fornecedor encontrado.</TableCell></TableRow>)}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      case 'services':
+        return (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Relatório de Serviços</CardTitle>
+                <CardDescription>Exporte a lista de todos os serviços prestados.</CardDescription>
+              </div>
+              <Button onClick={() => generatePdf('services')} variant="accent"><Download className="mr-2 h-4 w-4" />Exportar PDF</Button>
+            </CardHeader>
+            <CardContent>
+              <div className="border rounded-lg">
+                <Table>
+                  <TableHeader><TableRow><TableHead>Descrição</TableHead><TableHead>Cliente</TableHead><TableHead>Prazo</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
+                  <TableBody>
+                    {services.length > 0 ? services.slice(0, 10).map((s) => (
+                      <TableRow key={s.id}><TableCell className="font-medium">{s.descricao}</TableCell><TableCell>{getClientName(s.cliente_id)}</TableCell><TableCell>{s.prazo ? format(s.prazo, "dd/MM/yyyy") : '-'}</TableCell><TableCell><Badge variant={s.status === 'concluído' ? 'secondary' : s.status === 'cancelado' ? 'destructive' : 'default'}>{s.status}</Badge></TableCell></TableRow>
+                    )) : (<TableRow><TableCell colSpan={4} className="h-24 text-center">Nenhum serviço encontrado.</TableCell></TableRow>)}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      case 'accountsPayable':
+        return (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Relatório de Contas a Pagar</CardTitle>
+                <CardDescription>Exporte o histórico de contas a pagar.</CardDescription>
+              </div>
+              <Button onClick={() => generatePdf('accountsPayable')} variant="accent"><Download className="mr-2 h-4 w-4" />Exportar PDF</Button>
+            </CardHeader>
+            <CardContent>
+              <div className="border rounded-lg">
+                <Table>
+                  <TableHeader><TableRow><TableHead>Descrição</TableHead><TableHead>Fornecedor</TableHead><TableHead>Vencimento</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
+                  <TableBody>
+                    {accountsPayable.length > 0 ? accountsPayable.slice(0, 10).map((acc) => (
+                      <TableRow key={acc.id}><TableCell className="font-medium">{acc.descricao}</TableCell><TableCell>{getSupplierName(acc.referencia_id)}</TableCell><TableCell>{acc.vencimento ? format(acc.vencimento, "dd/MM/yyyy") : '-'}</TableCell><TableCell><Badge variant={acc.status === 'pago' ? 'secondary' : 'destructive'}>{acc.status}</Badge></TableCell></TableRow>
+                    )) : (<TableRow><TableCell colSpan={4} className="h-24 text-center">Nenhuma conta a pagar encontrada.</TableCell></TableRow>)}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      default:
+        return null;
+    }
+  }
 
 
   if (isLoading) {
@@ -193,103 +301,27 @@ export default function RelatoriosPage() {
         </p>
       </div>
 
-      {/* Relatório de Clientes */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle>Relatório de Clientes</CardTitle>
-            <CardDescription>
-              Visualize e exporte a lista de todos os clientes cadastrados.
-            </CardDescription>
-          </div>
-          <Button onClick={() => generatePdf('clients')} variant="accent">
-            <Download className="mr-2 h-4 w-4" />
-            Exportar PDF
-          </Button>
-        </CardHeader>
-        <CardContent>
-          <div className="border rounded-lg">
-            <Table>
-              <TableHeader><TableRow><TableHead>Nome</TableHead><TableHead>CPF/CNPJ</TableHead><TableHead>Telefone</TableHead><TableHead>Cidade</TableHead></TableRow></TableHeader>
-              <TableBody>
-                {clients.length > 0 ? clients.slice(0, 5).map((client) => (
-                  <TableRow key={client.codigo_cliente}><TableCell className="font-medium">{client.nome_completo}</TableCell><TableCell>{client.cpf_cnpj || '-'}</TableCell><TableCell>{client.telefone || '-'}</TableCell><TableCell>{client.endereco_residencial?.city || '-'}</TableCell></TableRow>
-                )) : (<TableRow><TableCell colSpan={4} className="h-24 text-center">Nenhum cliente encontrado.</TableCell></TableRow>)}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
-      
-      {/* Relatório de Fornecedores */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-                <CardTitle>Relatório de Fornecedores</CardTitle>
-                <CardDescription>Exporte a lista completa de fornecedores.</CardDescription>
-            </div>
-            <Button onClick={() => generatePdf('suppliers')} variant="accent"><Download className="mr-2 h-4 w-4" />Exportar PDF</Button>
-        </CardHeader>
-        <CardContent>
-            <div className="border rounded-lg">
-                <Table>
-                    <TableHeader><TableRow><TableHead>Razão Social</TableHead><TableHead>CNPJ</TableHead><TableHead>Telefone</TableHead><TableHead>Email</TableHead></TableRow></TableHeader>
-                    <TableBody>
-                        {suppliers.length > 0 ? suppliers.slice(0, 5).map((s) => (
-                            <TableRow key={s.id}><TableCell className="font-medium">{s.razao_social}</TableCell><TableCell>{s.cnpj || '-'}</TableCell><TableCell>{s.telefone || '-'}</TableCell><TableCell>{s.email || '-'}</TableCell></TableRow>
-                        )) : (<TableRow><TableCell colSpan={4} className="h-24 text-center">Nenhum fornecedor encontrado.</TableCell></TableRow>)}
-                    </TableBody>
-                </Table>
-            </div>
-        </CardContent>
-      </Card>
+      <div className="w-full max-w-sm">
+        <Label htmlFor="report-type">Selecione o tipo de relatório</Label>
+        <Select value={selectedReport} onValueChange={(value) => setSelectedReport(value as ReportType)}>
+            <SelectTrigger id="report-type">
+                <SelectValue placeholder="Selecione um relatório" />
+            </SelectTrigger>
+            <SelectContent>
+                <SelectItem value="clients">Clientes</SelectItem>
+                <SelectItem value="suppliers">Fornecedores</SelectItem>
+                <SelectItem value="services">Serviços</SelectItem>
+                <SelectItem value="accountsPayable">Contas a Pagar</SelectItem>
+            </SelectContent>
+        </Select>
+      </div>
 
-      {/* Relatório de Serviços */}
-       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-                <CardTitle>Relatório de Serviços</CardTitle>
-                <CardDescription>Exporte a lista de todos os serviços prestados.</CardDescription>
-            </div>
-            <Button onClick={() => generatePdf('services')} variant="accent"><Download className="mr-2 h-4 w-4" />Exportar PDF</Button>
-        </CardHeader>
-        <CardContent>
-            <div className="border rounded-lg">
-                <Table>
-                    <TableHeader><TableRow><TableHead>Descrição</TableHead><TableHead>Cliente</TableHead><TableHead>Prazo</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
-                    <TableBody>
-                        {services.length > 0 ? services.slice(0, 5).map((s) => (
-                            <TableRow key={s.id}><TableCell className="font-medium">{s.descricao}</TableCell><TableCell>{getClientName(s.cliente_id)}</TableCell><TableCell>{s.prazo ? format(s.prazo, "dd/MM/yyyy") : '-'}</TableCell><TableCell><Badge variant={s.status === 'concluído' ? 'secondary' : s.status === 'cancelado' ? 'destructive' : 'default'}>{s.status}</Badge></TableCell></TableRow>
-                        )) : (<TableRow><TableCell colSpan={4} className="h-24 text-center">Nenhum serviço encontrado.</TableCell></TableRow>)}
-                    </TableBody>
-                </Table>
-            </div>
-        </CardContent>
-      </Card>
-
-      {/* Relatório de Contas a Pagar */}
-       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-                <CardTitle>Relatório de Contas a Pagar</CardTitle>
-                <CardDescription>Exporte o histórico de contas a pagar.</CardDescription>
-            </div>
-            <Button onClick={() => generatePdf('accountsPayable')} variant="accent"><Download className="mr-2 h-4 w-4" />Exportar PDF</Button>
-        </CardHeader>
-        <CardContent>
-            <div className="border rounded-lg">
-                <Table>
-                    <TableHeader><TableRow><TableHead>Descrição</TableHead><TableHead>Fornecedor</TableHead><TableHead>Vencimento</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
-                    <TableBody>
-                        {accountsPayable.length > 0 ? accountsPayable.slice(0, 5).map((acc) => (
-                            <TableRow key={acc.id}><TableCell className="font-medium">{acc.descricao}</TableCell><TableCell>{getSupplierName(acc.referencia_id)}</TableCell><TableCell>{acc.vencimento ? format(acc.vencimento, "dd/MM/yyyy") : '-'}</TableCell><TableCell><Badge variant={acc.status === 'pago' ? 'secondary' : 'destructive'}>{acc.status}</Badge></TableCell></TableRow>
-                        )) : (<TableRow><TableCell colSpan={4} className="h-24 text-center">Nenhuma conta a pagar encontrada.</TableCell></TableRow>)}
-                    </TableBody>
-                </Table>
-            </div>
-        </CardContent>
-      </Card>
+      <div className="mt-4">
+        {renderReportCard()}
+      </div>
 
     </div>
   );
 }
+
+    
