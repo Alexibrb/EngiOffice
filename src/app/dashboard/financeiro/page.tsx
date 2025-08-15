@@ -744,7 +744,6 @@ function PayableFormComponent({ form, payees, onAddSupplier, onAddProduct }: {
                 form.setValue('descricao', 'Pagamento de Salário');
                 form.setValue('valor', (selectedPayee as Employee).salario || 0);
             } else {
-                 form.setValue('descricao', '');
                  form.setValue('valor', 0);
             }
         } else {
@@ -763,7 +762,10 @@ function PayableFormComponent({ form, payees, onAddSupplier, onAddProduct }: {
                     <FormItem>
                         <FormLabel>Favorecido *</FormLabel>
                         <div className="flex items-center gap-2">
-                            <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                            <Select onValueChange={(value) => {
+                                field.onChange(value);
+                                form.setValue('descricao', ''); // Limpa a descrição ao trocar o favorecido
+                            }} value={field.value} defaultValue={field.value}>
                                 <FormControl>
                                     <SelectTrigger>
                                         <SelectValue placeholder="Selecione o Favorecido" />
@@ -1081,3 +1083,6 @@ function ReceivableTableComponent({ services, getClientName }: {
 
     
 
+
+
+    
