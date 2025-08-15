@@ -28,7 +28,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { Service, Client, ServiceType } from '@/lib/types';
-import { PlusCircle, Search, MoreHorizontal, Loader2, Calendar as CalendarIcon, Wrench, Link as LinkIcon, ExternalLink, ClipboardCopy, XCircle, FileText } from 'lucide-react';
+import { PlusCircle, Search, MoreHorizontal, Loader2, Calendar as CalendarIcon, Wrench, Link as LinkIcon, ExternalLink, ClipboardCopy, XCircle, FileText, CheckCircle, ArrowUp, TrendingUp } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -55,7 +55,7 @@ import { cn } from '@/lib/utils';
 import { format, endOfDay, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { DateRange } from 'react-day-picker';
 import jsPDF from 'jspdf';
 
@@ -410,14 +410,14 @@ export default function ServicosPage() {
 
     // Corpo do Recibo
     doc.setFontSize(12);
-    const obraAddress = client.endereco_obra ? `${client.endereco_obra.street}, ${client.endereco_obra.number} - ${client.endereco_obra.neighborhood}, ${client.endereco_obra.city} - ${client.endereco_obra.state}` : 'Endereço da obra não informado';
-    const receiptText = `Recebemos de ${client.nome_completo}, CPF/CNPJ nº ${client.cpf_cnpj}, a importância de R$ ${service.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} referente ao pagamento pelo serviço de "${service.descricao}".\n\nEndereço da Obra: ${obraAddress}`;
+    const obraAddress = (client.endereco_obra && client.endereco_obra.street) ? `${client.endereco_obra.street}, ${client.endereco_obra.number} - ${client.endereco_obra.neighborhood}, ${client.endereco_obra.city} - ${client.endereco_obra.state}` : 'Endereço da obra não informado';
+    const receiptText = `Recebemos de ${client.nome_completo}, CPF/CNPJ nº ${client.cpf_cnpj || 'Não informado'}, a importância de R$ ${service.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} referente ao pagamento pelo serviço de "${service.descricao}".\n\nEndereço da Obra: ${obraAddress}`;
     const splitText = doc.splitTextToSize(receiptText, pageWidth - 40);
     doc.text(splitText, 20, 90);
 
     // Data e Assinatura
     const today = format(new Date(), "d 'de' MMMM 'de' yyyy", { locale: ptBR });
-    doc.text(`${client.endereco_residencial.city}, ${today}.`, 20, 160);
+    doc.text(`${(client.endereco_residencial && client.endereco_residencial.city) ? client.endereco_residencial.city : 'Localidade não informada'}, ${today}.`, 20, 160);
     
     doc.line(pageWidth / 2 - 40, 190, pageWidth / 2 + 40, 190);
     doc.text('EngiFlow', pageWidth / 2, 195, { align: 'center' });
@@ -453,6 +453,11 @@ export default function ServicosPage() {
 
     const filteredTotal = filteredServices.reduce((acc, curr) => acc + curr.valor, 0);
 
+    const ongoingServicesCount = services.filter((s) => s.status === 'em andamento').length;
+    const completedServicesCount = services.filter((s) => s.status === 'concluído').length;
+    const totalReceivablePaid = services.reduce((acc, curr) => curr.status === 'concluído' ? acc + curr.valor : acc, 0);
+    const totalReceivablePending = services.filter((s) => s.status === 'em andamento').reduce((acc, curr) => acc + curr.valor, 0);
+
   return (
     <div className="flex flex-col gap-8">
       <div>
@@ -462,18 +467,54 @@ export default function ServicosPage() {
         </p>
       </div>
 
-       <div className="grid gap-4 md:grid-cols-3">
+       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total de Serviços</CardTitle>
+              <CardTitle className="text-sm font-medium">Serviços em Andamento</CardTitle>
               <Wrench className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{services.length}</div>
+              <div className="text-2xl font-bold">{ongoingServicesCount}</div>
               <p className="text-xs text-muted-foreground">
-                Total de serviços cadastrados
+                Total de projetos em execução
               </p>
             </CardContent>
+          </Card>
+           <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Serviços Concluídos</CardTitle>
+                <CheckCircle className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+                <div className="text-2xl font-bold">{completedServicesCount}</div>
+                  <p className="text-xs text-muted-foreground">
+                    Total de serviços finalizados
+                </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Receita de Serviços Concluídos</CardTitle>
+                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+                <div className="text-2xl font-bold text-green-500">R$ {totalReceivablePaid.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                  <p className="text-xs text-muted-foreground">
+                    Soma do valor de todos os serviços concluídos
+                </p>
+            </CardContent>
+          </Card>
+           <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Contas a Receber (Pendente)</CardTitle>
+                  <ArrowUp className="h-4 w-4 text-green-500" />
+              </CardHeader>
+              <CardContent>
+                  <div className="text-2xl font-bold text-green-500">R$ {totalReceivablePending.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                  <p className="text-xs text-muted-foreground">
+                      Soma de todos os serviços "em andamento"
+                  </p>
+              </CardContent>
           </Card>
       </div>
       
@@ -664,7 +705,7 @@ export default function ServicosPage() {
                 </DialogContent>
                 </Dialog>
             </div>
-            <div className="flex items-center gap-4 p-4 bg-muted rounded-lg">
+            <div className="flex items-center gap-4 p-4 mt-4 bg-muted rounded-lg">
                 <div className="flex items-center gap-2">
                     <Popover>
                         <PopoverTrigger asChild>
