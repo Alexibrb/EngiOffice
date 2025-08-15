@@ -332,7 +332,9 @@ export default function FinanceiroPage() {
         .filter((a) => a.status === 'pendente')
         .reduce((acc, curr) => acc + curr.valor, 0);
 
-    const totalPayable = accountsPayable.reduce((acc, curr) => acc + curr.valor, 0);
+    const totalPayablePaid = accountsPayable
+        .filter((a) => a.status === 'pago')
+        .reduce((acc, curr) => acc + curr.valor, 0);
 
     const totalReceivablePending = services
         .filter((s) => s.status === 'em andamento')
@@ -416,13 +418,13 @@ export default function FinanceiroPage() {
                 </Card>
                  <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Contas a Pagar (Total)</CardTitle>
+                        <CardTitle className="text-sm font-medium">Contas Pagas</CardTitle>
                         <CircleDollarSign className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold text-red-500">R$ {totalPayable.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                        <div className="text-2xl font-bold text-red-500">R$ {totalPayablePaid.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
                          <p className="text-xs text-muted-foreground">
-                            Soma de todas as contas
+                            Soma de todas as contas pagas
                         </p>
                     </CardContent>
                 </Card>
