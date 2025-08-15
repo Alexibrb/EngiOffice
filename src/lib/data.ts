@@ -1,13 +1,14 @@
+
 import type { Client, Service, Account } from './types';
 
 export const mockClients: Client[] = [
   {
-    id: 'CLI001',
-    name: 'Construtora Alfa',
+    codigo_cliente: 'CLI001',
+    nome_completo: 'Construtora Alfa',
     rg: '12.345.678-9',
-    cpfCnpj: '12.345.678/0001-90',
-    phone: '(11) 98765-4321',
-    address: {
+    cpf_cnpj: '12.345.678/0001-90',
+    telefone: '(11) 98765-4321',
+    endereco_residencial: {
       street: 'Av. Paulista',
       number: '1000',
       neighborhood: 'Bela Vista',
@@ -15,7 +16,7 @@ export const mockClients: Client[] = [
       state: 'SP',
       zip: '01310-100',
     },
-    workAddress: {
+    endereco_obra: {
       street: 'Rua da Consolação',
       number: '2000',
       neighborhood: 'Consolação',
@@ -23,20 +24,20 @@ export const mockClients: Client[] = [
       state: 'SP',
       zip: '01302-001',
     },
-    geo: {
+    coordenadas: {
       lat: -23.5613,
       lng: -46.6565,
     },
-    art: 'ART123456',
-    serviceHistory: ['SRV001', 'SRV003'],
+    numero_art: 'ART123456',
+    historico_servicos: ['SRV001', 'SRV003'],
   },
   {
-    id: 'CLI002',
-    name: 'João da Silva',
+    codigo_cliente: 'CLI002',
+    nome_completo: 'João da Silva',
     rg: '98.765.432-1',
-    cpfCnpj: '123.456.789-00',
-    phone: '(21) 91234-5678',
-    address: {
+    cpf_cnpj: '123.456.789-00',
+    telefone: '(21) 91234-5678',
+    endereco_residencial: {
       street: 'Av. Copacabana',
       number: '500',
       neighborhood: 'Copacabana',
@@ -44,7 +45,7 @@ export const mockClients: Client[] = [
       state: 'RJ',
       zip: '22020-001',
     },
-    workAddress: {
+    endereco_obra: {
       street: 'Av. Copacabana',
       number: '500',
       neighborhood: 'Copacabana',
@@ -52,58 +53,58 @@ export const mockClients: Client[] = [
       state: 'RJ',
       zip: '22020-001',
     },
-    geo: {
+    coordenadas: {
       lat: -22.9697,
       lng: -43.1868,
     },
-    art: 'ART654321',
-    serviceHistory: ['SRV002'],
+    numero_art: 'ART654321',
+    historico_servicos: ['SRV002'],
   },
 ];
 
 export const mockServices: Service[] = [
   {
     id: 'SRV001',
-    description: 'Projeto Estrutural Edifício Comercial',
-    clientId: 'CLI001',
-    deadline: '2024-12-31',
-    value: 50000,
+    descricao: 'Projeto Estrutural Edifício Comercial',
+    cliente_id: 'CLI001',
+    prazo: '2024-12-31',
+    valor: 50000,
     status: 'em andamento',
   },
   {
     id: 'SRV002',
-    description: 'Laudo Técnico Residencial',
-    clientId: 'CLI002',
-    deadline: '2024-08-30',
-    value: 2500,
+    descricao: 'Laudo Técnico Residencial',
+    cliente_id: 'CLI002',
+    prazo: '2024-08-30',
+    valor: 2500,
     status: 'concluído',
   },
   {
     id: 'SRV003',
-    description: 'Consultoria de Fundações',
-    clientId: 'CLI001',
-    deadline: '2024-09-15',
-    value: 15000,
+    descricao: 'Consultoria de Fundações',
+    cliente_id: 'CLI001',
+    prazo: '2024-09-15',
+    valor: 15000,
     status: 'em andamento',
   },
   {
     id: 'SRV004',
-    description: 'Acompanhamento de Obra',
-    clientId: 'CLI002',
-    deadline: '2025-06-30',
-    value: 30000,
+    descricao: 'Acompanhamento de Obra',
+    cliente_id: 'CLI002',
+    prazo: '2025-06-30',
+    valor: 30000,
     status: 'em andamento',
   },
 ];
 
 export const mockAccountsPayable: Account[] = [
-    { id: 'PAY001', description: 'Aluguel do escritório', party: 'Imobiliária Central', value: 3500, date: '2024-08-05', status: 'pago'},
-    { id: 'PAY002', description: 'Software de engenharia (Anual)', party: 'AutoDesk', value: 8000, date: '2024-08-10', status: 'pendente'},
-    { id: 'PAY003', description: 'Fornecedor de material', party: 'Aço Forte Ltda', value: 12500, date: '2024-08-20', status: 'pendente'},
+    { id: 'PAY001', descricao: 'Aluguel do escritório', referencia_id: 'Imobiliária Central', valor: 3500, vencimento: '2024-08-05', status: 'pago'},
+    { id: 'PAY002', descricao: 'Software de engenharia (Anual)', referencia_id: 'AutoDesk', valor: 8000, vencimento: '2024-08-10', status: 'pendente'},
+    { id: 'PAY003', descricao: 'Fornecedor de material', referencia_id: 'Aço Forte Ltda', valor: 12500, vencimento: '2024-08-20', status: 'pendente'},
 ];
 
 export const mockAccountsReceivable: Account[] = [
-    { id: 'REC001', description: 'Entrada Projeto Estrutural', party: 'Construtora Alfa', value: 25000, date: '2024-07-15', status: 'recebido'},
-    { id: 'REC002', description: 'Pagamento Laudo Técnico', party: 'João da Silva', value: 2500, date: '2024-08-25', status: 'pendente'},
-    { id: 'REC003', description: 'Parcela 1/3 Consultoria', party: 'Construtora Alfa', value: 5000, date: '2024-08-30', status: 'pendente'},
+    { id: 'REC001', descricao: 'Entrada Projeto Estrutural', referencia_id: 'CLI001', valor: 25000, vencimento: '2024-07-15', status: 'recebido'},
+    { id: 'REC002', descricao: 'Pagamento Laudo Técnico', referencia_id: 'CLI002', valor: 2500, vencimento: '2024-08-25', status: 'pendente'},
+    { id: 'REC003', descricao: 'Parcela 1/3 Consultoria', referencia_id: 'CLI001', valor: 5000, vencimento: '2024-08-30', status: 'pendente'},
 ];

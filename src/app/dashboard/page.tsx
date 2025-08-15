@@ -1,3 +1,4 @@
+
 import {
   Card,
   CardContent,
@@ -26,8 +27,8 @@ export default function DashboardPage() {
   const ongoingServices = mockServices.filter(
     (s) => s.status === 'em andamento'
   );
-  const totalReceivable = mockAccountsReceivable.reduce((acc, curr) => acc + curr.value, 0);
-  const totalPayable = mockAccountsPayable.reduce((acc, curr) => acc + curr.value, 0);
+  const totalReceivable = mockAccountsReceivable.reduce((acc, curr) => acc + curr.valor, 0);
+  const totalPayable = mockAccountsPayable.reduce((acc, curr) => acc + curr.valor, 0);
   const balance = totalReceivable - totalPayable;
 
   return (
@@ -116,9 +117,9 @@ export default function DashboardPage() {
               <TableBody>
                 {ongoingServices.map((service) => (
                   <TableRow key={service.id}>
-                    <TableCell className="font-medium">{service.description}</TableCell>
-                    <TableCell>{new Date(service.deadline).toLocaleDateString('pt-BR')}</TableCell>
-                    <TableCell className="text-right">R$ {service.value.toLocaleString('pt-BR')}</TableCell>
+                    <TableCell className="font-medium">{service.descricao}</TableCell>
+                    <TableCell>{new Date(service.prazo).toLocaleDateString('pt-BR')}</TableCell>
+                    <TableCell className="text-right">R$ {service.valor.toLocaleString('pt-BR')}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -144,13 +145,13 @@ export default function DashboardPage() {
               <TableBody>
                 {mockAccountsPayable.map((account) => (
                   <TableRow key={account.id}>
-                    <TableCell className="font-medium">{account.description}</TableCell>
+                    <TableCell className="font-medium">{account.descricao}</TableCell>
                     <TableCell>
                         <Badge variant={account.status === 'pago' ? 'secondary' : 'destructive'}>
                             {account.status}
                         </Badge>
                     </TableCell>
-                    <TableCell className="text-right">R$ {account.value.toLocaleString('pt-BR')}</TableCell>
+                    <TableCell className="text-right">R$ {account.valor.toLocaleString('pt-BR')}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

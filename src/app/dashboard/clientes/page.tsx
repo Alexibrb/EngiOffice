@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -39,8 +40,8 @@ export default function ClientesPage() {
 
   const filteredClients = clients.filter(
     (client) =>
-      client.name.toLowerCase().includes(search.toLowerCase()) ||
-      client.cpfCnpj.includes(search)
+      client.nome_completo.toLowerCase().includes(search.toLowerCase()) ||
+      client.cpf_cnpj.includes(search)
   );
 
   return (
@@ -133,11 +134,11 @@ export default function ClientesPage() {
           </TableHeader>
           <TableBody>
             {filteredClients.map((client) => (
-              <TableRow key={client.id}>
-                <TableCell className="font-medium">{client.name}</TableCell>
-                <TableCell>{client.cpfCnpj}</TableCell>
-                <TableCell>{client.phone}</TableCell>
-                <TableCell>{client.address.city}</TableCell>
+              <TableRow key={client.codigo_cliente}>
+                <TableCell className="font-medium">{client.nome_completo}</TableCell>
+                <TableCell>{client.cpf_cnpj}</TableCell>
+                <TableCell>{client.telefone}</TableCell>
+                <TableCell>{client.endereco_residencial.city}</TableCell>
                 <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>

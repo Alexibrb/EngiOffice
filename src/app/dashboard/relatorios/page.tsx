@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Button } from '@/components/ui/button';
@@ -38,11 +39,11 @@ export default function RelatoriosPage() {
       startY: 35,
       head: [['ID', 'Nome', 'CPF/CNPJ', 'Telefone', 'Cidade']],
       body: mockClients.map((client) => [
-        client.id,
-        client.name,
-        client.cpfCnpj,
-        client.phone,
-        client.address.city,
+        client.codigo_cliente,
+        client.nome_completo,
+        client.cpf_cnpj,
+        client.telefone,
+        client.endereco_residencial.city,
       ]),
       theme: 'striped',
       headStyles: { fillColor: [52, 152, 219] }, // #3498DB
@@ -86,11 +87,11 @@ export default function RelatoriosPage() {
               </TableHeader>
               <TableBody>
                 {mockClients.map((client) => (
-                  <TableRow key={client.id}>
-                    <TableCell className="font-medium">{client.name}</TableCell>
-                    <TableCell>{client.cpfCnpj}</TableCell>
-                    <TableCell>{client.phone}</TableCell>
-                    <TableCell>{client.address.city}</TableCell>
+                  <TableRow key={client.codigo_cliente}>
+                    <TableCell className="font-medium">{client.nome_completo}</TableCell>
+                    <TableCell>{client.cpf_cnpj}</TableCell>
+                    <TableCell>{client.telefone}</TableCell>
+                    <TableCell>{client.endereco_residencial.city}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
