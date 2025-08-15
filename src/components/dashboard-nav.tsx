@@ -13,6 +13,7 @@ import {
   Truck,
   Users,
   Wrench,
+  HandCoins,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -39,6 +40,11 @@ const links = [
     icon: Briefcase,
   },
   { href: '/dashboard/servicos', label: 'Serviços', icon: Wrench },
+  {
+    href: '/dashboard/comissoes',
+    label: 'Comissões',
+    icon: HandCoins,
+  },
   {
     href: '/dashboard/financeiro',
     label: 'Financeiro',

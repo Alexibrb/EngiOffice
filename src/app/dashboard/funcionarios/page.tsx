@@ -54,7 +54,6 @@ const employeeSchema = z.object({
   cargo: z.string().optional(),
   telefone: z.string().optional(),
   email: z.string().email({ message: 'Email inválido.' }).optional().or(z.literal('')),
-  salario: z.coerce.number().optional(),
   status: z.enum(['ativo', 'inativo']),
 });
 
@@ -75,7 +74,6 @@ export default function FuncionariosPage() {
       cargo: '',
       telefone: '',
       email: '',
-      salario: 0,
       status: 'ativo',
     },
   });
@@ -178,7 +176,7 @@ export default function FuncionariosPage() {
       <div>
         <h1 className="text-3xl font-bold font-headline">Funcionários</h1>
         <p className="text-muted-foreground">
-          Gerencie os funcionários do seu escritório.
+          Gerencie os funcionários e colaboradores do seu escritório.
         </p>
       </div>
 
@@ -203,7 +201,7 @@ export default function FuncionariosPage() {
             <DialogHeader>
               <DialogTitle className="font-headline">{editingEmployee ? 'Editar Funcionário' : 'Adicionar Novo Funcionário'}</DialogTitle>
               <DialogDescription>
-                Preencha os dados do funcionário. Campos marcados com * são obrigatórios.
+                Preencha os dados do funcionário.
               </DialogDescription>
             </DialogHeader>
             
@@ -275,26 +273,13 @@ export default function FuncionariosPage() {
                         </FormItem>
                       )}
                     />
-                    <FormField
-                      control={form.control}
-                      name="salario"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Salário</FormLabel>
-                          <FormControl>
-                            <Input type="number" step="0.01" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
                      <FormField
                       control={form.control}
                       name="status"
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Status</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
                             <FormControl>
                               <SelectTrigger>
                                 <SelectValue placeholder="Selecione o status" />

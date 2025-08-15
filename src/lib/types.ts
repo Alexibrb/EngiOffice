@@ -44,7 +44,6 @@ export type Employee = {
   cargo: string;
   telefone: string;
   email: string;
-  salario: number;
   status: 'ativo' | 'inativo';
 };
 
@@ -66,6 +65,16 @@ export type Account = {
     vencimento: Date; 
     status: 'pago' | 'pendente';
 }
+
+export type Commission = {
+  id: string;
+  funcionario_id: string;
+  servico_id: string;
+  valor: number;
+  data: Date;
+  status: 'pendente' | 'pago';
+};
+
 
 export type CashFlow = {
   id: string;
