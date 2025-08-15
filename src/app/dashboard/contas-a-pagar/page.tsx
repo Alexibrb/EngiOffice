@@ -49,7 +49,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { cn, formatCurrency } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import { format, endOfDay, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { Account, Supplier, Employee, Payee } from '@/lib/types';
@@ -64,7 +64,11 @@ const accountSchema = z.object({
   descricao: z.string().min(1, 'Descrição é obrigatória.'),
   referencia_id: z.string().min(1, 'Favorecido é obrigatório.'),
   tipo_referencia: z.enum(['fornecedor', 'funcionario']).optional(),
-  valor: z.coerce.number().min(0.01, 'Valor deve ser maior que zero.'),
+  valor: z.any().refine(val => !isNaN(parseFloat(String(val).replace(',', '.'))), {
+      message: 'Valor deve ser um número válido.',
+  }).refine(val => parseFloat(String(val).replace(',', '.')) > 0, {
+      message: 'Valor deve ser maior que zero.',
+  }),
   vencimento: z.date({ required_error: 'Data de vencimento é obrigatória.' }),
   status: z.enum(['pendente', 'pago']),
 });
@@ -182,7 +186,7 @@ export default function ContasAPagarPage() {
         try {
              const submissionValues = {
                 ...values,
-                valor: values.valor,
+                valor: parseFloat(String(values.valor).replace(',', '.')),
             };
 
             if (editingAccount) {
@@ -678,14 +682,7 @@ function PayableFormComponent({ form, payees, onAddSupplier, onAddProduct, editi
                         <FormControl>
                              <Input 
                                 type="text"
-                                disabled={form.getValues('tipo_referencia') === 'funcionario' && !editingAccount}
                                 {...field}
-                                value={typeof field.value === 'number' ? formatCurrency(field.value.toString()) : field.value}
-                                onChange={(e) => {
-                                    const formattedValue = formatCurrency(e.target.value);
-                                    const numericValue = parseFloat(formattedValue.replace(/\./g, '').replace(',', '.'));
-                                    field.onChange(numericValue); 
-                                }}
                             />
                         </FormControl>
                         <FormMessage />
