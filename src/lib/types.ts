@@ -53,13 +53,15 @@ export type Employee = {
 };
 
 export type Service = {
-  id: string; 
+  id: string;
   descricao: string;
   cliente_id: string;
-  data_cadastro: Date; 
-  valor: number;
+  data_cadastro: Date;
+  valor_total: number;
+  saldo_devedor: number;
+  forma_pagamento: 'a_vista' | 'a_prazo';
   status: 'em andamento' | 'concluído' | 'cancelado';
-  anexos?: string[]; 
+  anexos?: string[];
 };
 
 export type ServiceType = {

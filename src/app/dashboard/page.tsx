@@ -98,7 +98,7 @@ export default function DashboardPage() {
     .filter((a) => a.status === 'pendente')
     .sort((a, b) => a.vencimento.getTime() - b.vencimento.getTime());
 
-  const totalReceivablePaid = services.reduce((acc, curr) => curr.status === 'concluído' ? acc + curr.valor : acc, 0);
+  const totalReceivablePaid = services.reduce((acc, curr) => curr.status === 'concluído' ? acc + curr.valor_total : acc, 0);
   const totalPayablePaid = accountsPayable.reduce((acc, curr) => curr.status === 'pago' ? acc + curr.valor : acc, 0);
   const totalCommissionsPaid = commissions.reduce((acc, curr) => curr.status === 'pago' ? acc + curr.valor : acc, 0);
   const balance = totalReceivablePaid - totalPayablePaid - totalCommissionsPaid;
@@ -113,7 +113,7 @@ export default function DashboardPage() {
 
   const totalReceivablePending = services
     .filter((s) => s.status === 'em andamento')
-    .reduce((acc, curr) => acc + curr.valor, 0);
+    .reduce((acc, curr) => acc + curr.valor_total, 0);
 
   const totalPayablePending = accountsPayable
     .filter((a) => a.status === 'pendente')
@@ -257,7 +257,7 @@ export default function DashboardPage() {
           </Card>
        </div>
 
-      <div className="grid grid-cols-1 gap-8">
+      <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>Serviços em Andamento</CardTitle>
@@ -280,7 +280,7 @@ export default function DashboardPage() {
                   <TableRow key={service.id}>
                     <TableCell className="font-medium">{service.descricao}</TableCell>
                     <TableCell>{format(service.data_cadastro, 'dd/MM/yyyy')}</TableCell>
-                    <TableCell className="text-right text-green-500">R$ {service.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
+                    <TableCell className="text-right text-green-500">R$ {service.valor_total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
                     <TableCell>
                       <Button
                         variant="outline"

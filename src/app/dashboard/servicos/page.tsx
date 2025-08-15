@@ -28,7 +28,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { Service, Client, ServiceType } from '@/lib/types';
-import { PlusCircle, Search, MoreHorizontal, Loader2, Calendar as CalendarIcon, Wrench, Link as LinkIcon, ExternalLink, ClipboardCopy, XCircle, FileText, CheckCircle, ArrowUp, TrendingUp } from 'lucide-react';
+import { PlusCircle, Search, MoreHorizontal, Loader2, Calendar as CalendarIcon, Wrench, Link as LinkIcon, ExternalLink, ClipboardCopy, XCircle, FileText, CheckCircle, ArrowUp, TrendingUp, HandCoins } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,7 +36,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { collection, addDoc, getDocs, doc, setDoc, deleteDoc, Timestamp } from 'firebase/firestore';
+import { collection, addDoc, getDocs, doc, setDoc, deleteDoc, Timestamp, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from "@/hooks/use-toast"
 import {
@@ -58,6 +58,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { DateRange } from 'react-day-picker';
 import jsPDF from 'jspdf';
+import { Label } from '@/components/ui/label';
 
 const serviceSchema = z.object({
   descricao: z.string().min(1, { message: 'Descrição é obrigatória.' }),
@@ -65,13 +66,14 @@ const serviceSchema = z.object({
   data_cadastro: z.date({
     required_error: "A data de cadastro é obrigatória.",
   }),
-  valor: z.coerce.number().optional(),
+  valor_total: z.coerce.number().min(0.01, 'O valor total deve ser maior que zero.'),
+  forma_pagamento: z.enum(['a_vista', 'a_prazo'], { required_error: 'Forma de pagamento é obrigatória.' }),
   status: z.enum(['em andamento', 'concluído', 'cancelado']),
   anexos: z.string().optional(),
 });
 
-const serviceTypeSchema = z.object({
-  descricao: z.string().min(1, { message: 'Descrição é obrigatória.' }),
+const paymentSchema = z.object({
+  valor_pago: z.coerce.number().min(0.01, "O valor deve ser maior que zero.")
 });
 
 
@@ -199,8 +201,10 @@ export default function ServicosPage() {
   const [search, setSearch] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isServiceTypeDialogOpen, setIsServiceTypeDialogOpen] = useState(false);
+  const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isPaymentLoading, setIsPaymentLoading] = useState(false);
   const { toast } = useToast();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -214,11 +218,17 @@ export default function ServicosPage() {
     defaultValues: {
       descricao: '',
       cliente_id: '',
-      valor: 0,
+      valor_total: 0,
+      forma_pagamento: 'a_vista',
       status: 'em andamento',
       anexos: '',
       data_cadastro: new Date(),
     },
+  });
+
+  const paymentForm = useForm<z.infer<typeof paymentSchema>>({
+    resolver: zodResolver(paymentSchema),
+    defaultValues: { valor_pago: 0 },
   });
 
   const anexosValue = useWatch({ control: form.control, name: 'anexos' });
@@ -295,9 +305,11 @@ export default function ServicosPage() {
   const handleSaveService = async (values: z.infer<typeof serviceSchema>) => {
     setIsLoading(true);
     try {
-       const serviceData = {
+      const serviceData = {
         ...values,
         anexos: values.anexos?.split('\n').filter(a => a.trim() !== '') || [],
+        saldo_devedor: values.forma_pagamento === 'a_prazo' ? values.valor_total : 0,
+        status: values.forma_pagamento === 'a_vista' ? 'concluído' : values.status,
       };
 
       if (editingService) {
@@ -332,6 +344,37 @@ export default function ServicosPage() {
     }
   };
 
+  const handleProcessPayment = async (values: z.infer<typeof paymentSchema>) => {
+    if (!editingService) return;
+
+    setIsPaymentLoading(true);
+    try {
+        const newBalance = editingService.saldo_devedor - values.valor_pago;
+        if (newBalance < 0) {
+            toast({ variant: 'destructive', title: 'Erro', description: 'O valor pago não pode ser maior que o saldo devedor.' });
+            return;
+        }
+
+        const serviceDocRef = doc(db, 'servicos', editingService.id);
+        await updateDoc(serviceDocRef, {
+            saldo_devedor: newBalance,
+            status: newBalance === 0 ? 'concluído' : 'em andamento'
+        });
+
+        toast({ title: 'Sucesso!', description: 'Pagamento lançado com sucesso.' });
+        setIsPaymentDialogOpen(false);
+        setEditingService(null);
+        paymentForm.reset();
+        await fetchServicesAndClients();
+
+    } catch (error) {
+         console.error("Erro ao processar pagamento: ", error);
+         toast({ variant: 'destructive', title: 'Erro', description: 'Não foi possível processar o pagamento.' });
+    } finally {
+        setIsPaymentLoading(false);
+    }
+  };
+
   const handleDeleteService = async (serviceId: string) => {
     try {
       await deleteDoc(doc(db, "servicos", serviceId));
@@ -354,7 +397,8 @@ export default function ServicosPage() {
     form.reset({
         descricao: '',
         cliente_id: '',
-        valor: 0,
+        valor_total: 0,
+        forma_pagamento: 'a_vista',
         status: 'em andamento',
         anexos: '',
         data_cadastro: new Date()
@@ -372,6 +416,13 @@ export default function ServicosPage() {
     });
     setIsDialogOpen(true);
   }
+  
+  const handlePaymentClick = (service: Service) => {
+    setEditingService(service);
+    paymentForm.reset({ valor_pago: 0 });
+    setIsPaymentDialogOpen(true);
+  };
+
 
   const generateReceipt = (service: Service) => {
     const client = clients.find(c => c.codigo_cliente === service.cliente_id);
@@ -402,7 +453,7 @@ export default function ServicosPage() {
     doc.setFontSize(14);
     doc.text('Valor:', 20, 70);
     doc.setFont('helvetica', 'bold');
-    doc.text(`R$ ${service.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, pageWidth - 20, 70, { align: 'right' });
+    doc.text(`R$ ${service.valor_total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, pageWidth - 20, 70, { align: 'right' });
     
     doc.setFont('helvetica', 'normal');
     doc.setLineWidth(0.2);
@@ -411,7 +462,7 @@ export default function ServicosPage() {
     // Corpo do Recibo
     doc.setFontSize(12);
     const obraAddress = (client.endereco_obra && client.endereco_obra.street) ? `${client.endereco_obra.street}, ${client.endereco_obra.number} - ${client.endereco_obra.neighborhood}, ${client.endereco_obra.city} - ${client.endereco_obra.state}` : 'Endereço da obra não informado';
-    const receiptText = `Recebemos de ${client.nome_completo}, CPF/CNPJ nº ${client.cpf_cnpj || 'Não informado'}, a importância de R$ ${service.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} referente ao pagamento pelo serviço de "${service.descricao}".\n\nEndereço da Obra: ${obraAddress}`;
+    const receiptText = `Recebemos de ${client.nome_completo}, CPF/CNPJ nº ${client.cpf_cnpj || 'Não informado'}, a importância de R$ ${service.valor_total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} referente ao pagamento pelo serviço de "${service.descricao}".\n\nEndereço da Obra: ${obraAddress}`;
     const splitText = doc.splitTextToSize(receiptText, pageWidth - 40);
     doc.text(splitText, 20, 90);
 
@@ -451,12 +502,12 @@ export default function ServicosPage() {
         return serviceDate >= fromDate && serviceDate <= toDate;
     });
 
-    const filteredTotal = filteredServices.reduce((acc, curr) => acc + curr.valor, 0);
+    const filteredTotal = filteredServices.reduce((acc, curr) => acc + curr.valor_total, 0);
 
     const ongoingServicesCount = services.filter((s) => s.status === 'em andamento').length;
     const completedServicesCount = services.filter((s) => s.status === 'concluído').length;
-    const totalReceivablePaid = services.reduce((acc, curr) => curr.status === 'concluído' ? acc + curr.valor : acc, 0);
-    const totalReceivablePending = services.filter((s) => s.status === 'em andamento').reduce((acc, curr) => acc + curr.valor, 0);
+    const totalReceivablePaid = services.reduce((acc, curr) => curr.status === 'concluído' ? acc + curr.valor_total : acc, 0);
+    const totalReceivablePending = services.filter((s) => s.status === 'em andamento').reduce((acc, curr) => acc + curr.valor_total, 0);
 
   return (
     <div className="flex flex-col gap-8">
@@ -638,16 +689,33 @@ export default function ServicosPage() {
                             />
                             <FormField
                             control={form.control}
-                            name="valor"
+                            name="valor_total"
                             render={({ field }) => (
                                 <FormItem>
-                                <FormLabel>Valor (R$)</FormLabel>
+                                <FormLabel>Valor Total (R$)</FormLabel>
                                 <FormControl>
                                     <Input type="number" step="0.01" {...field} />
                                 </FormControl>
                                 <FormMessage />
                                 </FormItem>
                             )}
+                            />
+                             <FormField
+                                control={form.control}
+                                name="forma_pagamento"
+                                render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Forma de Pagamento *</FormLabel>
+                                    <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                                    <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                                    <SelectContent>
+                                        <SelectItem value="a_vista">À Vista</SelectItem>
+                                        <SelectItem value="a_prazo">A Prazo</SelectItem>
+                                    </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                </FormItem>
+                                )}
                             />
                             <FormField
                             control={form.control}
@@ -766,8 +834,8 @@ export default function ServicosPage() {
                     <TableRow>
                     <TableHead>Descrição</TableHead>
                     <TableHead>Cliente</TableHead>
-                    <TableHead>Data de Cadastro</TableHead>
-                    <TableHead className="text-right">Valor</TableHead>
+                    <TableHead>Valor Total</TableHead>
+                    <TableHead>Saldo Devedor</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead><span className="sr-only">Ações</span></TableHead>
                     </TableRow>
@@ -777,8 +845,8 @@ export default function ServicosPage() {
                     <TableRow key={service.id}>
                         <TableCell className="font-medium">{service.descricao}</TableCell>
                         <TableCell>{getClientName(service.cliente_id)}</TableCell>
-                        <TableCell>{service.data_cadastro ? format(service.data_cadastro, "dd/MM/yyyy") : '-'}</TableCell>
-                        <TableCell className="text-right text-green-500">R$ {service.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2})}</TableCell>
+                        <TableCell className="text-green-500">R$ {service.valor_total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2})}</TableCell>
+                        <TableCell className="text-red-500">R$ {service.saldo_devedor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2})}</TableCell>
                         <TableCell>
                         <Badge variant={
                             service.status === 'concluído' ? 'secondary' :
@@ -799,7 +867,11 @@ export default function ServicosPage() {
                             <DropdownMenuContent align="end">
                                 <DropdownMenuLabel>Ações</DropdownMenuLabel>
                                 <DropdownMenuItem onClick={() => handleEditClick(service)}>
-                                Editar
+                                  Editar
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handlePaymentClick(service)} disabled={service.forma_pagamento !== 'a_prazo' || service.status !== 'em andamento'}>
+                                  <HandCoins className="mr-2 h-4 w-4" />
+                                  Lançar Pagamento
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => generateReceipt(service)} disabled={service.status !== 'concluído'}>
                                   <FileText className="mr-2 h-4 w-4" />
@@ -840,9 +912,12 @@ export default function ServicosPage() {
                 </TableBody>
                 <TableFooter>
                     <TableRow>
-                        <TableCell colSpan={3} className="font-bold">Total</TableCell>
+                        <TableCell colSpan={2} className="font-bold">Total</TableCell>
                         <TableCell className="text-right font-bold text-green-500">
                            R$ {filteredTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </TableCell>
+                        <TableCell className="text-right font-bold text-red-500">
+                           R$ {filteredServices.reduce((acc, s) => acc + s.saldo_devedor, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                         </TableCell>
                         <TableCell colSpan={2}></TableCell>
                     </TableRow>
@@ -852,10 +927,41 @@ export default function ServicosPage() {
         </CardContent>
       </Card>
       <AddServiceTypeDialog isOpen={isServiceTypeDialogOpen} setIsOpen={setIsServiceTypeDialogOpen} onServiceTypeAdded={fetchServiceTypes} />
+    
+      <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                  <DialogTitle>Lançar Pagamento</DialogTitle>
+                  <DialogDescription>
+                    Serviço: {editingService?.descricao}<br/>
+                    Saldo Devedor Atual: <span className="font-bold text-red-500">R$ {editingService?.saldo_devedor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                  </DialogDescription>
+              </DialogHeader>
+              <Form {...paymentForm}>
+                <form onSubmit={paymentForm.handleSubmit(handleProcessPayment)} className="space-y-4">
+                    <FormField
+                    control={paymentForm.control}
+                    name="valor_pago"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Valor Recebido (R$)</FormLabel>
+                        <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                    />
+                    <DialogFooter>
+                        <Button type="button" variant="ghost" onClick={() => setIsPaymentDialogOpen(false)}>Cancelar</Button>
+                        <Button type="submit" variant="accent" disabled={isPaymentLoading}>
+                            {isPaymentLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Confirmar Pagamento
+                        </Button>
+                    </DialogFooter>
+                </form>
+              </Form>
+          </DialogContent>
+      </Dialog>
+
     </div>
   );
 }
-
-    
-
-    

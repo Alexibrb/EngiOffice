@@ -84,11 +84,11 @@ export default function ContasAReceberPage() {
 
     const totalReceivablePending = services
         .filter((s) => s.status === 'em andamento')
-        .reduce((acc, curr) => acc + curr.valor, 0);
+        .reduce((acc, curr) => acc + curr.valor_total, 0);
 
-    const totalReceivablePaid = services.reduce((acc, curr) => curr.status === 'concluído' ? acc + curr.valor : acc, 0);
+    const totalReceivablePaid = services.reduce((acc, curr) => curr.status === 'concluído' ? acc + curr.valor_total : acc, 0);
 
-    const filteredTotal = filteredReceivable.reduce((acc, curr) => acc + curr.valor, 0);
+    const filteredTotal = filteredReceivable.reduce((acc, curr) => acc + curr.valor_total, 0);
 
     const generatePdf = () => {
         const doc = new jsPDF();
@@ -109,7 +109,7 @@ export default function ContasAReceberPage() {
             service.descricao,
             getClientName(service.cliente_id),
             format(service.data_cadastro, 'dd/MM/yyyy'),
-            `R$ ${service.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+            `R$ ${service.valor_total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
             service.status,
             ]),
             foot: [
@@ -272,7 +272,7 @@ function ReceivableTableComponent({ services, getClientName, total }: {
                             <TableCell className="font-medium">{service.descricao}</TableCell>
                             <TableCell>{getClientName(service.cliente_id)}</TableCell>
                             <TableCell>{format(service.data_cadastro, 'dd/MM/yyyy')}</TableCell>
-                            <TableCell className="text-right text-green-500">R$ {service.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
+                            <TableCell className="text-right text-green-500">R$ {service.valor_total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
                             <TableCell>
                                 <Badge variant={
                                     service.status === 'concluído' ? 'secondary' :

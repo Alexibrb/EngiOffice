@@ -143,7 +143,7 @@ export default function RelatoriosPage() {
             item.descricao,
             getClientName(item.cliente_id),
             item.data_cadastro ? format(item.data_cadastro, "dd/MM/yyyy") : '-',
-            `R$ ${item.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+            `R$ ${item.valor_total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
             item.status,
         ]);
         fileName = 'relatorio_servicos.pdf';
