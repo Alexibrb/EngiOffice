@@ -92,9 +92,9 @@ export default function DashboardPage() {
     .sort((a, b) => a.vencimento.getTime() - b.vencimento.getTime());
 
   const totalReceivablePaid = services.reduce((acc, curr) => curr.status === 'concluído' ? acc + curr.valor : acc, 0);
-  const totalPayablePending = accountsPayable.reduce((acc, curr) => curr.status === 'pendente' ? acc + curr.valor : acc, 0);
-  const totalCommissionsPending = commissions.reduce((acc, curr) => curr.status === 'pendente' ? acc + curr.valor : acc, 0);
-  const balance = totalReceivablePaid - totalPayablePending - totalCommissionsPending;
+  const totalPayablePaid = accountsPayable.reduce((acc, curr) => curr.status === 'pago' ? acc + curr.valor : acc, 0);
+  const totalCommissionsPaid = commissions.reduce((acc, curr) => curr.status === 'pago' ? acc + curr.valor : acc, 0);
+  const balance = totalReceivablePaid - totalPayablePaid - totalCommissionsPaid;
   
   const totalServices = services.filter(s => s.status !== 'cancelado').length;
   const completedServices = services.filter(s => s.status === 'concluído').length;
@@ -130,14 +130,14 @@ export default function DashboardPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Saldo Previsto
+              Saldo em Caixa
             </CardTitle>
             <CircleDollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">R$ {balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
             <p className="text-xs text-muted-foreground">
-              Recebidos - Pagar (pendente) - Comissões (pendente)
+              Recebidos - Contas Pagas - Comissões Pagas
             </p>
           </CardContent>
         </Card>
