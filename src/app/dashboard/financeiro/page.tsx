@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
@@ -431,101 +431,7 @@ export default function FinanceiroPage() {
                     </DialogHeader>
                     <Form {...form}>
                         <form onSubmit={form.handleSubmit(handleSaveAccount)} className="space-y-6">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <FormField
-                                    control={form.control}
-                                    name="descricao"
-                                    render={({ field }) => (
-                                        <FormItem className="md:col-span-2">
-                                            <FormLabel>Descrição *</FormLabel>
-                                            <FormControl><Input {...field} /></FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={form.control}
-                                    name="referencia_id"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Fornecedor *</FormLabel>
-                                            <div className="flex items-center gap-2">
-                                                <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
-                                                    <FormControl>
-                                                        <SelectTrigger>
-                                                            <SelectValue placeholder="Selecione o Fornecedor" />
-                                                        </SelectTrigger>
-                                                    </FormControl>
-                                                    <SelectContent>
-                                                        {suppliers.map(ref => (
-                                                            <SelectItem key={ref.id} value={ref.id}>
-                                                                {ref.razao_social}
-                                                            </SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
-                                                <Button type="button" variant="outline" size="icon" onClick={() => setIsSupplierDialogOpen(true)}>
-                                                    <PlusCircle className="h-4 w-4" />
-                                                </Button>
-                                            </div>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={form.control}
-                                    name="valor"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Valor (R$)</FormLabel>
-                                            <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={form.control}
-                                    name="vencimento"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                          <FormLabel>Vencimento</FormLabel>
-                                          <Popover>
-                                            <PopoverTrigger asChild>
-                                              <FormControl>
-                                                <Button
-                                                  variant={"outline"}
-                                                  className={cn("w-full pl-3 text-left font-normal",!field.value && "text-muted-foreground")}>
-                                                  {field.value ? (format(field.value, "PPP", { locale: ptBR })) : (<span>Escolha uma data</span>)}
-                                                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                                </Button>
-                                              </FormControl>
-                                            </PopoverTrigger>
-                                            <PopoverContent className="w-auto p-0" align="start">
-                                              <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus/>
-                                            </PopoverContent>
-                                          </Popover>
-                                          <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={form.control}
-                                    name="status"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Status</FormLabel>
-                                            <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
-                                                <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                                                <SelectContent>
-                                                    <SelectItem value="pendente">Pendente</SelectItem>
-                                                    <SelectItem value="pago">Pago</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                            </div>
+                            <PayableFormComponent form={form} suppliers={suppliers} />
                             <DialogFooter>
                                 <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
                                 <Button type="submit" disabled={isLoading}>
@@ -628,6 +534,135 @@ export default function FinanceiroPage() {
                     </Form>
                 </DialogContent>
             </Dialog>
+        </div>
+    );
+}
+
+function PayableFormComponent({ form, suppliers }: { form: any, suppliers: Supplier[] }) {
+    const [isSupplierDialogOpen, setIsSupplierDialogOpen] = useState(false);
+    
+    const supplierId = useWatch({
+      control: form.control,
+      name: 'referencia_id',
+    });
+
+    const selectedSupplier = suppliers.find(s => s.id === supplierId);
+    const productOptions = selectedSupplier?.produtos_servicos || [];
+
+    useEffect(() => {
+        // Reset description when supplier changes
+        form.setValue('descricao', '');
+    }, [supplierId, form]);
+
+    return (
+         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormField
+                control={form.control}
+                name="referencia_id"
+                render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Fornecedor *</FormLabel>
+                        <div className="flex items-center gap-2">
+                            <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                                <FormControl>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Selecione o Fornecedor" />
+                                    </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                    {suppliers.map(ref => (
+                                        <SelectItem key={ref.id} value={ref.id}>
+                                            {ref.razao_social}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <Button type="button" variant="outline" size="icon" onClick={() => setIsSupplierDialogOpen(true)}>
+                                <PlusCircle className="h-4 w-4" />
+                            </Button>
+                        </div>
+                        <FormMessage />
+                    </FormItem>
+                )}
+            />
+            <FormField
+                control={form.control}
+                name="descricao"
+                render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Descrição *</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value} disabled={!supplierId}>
+                             <FormControl>
+                                <SelectTrigger>
+                                    <SelectValue placeholder={supplierId ? "Selecione o produto/serviço" : "Selecione um fornecedor"} />
+                                </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                                {productOptions.map(product => (
+                                    <SelectItem key={product} value={product}>
+                                        {product}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <FormMessage />
+                    </FormItem>
+                )}
+            />
+            
+            <FormField
+                control={form.control}
+                name="valor"
+                render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Valor (R$)</FormLabel>
+                        <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
+                        <FormMessage />
+                    </FormItem>
+                )}
+            />
+            <FormField
+                control={form.control}
+                name="vencimento"
+                render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Vencimento</FormLabel>
+                        <Popover>
+                        <PopoverTrigger asChild>
+                            <FormControl>
+                            <Button
+                                variant={"outline"}
+                                className={cn("w-full pl-3 text-left font-normal",!field.value && "text-muted-foreground")}>
+                                {field.value ? (format(field.value, "PPP", { locale: ptBR })) : (<span>Escolha uma data</span>)}
+                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                            </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus/>
+                        </PopoverContent>
+                        </Popover>
+                        <FormMessage />
+                    </FormItem>
+                )}
+            />
+            <FormField
+                control={form.control}
+                name="status"
+                render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Status</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                            <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                            <SelectContent>
+                                <SelectItem value="pendente">Pendente</SelectItem>
+                                <SelectItem value="pago">Pago</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <FormMessage />
+                    </FormItem>
+                )}
+            />
         </div>
     );
 }
