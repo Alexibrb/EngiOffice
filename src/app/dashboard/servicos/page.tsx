@@ -208,6 +208,7 @@ export default function ServicosPage() {
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [isDistributionDialogOpen, setIsDistributionDialogOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
+  const [lastPaymentValue, setLastPaymentValue] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [isPaymentLoading, setIsPaymentLoading] = useState(false);
   const [financials, setFinancials] = useState({
@@ -372,11 +373,17 @@ export default function ServicosPage() {
           description: "Serviço atualizado com sucesso.",
         });
       } else {
-        await addDoc(collection(db, 'servicos'), serviceData);
+        const newDocRef = await addDoc(collection(db, 'servicos'), serviceData);
          toast({
           title: "Sucesso!",
           description: "Serviço adicionado com sucesso.",
         });
+        if (serviceData.status === 'concluído') {
+             const newService = { ...serviceData, id: newDocRef.id };
+             setEditingService(newService);
+             setLastPaymentValue(newService.valor_total);
+             setIsDistributionDialogOpen(true);
+        }
       }
       
       form.reset();
@@ -417,17 +424,21 @@ export default function ServicosPage() {
         toast({ title: 'Sucesso!', description: 'Pagamento lançado com sucesso.' });
         
         generateReceipt(editingService, values.valor_pago);
-
+        
         setIsPaymentDialogOpen(false);
-        setEditingService(null);
-        paymentForm.reset();
-        await fetchServicesAndClients();
+        await fetchServicesAndClients(); // Refresh data to get updated service
+
+        // Trigger distribution dialog
+        setLastPaymentValue(values.valor_pago);
+        setIsDistributionDialogOpen(true);
+
 
     } catch (error) {
          console.error("Erro ao processar pagamento: ", error);
          toast({ variant: 'destructive', title: 'Erro', description: 'Não foi possível processar o pagamento.' });
     } finally {
         setIsPaymentLoading(false);
+        paymentForm.reset();
     }
   };
 
@@ -478,12 +489,6 @@ export default function ServicosPage() {
     paymentForm.reset({ valor_pago: 0 });
     setIsPaymentDialogOpen(true);
   };
-
-  const handleDistributionClick = (service: Service) => {
-      setEditingService(service);
-      setIsDistributionDialogOpen(true);
-  };
-
 
   const generateReceipt = (service: Service, paymentValue?: number) => {
     const client = clients.find(c => c.codigo_cliente === service.cliente_id);
@@ -940,10 +945,6 @@ export default function ServicosPage() {
                                   <HandCoins className="mr-2 h-4 w-4" />
                                   Lançar Pagamento
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleDistributionClick(service)} disabled={service.saldo_devedor !== 0}>
-                                  <HandCoins className="mr-2 h-4 w-4" />
-                                  Distribuir Lucro
-                                </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => generateReceipt(service)}>
                                   <FileText className="mr-2 h-4 w-4" />
                                   Gerar Recibo
@@ -1037,6 +1038,7 @@ export default function ServicosPage() {
                 isOpen={isDistributionDialogOpen}
                 setIsOpen={setIsDistributionDialogOpen}
                 service={editingService}
+                paymentValue={lastPaymentValue}
                 financials={financials}
                 toast={toast}
                 onDistributionComplete={fetchServicesAndClients}
@@ -1046,20 +1048,22 @@ export default function ServicosPage() {
   );
 }
 
-function ProfitDistributionDialog({ isOpen, setIsOpen, service, financials, toast, onDistributionComplete }: {
+function ProfitDistributionDialog({ isOpen, setIsOpen, service, paymentValue, financials, toast, onDistributionComplete }: {
     isOpen: boolean;
     setIsOpen: (isOpen: boolean) => void;
     service: Service;
+    paymentValue: number;
     financials: { totalRevenue: number; totalExpenses: number; commissionableEmployees: Employee[] };
     toast: any;
     onDistributionComplete: () => void;
 }) {
     const [isLoading, setIsLoading] = useState(false);
     const [serviceCosts, setServiceCosts] = useState(0);
+    const [profitMargin, setProfitMargin] = useState(0);
 
     useEffect(() => {
-        const fetchCosts = async () => {
-            if (!service) return;
+        const fetchCostsAndCalculateMargin = async () => {
+            if (!service || !isOpen) return;
             
             setIsLoading(true);
             try {
@@ -1074,8 +1078,17 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, financials, toas
                 const relatedCommissions = commissions
                     .filter(c => c.servico_id === service.id && c.status === 'pago')
                     .reduce((sum, c) => sum + c.valor, 0);
+                
+                const totalCosts = relatedExpenses + relatedCommissions;
+                setServiceCosts(totalCosts);
 
-                setServiceCosts(relatedExpenses + relatedCommissions);
+                if (service.valor_total > 0) {
+                    const margin = (service.valor_total - totalCosts) / service.valor_total;
+                    setProfitMargin(margin);
+                } else {
+                    setProfitMargin(0);
+                }
+
             } catch (error) {
                 console.error("Erro ao buscar custos do serviço:", error);
                 toast({ variant: 'destructive', title: 'Erro', description: 'Não foi possível calcular os custos do serviço.' });
@@ -1084,24 +1097,23 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, financials, toas
             }
         };
 
-        if (isOpen) {
-            fetchCosts();
-        }
+        fetchCostsAndCalculateMargin();
     }, [isOpen, service, toast]);
 
-    // This is the cash balance *before* this service's revenue is considered.
-    const cashBalanceBeforeThisService = (financials.totalRevenue - service.valor_total) - financials.totalExpenses;
-    const serviceProfit = service.valor_total - serviceCosts;
+    const profitFromPayment = paymentValue * profitMargin;
     
-    let amountToDistribute = serviceProfit;
+    // This is the cash balance *before* this payment is considered.
+    const cashBalanceBeforeThisPayment = financials.totalRevenue - financials.totalExpenses;
+
+    let amountToDistribute = profitFromPayment;
     let deficitCoverage = 0;
 
-    if (cashBalanceBeforeThisService < 0) {
-        deficitCoverage = Math.min(serviceProfit, Math.abs(cashBalanceBeforeThisService));
+    if (cashBalanceBeforeThisPayment < 0) {
+        deficitCoverage = Math.min(profitFromPayment, Math.abs(cashBalanceBeforeThisPayment));
         amountToDistribute -= deficitCoverage;
     }
     
-    amountToDistribute = Math.max(0, amountToDistribute); // Garante que não seja negativo
+    amountToDistribute = Math.max(0, amountToDistribute);
 
     const numEmployees = financials.commissionableEmployees.length;
     const individualCommission = numEmployees > 0 ? amountToDistribute / numEmployees : 0;
@@ -1123,7 +1135,7 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, financials, toas
                     cliente_id: service.cliente_id,
                     valor: individualCommission,
                     data: Timestamp.now(),
-                    status: 'pago',
+                    status: 'pago', // Commissions from profit are always paid
                 };
                 const commissionDocRef = doc(collection(db, 'comissoes'));
                 batch.set(commissionDocRef, commissionData);
@@ -1147,23 +1159,31 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, financials, toas
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogContent className="sm:max-w-lg">
                 <DialogHeader>
-                    <DialogTitle>Distribuir Lucro do Serviço</DialogTitle>
+                    <DialogTitle>Distribuir Lucro do Pagamento</DialogTitle>
                     <DialogDescription>
-                        Revise os cálculos e confirme a distribuição do lucro para os funcionários comissionados.
+                        Revise os cálculos e confirme a distribuição do lucro referente a este pagamento.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                     <div className="p-4 border rounded-lg space-y-2 bg-muted/50">
                         <h4 className="font-semibold text-center mb-2">Resumo da Distribuição</h4>
                         <div className="flex justify-between items-center text-sm">
-                            <span className="text-muted-foreground">Lucro Bruto do Serviço:</span>
-                            <span className="font-medium text-green-600">{serviceProfit.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                            <span className="text-muted-foreground">Valor do Pagamento Recebido:</span>
+                            <span className="font-medium text-green-600">{paymentValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                        </div>
+                         <div className="flex justify-between items-center text-sm">
+                            <span className="text-muted-foreground">Margem de Lucro do Serviço:</span>
+                            <span className="font-medium">{profitMargin.toLocaleString('pt-BR', { style: 'percent', minimumFractionDigits: 2 })}</span>
                         </div>
                         <div className="flex justify-between items-center text-sm">
-                            <span className="text-muted-foreground">Saldo de Caixa (antes deste serviço):</span>
-                            <span className={cn("font-medium", cashBalanceBeforeThisService < 0 ? 'text-red-600' : 'text-green-600')}>{cashBalanceBeforeThisService.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                            <span className="text-muted-foreground">Lucro deste Pagamento:</span>
+                            <span className="font-medium text-green-600">{profitFromPayment.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
                         </div>
-                         {cashBalanceBeforeThisService < 0 && (
+                        <div className="flex justify-between items-center text-sm">
+                            <span className="text-muted-foreground">Saldo de Caixa (antes deste pag.):</span>
+                            <span className={cn("font-medium", cashBalanceBeforeThisPayment < 0 ? 'text-red-600' : 'text-green-600')}>{cashBalanceBeforeThisPayment.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                        </div>
+                         {cashBalanceBeforeThisPayment < 0 && (
                              <div className="flex justify-between items-center text-sm">
                                 <span className="text-muted-foreground">Cobertura de Déficit:</span>
                                 <span className="font-medium text-orange-500">-{deficitCoverage.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
@@ -1189,7 +1209,7 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, financials, toas
                     </div>
                 </div>
                 <DialogFooter>
-                    <Button variant="ghost" onClick={() => setIsOpen(false)}>Cancelar</Button>
+                    <Button variant="ghost" onClick={() => setIsOpen(false)}>Pular</Button>
                     <Button variant="accent" onClick={handleConfirmDistribution} disabled={isLoading || individualCommission <= 0}>
                         {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
                         Confirmar e Lançar
