@@ -72,12 +72,13 @@ const serviceSchema = z.object({
   anexos: z.string().optional(),
 });
 
-const paymentSchema = z.object({
-  valor_pago: z.coerce.number().min(0.01, "O valor deve ser maior que zero.")
-});
-
 const serviceTypeSchema = z.object({
   descricao: z.string().min(1, { message: 'Descrição é obrigatória.' }),
+});
+
+
+const paymentSchema = z.object({
+  valor_pago: z.coerce.number().min(0.01, "O valor deve ser maior que zero.")
 });
 
 
@@ -507,12 +508,13 @@ export default function ServicosPage() {
         return serviceDate >= fromDate && serviceDate <= toDate;
     });
 
-    const filteredTotal = filteredServices.reduce((acc, curr) => acc + curr.valor_total, 0);
+    const filteredTotal = filteredServices.reduce((acc, curr) => acc + (curr.valor_total || 0), 0);
+    const filteredSaldoDevedor = filteredServices.reduce((acc, curr) => acc + (curr.saldo_devedor || 0), 0);
 
     const ongoingServicesCount = services.filter((s) => s.status === 'em andamento').length;
     const completedServicesCount = services.filter((s) => s.status === 'concluído').length;
-    const totalReceivablePaid = services.reduce((acc, curr) => curr.status === 'concluído' ? acc + curr.valor_total : acc, 0);
-    const totalReceivablePending = services.filter((s) => s.status === 'em andamento').reduce((acc, curr) => acc + curr.valor_total, 0);
+    const totalReceivablePaid = services.reduce((acc, curr) => curr.status === 'concluído' ? acc + (curr.valor_total || 0) : acc, 0);
+    const totalReceivablePending = services.filter((s) => s.status === 'em andamento').reduce((acc, curr) => acc + (curr.valor_total || 0), 0);
 
   return (
     <div className="flex flex-col gap-8">
@@ -850,8 +852,8 @@ export default function ServicosPage() {
                     <TableRow key={service.id}>
                         <TableCell className="font-medium">{service.descricao}</TableCell>
                         <TableCell>{getClientName(service.cliente_id)}</TableCell>
-                        <TableCell className="text-green-500">R$ {service.valor_total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2})}</TableCell>
-                        <TableCell className="text-red-500">R$ {service.saldo_devedor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2})}</TableCell>
+                        <TableCell className="text-green-500">R$ {(service.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2})}</TableCell>
+                        <TableCell className="text-red-500">R$ {(service.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2})}</TableCell>
                         <TableCell>
                         <Badge variant={
                             service.status === 'concluído' ? 'secondary' :
@@ -922,7 +924,7 @@ export default function ServicosPage() {
                            R$ {filteredTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                         </TableCell>
                         <TableCell className="text-right font-bold text-red-500">
-                           R$ {filteredServices.reduce((acc, s) => acc + s.saldo_devedor, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                           R$ {filteredSaldoDevedor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                         </TableCell>
                         <TableCell colSpan={2}></TableCell>
                     </TableRow>
@@ -939,7 +941,7 @@ export default function ServicosPage() {
                   <DialogTitle>Lançar Pagamento</DialogTitle>
                   <DialogDescription>
                     Serviço: {editingService?.descricao}<br/>
-                    Saldo Devedor Atual: <span className="font-bold text-red-500">R$ {editingService?.saldo_devedor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                    Saldo Devedor Atual: <span className="font-bold text-red-500">R$ {(editingService?.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                   </DialogDescription>
               </DialogHeader>
               <Form {...paymentForm}>
