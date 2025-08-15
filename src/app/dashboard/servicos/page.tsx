@@ -76,6 +76,10 @@ const paymentSchema = z.object({
   valor_pago: z.coerce.number().min(0.01, "O valor deve ser maior que zero.")
 });
 
+const serviceTypeSchema = z.object({
+  descricao: z.string().min(1, { message: 'Descrição é obrigatória.' }),
+});
+
 
 const AnexosList = ({ urls, toast }: { urls: string[], toast: any }) => {
   const handleCopy = (url: string) => {
@@ -352,6 +356,7 @@ export default function ServicosPage() {
         const newBalance = editingService.saldo_devedor - values.valor_pago;
         if (newBalance < 0) {
             toast({ variant: 'destructive', title: 'Erro', description: 'O valor pago não pode ser maior que o saldo devedor.' });
+            setIsPaymentLoading(false);
             return;
         }
 
@@ -873,7 +878,7 @@ export default function ServicosPage() {
                                   <HandCoins className="mr-2 h-4 w-4" />
                                   Lançar Pagamento
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => generateReceipt(service)} disabled={service.status !== 'concluído'}>
+                                <DropdownMenuItem onClick={() => generateReceipt(service)}>
                                   <FileText className="mr-2 h-4 w-4" />
                                   Gerar Recibo
                                 </DropdownMenuItem>
