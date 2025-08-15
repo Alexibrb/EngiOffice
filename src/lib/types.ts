@@ -69,6 +69,7 @@ export type Account = {
 export type Commission = {
   id: string;
   funcionario_id: string;
+  cliente_id: string;
   servico_id: string;
   valor: number;
   data: Date;

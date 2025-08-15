@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
@@ -45,7 +45,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import type { Commission, Employee, Service } from '@/lib/types';
+import type { Commission, Employee, Service, Client } from '@/lib/types';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
@@ -56,16 +56,138 @@ import { Badge } from '@/components/ui/badge';
 
 const commissionSchema = z.object({
   funcionario_id: z.string().min(1, 'Funcionário é obrigatório.'),
+  cliente_id: z.string().min(1, 'Cliente é obrigatório.'),
   servico_id: z.string().min(1, 'Serviço é obrigatório.'),
   valor: z.coerce.number().min(0.01, 'Valor deve ser maior que zero.'),
   data: z.date({ required_error: 'Data é obrigatória.' }),
   status: z.enum(['pendente', 'pago']),
 });
 
+const CommissionFormContent = ({ form, employees, clients, services }: { form: any, employees: Employee[], clients: Client[], services: Service[] }) => {
+    const selectedClientId = useWatch({
+      control: form.control,
+      name: 'cliente_id',
+    });
+
+    const filteredServices = services.filter(service => service.cliente_id === selectedClientId);
+
+    useEffect(() => {
+        // Reset servico_id when cliente_id changes
+        form.setValue('servico_id', '');
+    }, [selectedClientId, form]);
+
+    return (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormField
+                control={form.control}
+                name="funcionario_id"
+                render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Funcionário *</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                            <FormControl><SelectTrigger><SelectValue placeholder="Selecione o Funcionário" /></SelectTrigger></FormControl>
+                            <SelectContent>
+                                {employees.map(emp => (<SelectItem key={emp.id} value={emp.id}>{emp.nome}</SelectItem>))}
+                            </SelectContent>
+                        </Select>
+                        <FormMessage />
+                    </FormItem>
+                )}
+            />
+             <FormField
+                control={form.control}
+                name="cliente_id"
+                render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Cliente *</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                            <FormControl><SelectTrigger><SelectValue placeholder="Selecione o Cliente" /></SelectTrigger></FormControl>
+                            <SelectContent>
+                                {clients.map(cli => (<SelectItem key={cli.codigo_cliente} value={cli.codigo_cliente}>{cli.nome_completo}</SelectItem>))}
+                            </SelectContent>
+                        </Select>
+                        <FormMessage />
+                    </FormItem>
+                )}
+            />
+            <FormField
+                control={form.control}
+                name="servico_id"
+                render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Serviço Referente *</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value} disabled={!selectedClientId}>
+                            <FormControl><SelectTrigger><SelectValue placeholder={selectedClientId ? "Selecione o Serviço" : "Selecione um cliente primeiro"} /></SelectTrigger></FormControl>
+                            <SelectContent>
+                                {filteredServices.map(srv => (<SelectItem key={srv.id} value={srv.id}>{srv.descricao}</SelectItem>))}
+                            </SelectContent>
+                        </Select>
+                        <FormMessage />
+                    </FormItem>
+                )}
+            />
+             <FormField
+                control={form.control}
+                name="valor"
+                render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Valor (R$)</FormLabel>
+                        <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
+                        <FormMessage />
+                    </FormItem>
+                )}
+            />
+            <FormField
+                control={form.control}
+                name="data"
+                render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Data de Pagamento</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant={"outline"}
+                              className={cn("w-full pl-3 text-left font-normal",!field.value && "text-muted-foreground")}>
+                              {field.value ? (format(field.value, "PPP", { locale: ptBR })) : (<span>Escolha uma data</span>)}
+                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus/>
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                    </FormItem>
+                )}
+            />
+            <FormField
+                control={form.control}
+                name="status"
+                render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Status</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                            <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                            <SelectContent>
+                                <SelectItem value="pendente">Pendente</SelectItem>
+                                <SelectItem value="pago">Pago</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <FormMessage />
+                    </FormItem>
+                )}
+            />
+        </div>
+    );
+};
+
 
 export default function ComissoesPage() {
     const [commissions, setCommissions] = useState<Commission[]>([]);
     const [employees, setEmployees] = useState<Employee[]>([]);
+    const [clients, setClients] = useState<Client[]>([]);
     const [services, setServices] = useState<Service[]>([]);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingCommission, setEditingCommission] = useState<Commission | null>(null);
@@ -79,10 +201,11 @@ export default function ComissoesPage() {
     const fetchData = async () => {
         setIsLoading(true);
         try {
-            const [commissionsSnapshot, employeesSnapshot, servicesSnapshot] = await Promise.all([
+            const [commissionsSnapshot, employeesSnapshot, servicesSnapshot, clientsSnapshot] = await Promise.all([
                 getDocs(collection(db, "comissoes")),
                 getDocs(collection(db, "funcionarios")),
                 getDocs(collection(db, "servicos")),
+                getDocs(collection(db, "clientes")),
             ]);
 
             const commissionsData = commissionsSnapshot.docs.map(doc => {
@@ -96,6 +219,10 @@ export default function ComissoesPage() {
 
             const servicesData = servicesSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }) as Service);
             setServices(servicesData);
+            
+            const clientsData = clientsSnapshot.docs.map(doc => ({ ...doc.data(), codigo_cliente: doc.id }) as Client);
+            setClients(clientsData);
+
 
         } catch (error) {
             console.error("Erro ao buscar dados: ", error);
@@ -115,12 +242,17 @@ export default function ComissoesPage() {
     const handleSaveCommission = async (values: z.infer<typeof commissionSchema>) => {
         setIsLoading(true);
         try {
+            const commissionData = {
+                ...values,
+                // cliente_id is already in values
+            };
+
             if (editingCommission) {
                 const docRef = doc(db, 'comissoes', editingCommission.id);
-                await setDoc(docRef, values);
+                await setDoc(docRef, commissionData);
                 toast({ title: "Sucesso!", description: "Comissão atualizada com sucesso." });
             } else {
-                await addDoc(collection(db, 'comissoes'), values);
+                await addDoc(collection(db, 'comissoes'), commissionData);
                 toast({ title: "Sucesso!", description: "Comissão adicionada com sucesso." });
             }
             form.reset();
@@ -150,6 +282,7 @@ export default function ComissoesPage() {
         setEditingCommission(null);
         form.reset({
             funcionario_id: '',
+            cliente_id: '',
             servico_id: '',
             valor: 0,
             status: 'pendente',
@@ -159,9 +292,13 @@ export default function ComissoesPage() {
     };
 
     const handleEditClick = (commission: Commission) => {
+        const service = services.find(s => s.id === commission.servico_id);
+        const clientId = service ? service.cliente_id : '';
+
         setEditingCommission(commission);
         form.reset({
             ...commission,
+            cliente_id: clientId,
             data: commission.data instanceof Date ? commission.data : new Date(commission.data),
         });
         setIsDialogOpen(true);
@@ -249,93 +386,12 @@ export default function ComissoesPage() {
                     </DialogHeader>
                     <Form {...form}>
                         <form onSubmit={form.handleSubmit(handleSaveCommission)} className="space-y-6">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <FormField
-                                    control={form.control}
-                                    name="funcionario_id"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Funcionário *</FormLabel>
-                                            <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
-                                                <FormControl><SelectTrigger><SelectValue placeholder="Selecione o Funcionário" /></SelectTrigger></FormControl>
-                                                <SelectContent>
-                                                    {employees.map(emp => (<SelectItem key={emp.id} value={emp.id}>{emp.nome}</SelectItem>))}
-                                                </SelectContent>
-                                            </Select>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={form.control}
-                                    name="servico_id"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Serviço Referente *</FormLabel>
-                                            <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
-                                                <FormControl><SelectTrigger><SelectValue placeholder="Selecione o Serviço" /></SelectTrigger></FormControl>
-                                                <SelectContent>
-                                                    {services.map(srv => (<SelectItem key={srv.id} value={srv.id}>{srv.descricao}</SelectItem>))}
-                                                </SelectContent>
-                                            </Select>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                 <FormField
-                                    control={form.control}
-                                    name="valor"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Valor (R$)</FormLabel>
-                                            <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={form.control}
-                                    name="data"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                          <FormLabel>Data de Pagamento</FormLabel>
-                                          <Popover>
-                                            <PopoverTrigger asChild>
-                                              <FormControl>
-                                                <Button
-                                                  variant={"outline"}
-                                                  className={cn("w-full pl-3 text-left font-normal",!field.value && "text-muted-foreground")}>
-                                                  {field.value ? (format(field.value, "PPP", { locale: ptBR })) : (<span>Escolha uma data</span>)}
-                                                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                                </Button>
-                                              </FormControl>
-                                            </PopoverTrigger>
-                                            <PopoverContent className="w-auto p-0" align="start">
-                                              <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus/>
-                                            </PopoverContent>
-                                          </Popover>
-                                          <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={form.control}
-                                    name="status"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Status</FormLabel>
-                                            <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
-                                                <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                                                <SelectContent>
-                                                    <SelectItem value="pendente">Pendente</SelectItem>
-                                                    <SelectItem value="pago">Pago</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                            </div>
+                            <CommissionFormContent
+                                form={form}
+                                employees={employees}
+                                clients={clients}
+                                services={services}
+                            />
                             <DialogFooter>
                                 <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
                                 <Button type="submit" disabled={isLoading}>
