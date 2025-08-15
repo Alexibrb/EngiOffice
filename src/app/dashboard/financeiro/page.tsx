@@ -733,7 +733,7 @@ function PayableFormComponent({ form, payees, onAddSupplier, onAddProduct }: {
     onAddProduct: () => void
 }) {
     const payeeId = useWatch({ control: form.control, name: 'referencia_id' });
-    const selectedPayee = payees.find(p => p.id === payeeId);
+    const selectedPayee = payees.find(p => p.id === payeeId) as (Supplier | Employee | undefined);
 
     const isSupplier = selectedPayee?.tipo === 'fornecedor';
     
@@ -744,9 +744,12 @@ function PayableFormComponent({ form, payees, onAddSupplier, onAddProduct }: {
                 form.setValue('descricao', 'Pagamento de Salário');
                 form.setValue('valor', (selectedPayee as Employee).salario || 0);
             } else {
-                 // Deixa o usuário digitar a descrição para fornecedores
                  form.setValue('descricao', '');
+                 form.setValue('valor', 0);
             }
+        } else {
+            form.setValue('descricao', '');
+            form.setValue('valor', 0);
         }
     }, [selectedPayee, form]);
 
@@ -788,7 +791,30 @@ function PayableFormComponent({ form, payees, onAddSupplier, onAddProduct }: {
                 render={({ field }) => (
                     <FormItem>
                         <FormLabel>Descrição *</FormLabel>
-                        <FormControl><Input {...field} placeholder="Ex: Compra de material" /></FormControl>
+                        <div className="flex items-center gap-2">
+                        {isSupplier ? (
+                             <>
+                                <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                                    <FormControl>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Selecione um produto/serviço" />
+                                        </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                        {(selectedPayee as Supplier)?.produtos_servicos?.map((product, index) => (
+                                            <SelectItem key={index} value={product}>{product}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <Button type="button" variant="outline" size="icon" onClick={onAddProduct}>
+                                    <PlusCircle className="h-4 w-4" />
+                                </Button>
+                             </>
+                        ) : (
+                            <Input {...field} disabled={!isSupplier} placeholder="Pagamento de Salário"/>
+                        )}
+                        </div>
+
                         <FormMessage />
                     </FormItem>
                 )}
@@ -800,7 +826,7 @@ function PayableFormComponent({ form, payees, onAddSupplier, onAddProduct }: {
                 render={({ field }) => (
                     <FormItem>
                         <FormLabel>Valor (R$)</FormLabel>
-                        <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
+                        <FormControl><Input type="number" step="0.01" {...field} disabled={!isSupplier} /></FormControl>
                         <FormMessage />
                     </FormItem>
                 )}
@@ -1054,3 +1080,4 @@ function ReceivableTableComponent({ services, getClientName }: {
     
 
     
+
