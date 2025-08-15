@@ -1086,7 +1086,7 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, paymentValue, fi
                 const relatedExpenses = accountsPayable
                     .filter(acc => acc.servico_id === service.id)
                     .reduce((sum, acc) => sum + acc.valor, 0);
-
+                
                 const totalCosts = relatedExpenses;
                 setServiceCosts(totalCosts);
 
@@ -1230,3 +1230,5 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, paymentValue, fi
         </Dialog>
     );
 }
+
+    
