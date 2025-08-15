@@ -35,7 +35,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { useToast } from "@/hooks/use-toast"
-import { collection, addDoc, getDocs, doc, setDoc, deleteDoc, Timestamp } from 'firebase/firestore';
+import { collection, addDoc, getDocs, doc, setDoc, deleteDoc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { PlusCircle, MoreHorizontal, Loader2, Calendar as CalendarIcon, Download, ExternalLink, ArrowDown, ArrowUp, CircleDollarSign } from 'lucide-react';
 import {
@@ -58,6 +58,7 @@ import { Badge } from '@/components/ui/badge';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { Label } from '@/components/ui/label';
 
 
 const accountSchema = z.object({
@@ -85,6 +86,7 @@ export default function FinanceiroPage() {
     const [suppliers, setSuppliers] = useState<Supplier[]>([]);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isSupplierDialogOpen, setIsSupplierDialogOpen] = useState(false);
+    const [isAddProductDialogOpen, setIsAddProductDialogOpen] = useState(false);
     const [editingAccount, setEditingAccount] = useState<Account | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [isSupplierLoading, setIsSupplierLoading] = useState(false);
@@ -112,16 +114,18 @@ export default function FinanceiroPage() {
       const suppliersSnapshot = await getDocs(collection(db, "fornecedores"));
       const suppliersData = suppliersSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Supplier[];
       setSuppliers(suppliersData);
+      return suppliersData;
     };
 
     const fetchData = async () => {
         try {
-            const [payableSnapshot, servicesSnapshot, clientsSnapshot, suppliersSnapshot] = await Promise.all([
+            const [payableSnapshot, servicesSnapshot, clientsSnapshot] = await Promise.all([
                 getDocs(collection(db, "contas_a_pagar")),
                 getDocs(collection(db, "servicos")),
                 getDocs(collection(db, "clientes")),
-                getDocs(collection(db, "fornecedores")),
             ]);
+            
+            const suppliersData = await fetchSuppliers();
 
             const payableData = payableSnapshot.docs.map(doc => {
                 const data = doc.data();
@@ -137,9 +141,6 @@ export default function FinanceiroPage() {
 
             const clientsData = clientsSnapshot.docs.map(doc => ({ ...doc.data(), codigo_cliente: doc.id })) as Client[];
             setClients(clientsData);
-
-            const suppliersData = suppliersSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Supplier[];
-            setSuppliers(suppliersData);
 
             const editPayableId = searchParams.get('editPayable');
             const addPayable = searchParams.get('add');
@@ -314,6 +315,9 @@ export default function FinanceiroPage() {
     const totalReceivablePending = services
         .filter((s) => s.status === 'em andamento')
         .reduce((acc, curr) => acc + curr.valor, 0);
+    
+    const selectedSupplierId = form.watch('referencia_id');
+
 
     return (
         <div className="flex flex-col gap-8">
@@ -435,6 +439,7 @@ export default function FinanceiroPage() {
                                 form={form} 
                                 suppliers={suppliers} 
                                 onAddSupplier={() => setIsSupplierDialogOpen(true)}
+                                onAddProduct={() => setIsAddProductDialogOpen(true)}
                             />
                             <DialogFooter>
                                 <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
@@ -538,11 +543,26 @@ export default function FinanceiroPage() {
                     </Form>
                 </DialogContent>
             </Dialog>
+
+            {/* Dialog para Adicionar Novo Produto ao Fornecedor */}
+             <AddProductDialog 
+                isOpen={isAddProductDialogOpen}
+                setIsOpen={setIsAddProductDialogOpen}
+                supplierId={selectedSupplierId}
+                onProductAdded={fetchSuppliers} 
+                toast={toast}
+            />
+
         </div>
     );
 }
 
-function PayableFormComponent({ form, suppliers, onAddSupplier }: { form: any, suppliers: Supplier[], onAddSupplier: () => void }) {
+function PayableFormComponent({ form, suppliers, onAddSupplier, onAddProduct }: { 
+    form: any, 
+    suppliers: Supplier[], 
+    onAddSupplier: () => void,
+    onAddProduct: () => void
+}) {
     const supplierId = useWatch({
       control: form.control,
       name: 'referencia_id',
@@ -593,20 +613,25 @@ function PayableFormComponent({ form, suppliers, onAddSupplier }: { form: any, s
                 render={({ field }) => (
                     <FormItem>
                         <FormLabel>Descrição *</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value} disabled={!supplierId}>
-                             <FormControl>
-                                <SelectTrigger>
-                                    <SelectValue placeholder={supplierId ? "Selecione o produto/serviço" : "Selecione um fornecedor"} />
-                                </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                                {productOptions.map(product => (
-                                    <SelectItem key={product} value={product}>
-                                        {product}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <div className="flex items-center gap-2">
+                            <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value} disabled={!supplierId}>
+                                <FormControl>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder={supplierId ? "Selecione o produto/serviço" : "Selecione um fornecedor"} />
+                                    </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                    {productOptions.map(product => (
+                                        <SelectItem key={product} value={product}>
+                                            {product}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                             <Button type="button" variant="outline" size="icon" onClick={onAddProduct} disabled={!supplierId}>
+                                <PlusCircle className="h-4 w-4" />
+                            </Button>
+                        </div>
                         <FormMessage />
                     </FormItem>
                 )}
@@ -666,6 +691,79 @@ function PayableFormComponent({ form, suppliers, onAddSupplier }: { form: any, s
                 )}
             />
         </div>
+    );
+}
+
+function AddProductDialog({ isOpen, setIsOpen, supplierId, onProductAdded, toast }: {
+    isOpen: boolean,
+    setIsOpen: (isOpen: boolean) => void,
+    supplierId: string,
+    onProductAdded: () => Promise<any>,
+    toast: any
+}) {
+    const [newProduct, setNewProduct] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+
+    const handleAddProduct = async () => {
+        if (!newProduct.trim()) {
+            toast({ variant: 'destructive', title: 'Erro', description: 'O nome do produto não pode ser vazio.' });
+            return;
+        }
+        if (!supplierId) {
+            toast({ variant: 'destructive', title: 'Erro', description: 'Nenhum fornecedor selecionado.' });
+            return;
+        }
+
+        setIsLoading(true);
+        try {
+            const supplierDocRef = doc(db, 'fornecedores', supplierId);
+            await updateDoc(supplierDocRef, {
+                produtos_servicos: arrayUnion(newProduct.trim())
+            });
+            toast({ title: 'Sucesso!', description: 'Produto adicionado com sucesso.' });
+            setNewProduct('');
+            setIsOpen(false);
+            await onProductAdded();
+        } catch (error) {
+            console.error("Erro ao adicionar produto:", error);
+            toast({ variant: 'destructive', title: 'Erro', description: 'Não foi possível adicionar o produto.' });
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    return (
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle>Adicionar Novo Produto/Serviço</DialogTitle>
+                    <DialogDescription>
+                        Digite o nome do novo produto ou serviço para o fornecedor selecionado.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="product-name" className="text-right">
+                            Nome
+                        </Label>
+                        <Input
+                            id="product-name"
+                            value={newProduct}
+                            onChange={(e) => setNewProduct(e.target.value)}
+                            className="col-span-3"
+                            disabled={isLoading}
+                        />
+                    </div>
+                </div>
+                <DialogFooter>
+                     <Button type="button" variant="ghost" onClick={() => setIsOpen(false)}>Cancelar</Button>
+                    <Button onClick={handleAddProduct} disabled={isLoading}>
+                        {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Salvar Produto
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     );
 }
 
