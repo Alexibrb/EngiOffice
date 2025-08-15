@@ -161,6 +161,7 @@ export default function ContasAReceberPage() {
     };
 
     const handleDistributionClick = (service: Service) => {
+        setLastPaymentValue(0);
         setDistributingService(service);
         setIsDistributionDialogOpen(true);
     };
@@ -246,8 +247,11 @@ export default function ContasAReceberPage() {
             generateReceipt(editingService, values.valor_pago);
 
             setIsPaymentDialogOpen(false);
+            
+            const updatedService = { ...editingService, saldo_devedor: newBalance, status: newBalance === 0 ? 'concluído' : 'em andamento' } as Service;
+            
             setLastPaymentValue(values.valor_pago);
-            setDistributingService(editingService);
+            setDistributingService(updatedService);
             setIsDistributionDialogOpen(true);
             await fetchData();
 
@@ -596,8 +600,8 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, paymentValue, fi
     const [profitMargin, setProfitMargin] = useState(0);
 
     const isManualTrigger = paymentValue === 0;
-    const amountPaid = service.valor_total - service.saldo_devedor;
-    const valueForCalculation = isManualTrigger ? amountPaid : paymentValue;
+    const amountPaidSoFar = service.valor_total - service.saldo_devedor;
+    const valueForCalculation = isManualTrigger ? amountPaidSoFar : paymentValue;
 
     useEffect(() => {
         const fetchCostsAndCalculateMargin = async () => {
@@ -610,14 +614,8 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, paymentValue, fi
                 const relatedExpenses = accountsPayable
                     .filter(acc => acc.servico_id === service.id && acc.status === 'pago')
                     .reduce((sum, acc) => sum + acc.valor, 0);
-
-                const commissionsSnap = await getDocs(collection(db, 'comissoes'));
-                const commissions = commissionsSnap.docs.map(doc => doc.data() as Commission);
-                const relatedCommissions = commissions
-                    .filter(c => c.servico_id === service.id && c.status === 'pago')
-                    .reduce((sum, c) => sum + c.valor, 0);
                 
-                const totalCosts = relatedExpenses + relatedCommissions;
+                const totalCosts = relatedExpenses;
                 setServiceCosts(totalCosts);
 
                 if (service.valor_total > 0) {
@@ -760,5 +758,7 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, paymentValue, fi
         </Dialog>
     );
 }
+
+    
 
     

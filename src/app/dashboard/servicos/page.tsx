@@ -358,11 +358,14 @@ export default function ServicosPage() {
   const handleSaveService = async (values: z.infer<typeof serviceSchema>) => {
     setIsLoading(true);
     try {
+      const saldoDevedor = values.forma_pagamento === 'a_prazo' ? values.valor_total : 0;
+      const status = saldoDevedor === 0 ? 'concluído' : values.status;
+
       const serviceData = {
         ...values,
         anexos: values.anexos?.split('\n').filter(a => a.trim() !== '') || [],
-        saldo_devedor: values.forma_pagamento === 'a_prazo' ? values.valor_total : 0,
-        status: values.forma_pagamento === 'a_vista' ? 'concluído' : values.status,
+        saldo_devedor: saldoDevedor,
+        status: status,
       };
 
       if (editingService) {
@@ -380,8 +383,8 @@ export default function ServicosPage() {
         });
         if (serviceData.status === 'concluído') {
              const newService = { ...serviceData, id: newDocRef.id };
-             setDistributingService(newService);
              setLastPaymentValue(newService.valor_total);
+             setDistributingService(newService);
              setIsDistributionDialogOpen(true);
         }
       }
@@ -416,9 +419,10 @@ export default function ServicosPage() {
         }
 
         const serviceDocRef = doc(db, 'servicos', editingService.id);
+        const newStatus = newBalance === 0 ? 'concluído' : 'em andamento';
         await updateDoc(serviceDocRef, {
             saldo_devedor: newBalance,
-            status: newBalance === 0 ? 'concluído' : 'em andamento'
+            status: newStatus
         });
 
         toast({ title: 'Sucesso!', description: 'Pagamento lançado com sucesso.' });
@@ -427,8 +431,9 @@ export default function ServicosPage() {
         
         setIsPaymentDialogOpen(false);
         
+        const updatedService = { ...editingService, saldo_devedor: newBalance, status: newStatus };
         setLastPaymentValue(values.valor_pago);
-        setDistributingService(editingService);
+        setDistributingService(updatedService);
         setIsDistributionDialogOpen(true);
         await fetchServicesAndClients(); // Refresh data
 
@@ -1072,8 +1077,8 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, paymentValue, fi
     const [profitMargin, setProfitMargin] = useState(0);
 
     const isManualTrigger = paymentValue === 0;
-    const amountPaid = service.valor_total - service.saldo_devedor;
-    const valueForCalculation = isManualTrigger ? amountPaid : paymentValue;
+    const amountPaidSoFar = service.valor_total - service.saldo_devedor;
+    const valueForCalculation = isManualTrigger ? amountPaidSoFar : paymentValue;
 
     useEffect(() => {
         const fetchCostsAndCalculateMargin = async () => {
@@ -1087,13 +1092,7 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, paymentValue, fi
                     .filter(acc => acc.servico_id === service.id && acc.status === 'pago')
                     .reduce((sum, acc) => sum + acc.valor, 0);
 
-                const commissionsSnap = await getDocs(collection(db, 'comissoes'));
-                const commissions = commissionsSnap.docs.map(doc => doc.data() as Commission);
-                const relatedCommissions = commissions
-                    .filter(c => c.servico_id === service.id && c.status === 'pago')
-                    .reduce((sum, c) => sum + c.valor, 0);
-                
-                const totalCosts = relatedExpenses + relatedCommissions;
+                const totalCosts = relatedExpenses;
                 setServiceCosts(totalCosts);
 
                 if (service.valor_total > 0) {
@@ -1236,3 +1235,5 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, paymentValue, fi
         </Dialog>
     );
 }
+
+    
