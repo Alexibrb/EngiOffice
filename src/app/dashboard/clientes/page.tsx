@@ -98,7 +98,7 @@ export default function ClientesPage() {
         telefone: telefone,
         endereco_residencial: residentialAddress,
         endereco_obra: workAddress,
-        coordenadas: { lat: Number(workLat) || 0, lng: Number(workLng) || 0 },
+        coordenadas: { lat: parseFloat(workLat) || 0, lng: parseFloat(workLng) || 0 },
         rg: '',
         numero_art: '',
         historico_servicos: [],
