@@ -9,7 +9,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyALI2S7-ja1Gcfaa5Kgmz9iMKrC1Fqagyo",
   authDomain: "engiflow-74dlq.firebaseapp.com",
   projectId: "engiflow-74dlq",
-  storageBucket: "engiflow-74dlq.appspot.com",
+  storageBucket: "engiflow-74dlq.firebasestorage.app",
   messagingSenderId: "700766733055",
   appId: "1:700766733055:web:c831392d6fd34491b142ca"
 };
