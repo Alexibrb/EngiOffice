@@ -123,7 +123,7 @@ export default function DashboardPage() {
 
 
   const handlePayAccount = (accountId: string) => {
-    router.push(`/dashboard/financeiro?editPayable=${accountId}`);
+    router.push(`/dashboard/contas-a-pagar?editPayable=${accountId}`);
   };
 
   const handleEditService = (serviceId: string) => {

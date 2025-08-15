@@ -17,6 +17,7 @@ import {
   Building2,
   ArrowDown,
   ArrowUp,
+  CreditCard,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -35,12 +36,12 @@ const mainLinks = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/dashboard/servicos', label: 'Serviços', icon: Wrench },
   {
-    href: '/dashboard/financeiro?tab=payable',
+    href: '/dashboard/contas-a-pagar',
     label: 'Contas a Pagar',
     icon: ArrowDown,
   },
   {
-    href: '/dashboard/financeiro?tab=receivable',
+    href: '/dashboard/contas-a-receber',
     label: 'Contas a Receber',
     icon: ArrowUp,
   },

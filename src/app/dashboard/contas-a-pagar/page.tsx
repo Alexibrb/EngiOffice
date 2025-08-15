@@ -13,7 +13,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
 import {
   Table,
@@ -37,7 +36,7 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import { collection, addDoc, getDocs, doc, setDoc, deleteDoc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { PlusCircle, MoreHorizontal, Loader2, Calendar as CalendarIcon, Download, ExternalLink, ArrowDown, ArrowUp, CircleDollarSign, XCircle } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Loader2, Calendar as CalendarIcon, Download, XCircle } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -47,13 +46,12 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { format, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import type { Account, Client, Supplier, Service, Employee, Payee } from '@/lib/types';
+import type { Account, Supplier, Employee, Payee } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -80,10 +78,8 @@ const supplierSchema = z.object({
 });
 
 
-export default function FinanceiroPage() {
+export default function ContasAPagarPage() {
     const [accountsPayable, setAccountsPayable] = useState<Account[]>([]);
-    const [services, setServices] = useState<Service[]>([]);
-    const [clients, setClients] = useState<Client[]>([]);
     const [suppliers, setSuppliers] = useState<Supplier[]>([]);
     const [employees, setEmployees] = useState<Employee[]>([]);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -96,17 +92,8 @@ export default function FinanceiroPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
 
-    const initialTab = searchParams.get('tab') || 'payable';
-    const [activeTab, setActiveTab] = useState(initialTab);
-    
-    // Filters for Payable
-    const [payableDateRange, setPayableDateRange] = useState<DateRange | undefined>(undefined);
-    const [payableStatusFilter, setPayableStatusFilter] = useState<string>('');
-
-    // Filters for Receivable
-    const [receivableDateRange, setReceivableDateRange] = useState<DateRange | undefined>(undefined);
-    const [receivableStatusFilter, setReceivableStatusFilter] = useState<string>('');
-
+    const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+    const [statusFilter, setStatusFilter] = useState<string>('');
 
     const form = useForm<z.infer<typeof accountSchema>>({
         resolver: zodResolver(accountSchema),
@@ -139,11 +126,7 @@ export default function FinanceiroPage() {
 
     const fetchData = async () => {
         try {
-            const [payableSnapshot, servicesSnapshot, clientsSnapshot] = await Promise.all([
-                getDocs(collection(db, "contas_a_pagar")),
-                getDocs(collection(db, "servicos")),
-                getDocs(collection(db, "clientes")),
-            ]);
+            const payableSnapshot = await getDocs(collection(db, "contas_a_pagar"));
             
             await fetchSuppliers();
             await fetchEmployees();
@@ -154,15 +137,6 @@ export default function FinanceiroPage() {
             });
             setAccountsPayable(payableData);
             
-            const servicesData = servicesSnapshot.docs.map(doc => {
-                const data = doc.data();
-                return { ...data, id: doc.id, data_cadastro: data.data_cadastro.toDate() } as Service;
-            });
-            setServices(servicesData);
-
-            const clientsData = clientsSnapshot.docs.map(doc => ({ ...doc.data(), codigo_cliente: doc.id })) as Client[];
-            setClients(clientsData);
-
             const editPayableId = searchParams.get('editPayable');
             const addPayable = searchParams.get('add');
             
@@ -170,13 +144,13 @@ export default function FinanceiroPage() {
                 const accountToEdit = payableData.find(a => a.id === editPayableId);
                 if (accountToEdit) {
                     handleEditClick(accountToEdit);
-                    router.replace('/dashboard/financeiro', { scroll: false });
+                    router.replace('/dashboard/contas-a-pagar', { scroll: false });
                 }
             }
 
             if (addPayable) {
               handleAddNewClick();
-              router.replace('/dashboard/financeiro', { scroll: false });
+              router.replace('/dashboard/contas-a-pagar', { scroll: false });
             }
 
 
@@ -189,10 +163,6 @@ export default function FinanceiroPage() {
     useEffect(() => {
         fetchData();
     }, [searchParams]);
-
-    const getClientName = (id: string) => {
-        return clients.find(c => c.codigo_cliente === id)?.nome_completo || 'Desconhecido';
-    };
 
     const getPayeeName = (account: Account) => {
         if (account.tipo_referencia === 'funcionario') {
@@ -286,9 +256,9 @@ export default function FinanceiroPage() {
         setIsDialogOpen(true);
     };
 
-    const generatePdf = (type: 'pagar' | 'receber') => {
+    const generatePdf = () => {
         const doc = new jsPDF();
-        const title = type === 'pagar' ? 'Relatório de Contas a Pagar' : 'Relatório de Contas a Receber (Serviços)';
+        const title = 'Relatório de Contas a Pagar';
         
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(16);
@@ -298,85 +268,40 @@ export default function FinanceiroPage() {
         doc.setFontSize(10);
         doc.text(`Data de Emissão: ${new Date().toLocaleDateString('pt-BR')}`, 14, 28);
     
-        if (type === 'pagar') {
-            autoTable(doc, {
-              startY: 35,
-              head: [['Descrição', 'Favorecido', 'Vencimento', 'Valor', 'Status']],
-              body: filteredPayable.map((acc) => [
-                acc.descricao,
-                getPayeeName(acc),
-                format(acc.vencimento, 'dd/MM/yyyy'),
-                `R$ ${acc.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
-                acc.status,
-              ]),
-              theme: 'striped',
-              headStyles: { fillColor: [34, 139, 34] },
-            });
-        } else {
-             autoTable(doc, {
-              startY: 35,
-              head: [['Descrição', 'Cliente', 'Data de Cadastro', 'Valor', 'Status']],
-              body: filteredReceivable.map((service) => [
-                service.descricao,
-                getClientName(service.cliente_id),
-                format(service.data_cadastro, 'dd/MM/yyyy'),
-                `R$ ${service.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
-                service.status,
-              ]),
-              theme: 'striped',
-              headStyles: { fillColor: [34, 139, 34] },
-            });
-        }
+        autoTable(doc, {
+          startY: 35,
+          head: [['Descrição', 'Favorecido', 'Vencimento', 'Valor', 'Status']],
+          body: filteredPayable.map((acc) => [
+            acc.descricao,
+            getPayeeName(acc),
+            format(acc.vencimento, 'dd/MM/yyyy'),
+            `R$ ${acc.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+            acc.status,
+          ]),
+          theme: 'striped',
+          headStyles: { fillColor: [34, 139, 34] },
+        });
     
-        doc.save(`relatorio_financeiro_${type}.pdf`);
+        doc.save(`relatorio_contas_a_pagar.pdf`);
       };
 
-    const totalPayablePending = accountsPayable
-        .filter((a) => a.status === 'pendente')
-        .reduce((acc, curr) => acc + curr.valor, 0);
-
-    const totalPayablePaid = accountsPayable
-        .filter((a) => a.status === 'pago')
-        .reduce((acc, curr) => acc + curr.valor, 0);
-
-    const totalReceivablePending = services
-        .filter((s) => s.status === 'em andamento')
-        .reduce((acc, curr) => acc + curr.valor, 0);
-    
     const selectedSupplierId = form.watch('referencia_id');
     
-    const handleClearPayableFilters = () => {
-        setPayableDateRange(undefined);
-        setPayableStatusFilter('');
+    const handleClearFilters = () => {
+        setDateRange(undefined);
+        setStatusFilter('');
     }
 
     const filteredPayable = accountsPayable
         .filter(acc => {
-            return payableStatusFilter ? acc.status === payableStatusFilter : true;
+            return statusFilter ? acc.status === statusFilter : true;
         })
         .filter(acc => {
-            if (!payableDateRange?.from) return true;
-            const fromDate = payableDateRange.from;
-            const toDate = payableDateRange.to ? payableDateRange.to : fromDate;
+            if (!dateRange?.from) return true;
+            const fromDate = dateRange.from;
+            const toDate = dateRange.to ? dateRange.to : fromDate;
             const accDate = acc.vencimento;
             return accDate >= fromDate && accDate <= addDays(toDate, 1);
-        });
-        
-    const handleClearReceivableFilters = () => {
-        setReceivableDateRange(undefined);
-        setReceivableStatusFilter('');
-    }
-
-    const filteredReceivable = services
-        .filter(service => {
-            return receivableStatusFilter ? service.status === receivableStatusFilter : true;
-        })
-        .filter(service => {
-            if (!receivableDateRange?.from) return true;
-            const fromDate = receivableDateRange.from;
-            const toDate = receivableDateRange.to ? receivableDateRange.to : fromDate;
-            const serviceDate = service.data_cadastro;
-            return serviceDate >= fromDate && serviceDate <= addDays(toDate, 1);
         });
 
     const payees: Payee[] = [
@@ -388,216 +313,91 @@ export default function FinanceiroPage() {
     return (
         <div className="flex flex-col gap-8">
             <div>
-                <h1 className="text-3xl font-bold font-headline text-primary">Financeiro</h1>
+                <h1 className="text-3xl font-bold font-headline text-primary">Contas a Pagar</h1>
                 <p className="text-muted-foreground">
-                    Gerencie as finanças do seu escritório.
+                    Gerencie as faturas, salários e despesas a serem pagas.
                 </p>
             </div>
-            
-            <div className="grid gap-4 md:grid-cols-3">
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Contas a Receber (Pendente)</CardTitle>
-                        <ArrowUp className="h-4 w-4 text-green-500" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-green-500">R$ {totalReceivablePending.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
-                        <p className="text-xs text-muted-foreground">
-                            Soma de todos os serviços "em andamento"
-                        </p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Contas a Pagar (Pendente)</CardTitle>
-                        <ArrowDown className="h-4 w-4 text-red-500" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-red-500">R$ {totalPayablePending.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
-                         <p className="text-xs text-muted-foreground">
-                            Soma de todas as contas pendentes
-                        </p>
-                    </CardContent>
-                </Card>
-                 <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Contas Pagas</CardTitle>
-                        <CircleDollarSign className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-red-500">R$ {totalPayablePaid.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
-                         <p className="text-xs text-muted-foreground">
-                            Soma de todas as contas pagas
-                        </p>
-                    </CardContent>
-                </Card>
-            </div>
 
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
-                <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="payable">Contas a Pagar</TabsTrigger>
-                    <TabsTrigger value="receivable">Contas a Receber</TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="payable">
-                    <Card>
-                        <CardHeader>
-                            <div className="flex flex-row items-center justify-between">
-                                <div>
-                                    <CardTitle>Contas a Pagar</CardTitle>
-                                    <CardDescription>Faturas, salários e despesas a serem pagas.</CardDescription>
-                                </div>
-                                <div className="flex gap-2">
-                                    <Button onClick={() => generatePdf('pagar')} variant="outline">
-                                        <Download className="mr-2 h-4 w-4" />
-                                        Exportar PDF
-                                    </Button>
-                                    <Button onClick={handleAddNewClick} variant="accent">
-                                        <PlusCircle className="mr-2 h-4 w-4" />
-                                        Adicionar
-                                    </Button>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-4 p-4 mt-4 bg-muted rounded-lg">
-                                <div className="flex items-center gap-2">
-                                    <Popover>
-                                        <PopoverTrigger asChild>
-                                          <Button
-                                            id="date"
-                                            variant={"outline"}
-                                            className={cn( "w-[300px] justify-start text-left font-normal", !payableDateRange && "text-muted-foreground")}
-                                          >
-                                            <CalendarIcon className="mr-2 h-4 w-4" />
-                                            {payableDateRange?.from ? (
-                                              payableDateRange.to ? (
-                                                <>
-                                                  {format(payableDateRange.from, "LLL dd, y")} -{" "}
-                                                  {format(payableDateRange.to, "LLL dd, y")}
-                                                </>
-                                              ) : (
-                                                format(payableDateRange.from, "LLL dd, y")
-                                              )
-                                            ) : (
-                                              <span>Filtrar por vencimento...</span>
-                                            )}
-                                          </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0" align="start">
-                                          <Calendar
-                                            initialFocus
-                                            mode="range"
-                                            defaultMonth={payableDateRange?.from}
-                                            selected={payableDateRange}
-                                            onSelect={setPayableDateRange}
-                                            numberOfMonths={2}
-                                          />
-                                        </PopoverContent>
-                                    </Popover>
-                                </div>
-                                 <div className="flex items-center gap-2">
-                                    <Select value={payableStatusFilter} onValueChange={setPayableStatusFilter}>
-                                        <SelectTrigger className="w-[180px]">
-                                            <SelectValue placeholder="Filtrar status" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="pendente">Pendente</SelectItem>
-                                            <SelectItem value="pago">Pago</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                 </div>
-                                 <Button variant="ghost" onClick={handleClearPayableFilters} className="text-muted-foreground">
-                                    <XCircle className="mr-2 h-4 w-4"/>
-                                    Limpar Filtros
-                                 </Button>
-                            </div>
-                        </CardHeader>
-                        <CardContent>
-                            <PayableTableComponent 
-                                accounts={filteredPayable} 
-                                getPayeeName={getPayeeName} 
-                                onEdit={handleEditClick} 
-                                onDelete={handleDeleteAccount} 
-                            />
-                        </CardContent>
-                    </Card>
-                </TabsContent>
-
-                <TabsContent value="receivable">
-                    <Card>
-                         <CardHeader>
-                            <div className="flex flex-row items-center justify-between">
-                                <div>
-                                    <CardTitle>Contas a Receber</CardTitle>
-                                    <CardDescription>Serviços prestados a serem recebidos dos clientes.</CardDescription>
-                                </div>
-                                <Button onClick={() => generatePdf('receber')} variant="outline">
-                                    <Download className="mr-2 h-4 w-4" />
-                                    Exportar PDF
-                                </Button>
-                            </div>
-                             <div className="flex items-center gap-4 p-4 mt-4 bg-muted rounded-lg">
-                                <div className="flex items-center gap-2">
-                                    <Popover>
-                                        <PopoverTrigger asChild>
-                                          <Button
-                                            id="date"
-                                            variant={"outline"}
-                                            className={cn( "w-[300px] justify-start text-left font-normal", !receivableDateRange && "text-muted-foreground")}
-                                          >
-                                            <CalendarIcon className="mr-2 h-4 w-4" />
-                                            {receivableDateRange?.from ? (
-                                              receivableDateRange.to ? (
-                                                <>
-                                                  {format(receivableDateRange.from, "LLL dd, y")} -{" "}
-                                                  {format(receivableDateRange.to, "LLL dd, y")}
-                                                </>
-                                              ) : (
-                                                format(receivableDateRange.from, "LLL dd, y")
-                                              )
-                                            ) : (
-                                              <span>Filtrar por data...</span>
-                                            )}
-                                          </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0" align="start">
-                                          <Calendar
-                                            initialFocus
-                                            mode="range"
-                                            defaultMonth={receivableDateRange?.from}
-                                            selected={receivableDateRange}
-                                            onSelect={setReceivableDateRange}
-                                            numberOfMonths={2}
-                                          />
-                                        </PopoverContent>
-                                    </Popover>
-                                </div>
-                                 <div className="flex items-center gap-2">
-                                    <Select value={receivableStatusFilter} onValueChange={setReceivableStatusFilter}>
-                                        <SelectTrigger className="w-[200px]">
-                                            <SelectValue placeholder="Filtrar por status..." />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="em andamento">Em andamento</SelectItem>
-                                            <SelectItem value="concluído">Concluído</SelectItem>
-                                            <SelectItem value="cancelado">Cancelado</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                 </div>
-                                 <Button variant="ghost" onClick={handleClearReceivableFilters} className="text-muted-foreground">
-                                    <XCircle className="mr-2 h-4 w-4"/>
-                                    Limpar Filtros
-                                 </Button>
-                            </div>
-                        </CardHeader>
-                        <CardContent>
-                            <ReceivableTableComponent 
-                                services={filteredReceivable} 
-                                getClientName={getClientName} 
-                            />
-                        </CardContent>
-                    </Card>
-                </TabsContent>
-            </Tabs>
+            <Card>
+                <CardHeader>
+                    <div className="flex flex-row items-center justify-between">
+                        <div>
+                            <CardTitle>Lançamentos</CardTitle>
+                        </div>
+                        <div className="flex gap-2">
+                            <Button onClick={generatePdf} variant="outline">
+                                <Download className="mr-2 h-4 w-4" />
+                                Exportar PDF
+                            </Button>
+                            <Button onClick={handleAddNewClick} variant="accent">
+                                <PlusCircle className="mr-2 h-4 w-4" />
+                                Adicionar Conta
+                            </Button>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-4 p-4 mt-4 bg-muted rounded-lg">
+                        <div className="flex items-center gap-2">
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button
+                                    id="date"
+                                    variant={"outline"}
+                                    className={cn( "w-[300px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}
+                                  >
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {dateRange?.from ? (
+                                      dateRange.to ? (
+                                        <>
+                                          {format(dateRange.from, "LLL dd, y")} -{" "}
+                                          {format(dateRange.to, "LLL dd, y")}
+                                        </>
+                                      ) : (
+                                        format(dateRange.from, "LLL dd, y")
+                                      )
+                                    ) : (
+                                      <span>Filtrar por vencimento...</span>
+                                    )}
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                  <Calendar
+                                    initialFocus
+                                    mode="range"
+                                    defaultMonth={dateRange?.from}
+                                    selected={dateRange}
+                                    onSelect={setDateRange}
+                                    numberOfMonths={2}
+                                  />
+                                </PopoverContent>
+                            </Popover>
+                        </div>
+                         <div className="flex items-center gap-2">
+                            <Select value={statusFilter} onValueChange={setStatusFilter}>
+                                <SelectTrigger className="w-[180px]">
+                                    <SelectValue placeholder="Filtrar status" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="pendente">Pendente</SelectItem>
+                                    <SelectItem value="pago">Pago</SelectItem>
+                                </SelectContent>
+                            </Select>
+                         </div>
+                         <Button variant="ghost" onClick={handleClearFilters} className="text-muted-foreground">
+                            <XCircle className="mr-2 h-4 w-4"/>
+                            Limpar Filtros
+                         </Button>
+                    </div>
+                </CardHeader>
+                <CardContent>
+                    <PayableTableComponent 
+                        accounts={filteredPayable} 
+                        getPayeeName={getPayeeName} 
+                        onEdit={handleEditClick} 
+                        onDelete={handleDeleteAccount} 
+                    />
+                </CardContent>
+            </Card>
 
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -748,6 +548,7 @@ function PayableFormComponent({ form, payees, onAddSupplier, onAddProduct }: {
                 form.setValue('valor', (selectedPayee as Employee).salario || 0);
             } else {
                  form.setValue('valor', 0);
+                 form.setValue('descricao', '');
             }
         }
     }, [selectedPayee, form]);
@@ -764,7 +565,6 @@ function PayableFormComponent({ form, payees, onAddSupplier, onAddProduct }: {
                         <div className="flex items-center gap-2">
                             <Select onValueChange={(value) => {
                                 field.onChange(value);
-                                form.setValue('descricao', '');
                             }} value={field.value} defaultValue={field.value}>
                                 <FormControl>
                                     <SelectTrigger>
@@ -796,7 +596,7 @@ function PayableFormComponent({ form, payees, onAddSupplier, onAddProduct }: {
                         <div className="flex items-center gap-2">
                         {isSupplier ? (
                              <>
-                                <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                                <Select onValueChange={field.onChange} value={field.value}>
                                     <FormControl>
                                         <SelectTrigger>
                                             <SelectValue placeholder="Selecione um produto/serviço" />
@@ -1018,71 +818,3 @@ function PayableTableComponent({ accounts, getPayeeName, onEdit, onDelete }: {
     );
 }
 
-function ReceivableTableComponent({ services, getClientName }: { 
-    services: Service[], 
-    getClientName: (id: string) => string
-}) {
-    const router = useRouter();
-
-    const handleEditService = (serviceId: string) => {
-        router.push(`/dashboard/servicos?edit=${serviceId}`);
-    };
-
-    return (
-        <div className="border rounded-lg">
-            <Table>
-                <TableHeader>
-                    <TableRow>
-                        <TableHead>Serviço</TableHead>
-                        <TableHead>Cliente</TableHead>
-                        <TableHead>Data de Cadastro</TableHead>
-                        <TableHead>Valor</TableHead>
-                        <TableHead>Status</TableHead>
-                         <TableHead>Ações</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {services.length > 0 ? services.map((service) => (
-                        <TableRow key={service.id}>
-                            <TableCell className="font-medium">{service.descricao}</TableCell>
-                            <TableCell>{getClientName(service.cliente_id)}</TableCell>
-                            <TableCell>{format(service.data_cadastro, 'dd/MM/yyyy')}</TableCell>
-                            <TableCell className="text-green-500">R$ {service.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
-                            <TableCell>
-                                <Badge variant={
-                                    service.status === 'concluído' ? 'secondary' :
-                                    service.status === 'cancelado' ? 'destructive' :
-                                    'default'
-                                }>
-                                    {service.status}
-                                </Badge>
-                            </TableCell>
-                            <TableCell>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleEditService(service.id)}
-                                >
-                                  <ExternalLink className="mr-2 h-3 w-3" />
-                                  Ver/Editar Serviço
-                                </Button>
-                            </TableCell>
-                        </TableRow>
-                    )) : (
-                        <TableRow>
-                            <TableCell colSpan={6} className="h-24 text-center">Nenhum serviço encontrado.</TableCell>
-                        </TableRow>
-                    )}
-                </TableBody>
-            </Table>
-        </div>
-    );
-}
-
-    
-
-    
-
-
-
-    
