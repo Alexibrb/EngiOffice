@@ -15,7 +15,8 @@ import {
   Wrench,
   HandCoins,
   Building2,
-  CreditCard,
+  ArrowDown,
+  ArrowUp,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -34,14 +35,14 @@ const mainLinks = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/dashboard/servicos', label: 'Serviços', icon: Wrench },
   {
-    href: '/dashboard/financeiro',
-    label: 'Financeiro',
-    icon: CircleDollarSign,
+    href: '/dashboard/financeiro?tab=payable',
+    label: 'Contas a Pagar',
+    icon: ArrowDown,
   },
   {
-    href: '/dashboard/financeiro?add=true',
-    label: 'Despesas',
-    icon: CreditCard,
+    href: '/dashboard/financeiro?tab=receivable',
+    label: 'Contas a Receber',
+    icon: ArrowUp,
   },
   {
     href: '/dashboard/comissoes',
@@ -90,7 +91,7 @@ export function DashboardNav() {
             <SidebarMenuItem key={link.href}>
               <Link href={link.href} passHref>
                 <SidebarMenuButton
-                  isActive={pathname === link.href}
+                  isActive={pathname === link.href.split('?')[0]}
                   asChild
                   tooltip={link.label}
                 >

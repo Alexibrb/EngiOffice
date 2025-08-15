@@ -95,6 +95,9 @@ export default function FinanceiroPage() {
     const { toast } = useToast();
     const router = useRouter();
     const searchParams = useSearchParams();
+
+    const initialTab = searchParams.get('tab') || 'payable';
+    const [activeTab, setActiveTab] = useState(initialTab);
     
     // Filters for Payable
     const [payableDateRange, setPayableDateRange] = useState<DateRange | undefined>(undefined);
@@ -430,7 +433,7 @@ export default function FinanceiroPage() {
                 </Card>
             </div>
 
-            <Tabs defaultValue="payable">
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
                 <TabsList className="grid w-full grid-cols-2">
                     <TabsTrigger value="payable">Contas a Pagar</TabsTrigger>
                     <TabsTrigger value="receivable">Contas a Receber</TabsTrigger>
@@ -746,9 +749,6 @@ function PayableFormComponent({ form, payees, onAddSupplier, onAddProduct }: {
             } else {
                  form.setValue('valor', 0);
             }
-        } else {
-            form.setValue('descricao', '');
-            form.setValue('valor', 0);
         }
     }, [selectedPayee, form]);
 
@@ -764,7 +764,7 @@ function PayableFormComponent({ form, payees, onAddSupplier, onAddProduct }: {
                         <div className="flex items-center gap-2">
                             <Select onValueChange={(value) => {
                                 field.onChange(value);
-                                form.setValue('descricao', ''); // Limpa a descrição ao trocar o favorecido
+                                form.setValue('descricao', '');
                             }} value={field.value} defaultValue={field.value}>
                                 <FormControl>
                                     <SelectTrigger>
