@@ -255,17 +255,17 @@ export default function ServicosPage() {
             const allServices = servicesSnap.docs.map(doc => doc.data() as Service);
             const totalRevenue = allServices
                 .filter(s => s.status === 'concluído')
-                .reduce((acc, s) => acc + s.valor_total, 0);
+                .reduce((sum, s) => sum + s.valor_total, 0);
 
             const allAccountsPayable = accountsPayableSnap.docs.map(doc => doc.data() as Account);
             const totalExpenses = allAccountsPayable
                 .filter(acc => acc.status === 'pago')
-                .reduce((total, currentAccount) => total + currentAccount.valor, 0);
+                .reduce((sum, currentAccount) => sum + currentAccount.valor, 0);
             
             const allCommissions = commissionsSnap.docs.map(doc => doc.data() as Commission);
             const totalCommissionsPaid = allCommissions
                 .filter(c => c.status === 'pago')
-                .reduce((acc, c) => acc + c.valor, 0);
+                .reduce((sum, c) => sum + c.valor, 0);
 
             const allEmployees = employeesSnap.docs.map(doc => ({...doc.data(), id: doc.id }) as Employee);
             const commissionableEmployees = allEmployees.filter(e => e.tipo_contratacao === 'comissao' && e.status === 'ativo');
@@ -1089,14 +1089,15 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, financials, toas
         }
     }, [isOpen, service, toast]);
 
-    const cashBalance = financials.totalRevenue - financials.totalExpenses;
+    // This is the cash balance *before* this service's revenue is considered.
+    const cashBalanceBeforeThisService = (financials.totalRevenue - service.valor_total) - financials.totalExpenses;
     const serviceProfit = service.valor_total - serviceCosts;
     
     let amountToDistribute = serviceProfit;
     let deficitCoverage = 0;
 
-    if (cashBalance < 0) {
-        deficitCoverage = Math.min(serviceProfit, Math.abs(cashBalance));
+    if (cashBalanceBeforeThisService < 0) {
+        deficitCoverage = Math.min(serviceProfit, Math.abs(cashBalanceBeforeThisService));
         amountToDistribute -= deficitCoverage;
     }
     
@@ -1159,10 +1160,10 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, financials, toas
                             <span className="font-medium text-green-600">{serviceProfit.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
                         </div>
                         <div className="flex justify-between items-center text-sm">
-                            <span className="text-muted-foreground">Saldo de Caixa Atual:</span>
-                            <span className={cn("font-medium", cashBalance < 0 ? 'text-red-600' : 'text-green-600')}>{cashBalance.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                            <span className="text-muted-foreground">Saldo de Caixa (antes deste serviço):</span>
+                            <span className={cn("font-medium", cashBalanceBeforeThisService < 0 ? 'text-red-600' : 'text-green-600')}>{cashBalanceBeforeThisService.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
                         </div>
-                         {cashBalance < 0 && (
+                         {cashBalanceBeforeThisService < 0 && (
                              <div className="flex justify-between items-center text-sm">
                                 <span className="text-muted-foreground">Cobertura de Déficit:</span>
                                 <span className="font-medium text-orange-500">-{deficitCoverage.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
