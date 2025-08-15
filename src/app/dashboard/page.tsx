@@ -21,7 +21,7 @@ import { Badge } from '@/components/ui/badge';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { Service, Account, Client } from '@/lib/types';
-import { format } from 'date-fns';
+import { format, isPast } from 'date-fns';
 import {
   Activity,
   CircleDollarSign,
@@ -217,7 +217,12 @@ export default function DashboardPage() {
                   <TableRow key={account.id}>
                     <TableCell className="font-medium">{account.descricao}</TableCell>
                     <TableCell>
-                        {format(account.vencimento, 'dd/MM/yyyy')}
+                      <div className="flex items-center gap-2">
+                        <span>{format(account.vencimento, 'dd/MM/yyyy')}</span>
+                        {isPast(account.vencimento) && account.status === 'pendente' && (
+                          <Badge variant="destructive">Vencida</Badge>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="text-right">R$ {account.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
                   </TableRow>
@@ -236,4 +241,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
