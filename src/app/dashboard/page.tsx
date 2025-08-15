@@ -29,6 +29,7 @@ import {
   Users,
   Loader2,
   ExternalLink,
+  HandCoins,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -100,6 +101,10 @@ export default function DashboardPage() {
   const completedServices = services.filter(s => s.status === 'concluído').length;
   const completionRate = totalServices > 0 ? (completedServices / totalServices) * 100 : 0;
   
+  const totalCommissionsPending = commissions
+    .filter((c) => c.status === 'pendente')
+    .reduce((acc, curr) => acc + curr.valor, 0);
+
   const handlePayAccount = (accountId: string) => {
     router.push(`/dashboard/financeiro?editPayable=${accountId}`);
   };
@@ -164,6 +169,20 @@ export default function DashboardPage() {
             <div className="text-2xl font-bold">{ongoingServices.length}</div>
             <p className="text-xs text-muted-foreground">
               Total de projetos em execução
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Comissões Pendentes
+            </CardTitle>
+            <HandCoins className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">R$ {totalCommissionsPending.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+            <p className="text-xs text-muted-foreground">
+              Total de comissões a pagar
             </p>
           </CardContent>
         </Card>
