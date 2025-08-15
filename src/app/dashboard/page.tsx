@@ -90,6 +90,10 @@ export default function DashboardPage() {
     fetchData();
   }, []);
 
+  const getClientName = (clientId: string) => {
+    return clients.find(c => c.codigo_cliente === clientId)?.nome_completo || 'Desconhecido';
+  }
+
   const ongoingServices = services.filter(
     (s) => s.status === 'em andamento'
   );
@@ -267,18 +271,28 @@ export default function DashboardPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Descrição</TableHead>
-                  <TableHead>Data de Cadastro</TableHead>
-                  <TableHead className="text-right">Valor</TableHead>
+                  <TableHead>Cliente</TableHead>
+                  <TableHead>Valor Total</TableHead>
+                  <TableHead>Saldo Devedor</TableHead>
+                  <TableHead>Status</TableHead>
                    <TableHead>Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {ongoingServices.length > 0 ? ongoingServices.map((service) => (
                   <TableRow key={service.id}>
-                    <TableCell className="font-medium">{service.descricao}</TableCell>
-                    <TableCell>{format(service.data_cadastro, 'dd/MM/yyyy')}</TableCell>
-                    <TableCell className="text-right text-green-500">R$ {service.valor_total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
+                    <TableCell className="font-medium">{getClientName(service.cliente_id)}</TableCell>
+                    <TableCell className="text-green-500">R$ {(service.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2})}</TableCell>
+                    <TableCell className="text-red-500">R$ {(service.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2})}</TableCell>
+                    <TableCell>
+                      <Badge variant={
+                          service.status === 'concluído' ? 'secondary' :
+                          service.status === 'cancelado' ? 'destructive' :
+                          'default'
+                      }>
+                          {service.status}
+                      </Badge>
+                    </TableCell>
                     <TableCell>
                       <Button
                         variant="outline"
@@ -292,7 +306,7 @@ export default function DashboardPage() {
                   </TableRow>
                 )) : (
                    <TableRow>
-                    <TableCell colSpan={4} className="h-24 text-center">
+                    <TableCell colSpan={5} className="h-24 text-center">
                       Nenhum serviço em andamento.
                     </TableCell>
                   </TableRow>
@@ -357,3 +371,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    
