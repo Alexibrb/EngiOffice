@@ -104,6 +104,10 @@ export default function DashboardPage() {
     router.push(`/dashboard/financeiro?editPayable=${accountId}`);
   };
 
+  const handleEditService = (serviceId: string) => {
+    router.push(`/dashboard/servicos?edit=${serviceId}`);
+  };
+
 
   if (isLoading) {
     return (
@@ -193,7 +197,8 @@ export default function DashboardPage() {
                 <TableRow>
                   <TableHead>Descrição</TableHead>
                   <TableHead>Prazo</TableHead>
-                  <TableHead className="text-right">Valor</TableHead>
+                  <TableHead>Valor</TableHead>
+                   <TableHead>Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -201,11 +206,21 @@ export default function DashboardPage() {
                   <TableRow key={service.id}>
                     <TableCell className="font-medium">{service.descricao}</TableCell>
                     <TableCell>{format(service.prazo, 'dd/MM/yyyy')}</TableCell>
-                    <TableCell className="text-right">R$ {service.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
+                    <TableCell>R$ {service.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
+                    <TableCell>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEditService(service.id)}
+                      >
+                        <ExternalLink className="mr-2 h-3 w-3" />
+                        Ver/Editar
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 )) : (
                    <TableRow>
-                    <TableCell colSpan={3} className="h-24 text-center">
+                    <TableCell colSpan={4} className="h-24 text-center">
                       Nenhum serviço em andamento.
                     </TableCell>
                   </TableRow>
