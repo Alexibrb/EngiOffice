@@ -60,8 +60,8 @@ import { DateRange } from 'react-day-picker';
 const serviceSchema = z.object({
   descricao: z.string().min(1, { message: 'Descrição é obrigatória.' }),
   cliente_id: z.string().min(1, { message: 'Selecione um cliente.' }),
-  prazo: z.date({
-    required_error: "A data do prazo é obrigatória.",
+  data_cadastro: z.date({
+    required_error: "A data de cadastro é obrigatória.",
   }),
   valor: z.coerce.number().optional(),
   status: z.enum(['em andamento', 'concluído', 'cancelado']),
@@ -215,6 +215,7 @@ export default function ServicosPage() {
       valor: 0,
       status: 'em andamento',
       anexos: '',
+      data_cadastro: new Date(),
     },
   });
 
@@ -247,7 +248,7 @@ export default function ServicosPage() {
         return {
           ...data,
           id: doc.id,
-          prazo: data.prazo instanceof Timestamp ? data.prazo.toDate() : new Date(data.prazo),
+          data_cadastro: data.data_cadastro instanceof Timestamp ? data.data_cadastro.toDate() : new Date(data.data_cadastro),
         } as Service
       });
       servicesData.sort((a, b) => a.descricao.localeCompare(b.descricao));
@@ -353,7 +354,8 @@ export default function ServicosPage() {
         cliente_id: '',
         valor: 0,
         status: 'em andamento',
-        anexos: ''
+        anexos: '',
+        data_cadastro: new Date()
     });
     setEditingService(null);
     setIsDialogOpen(true);
@@ -363,7 +365,7 @@ export default function ServicosPage() {
     setEditingService(service);
     form.reset({
         ...service,
-        prazo: service.prazo instanceof Date ? service.prazo : new Date(service.prazo),
+        data_cadastro: service.data_cadastro instanceof Date ? service.data_cadastro : new Date(service.data_cadastro),
         anexos: service.anexos?.join('\n')
     });
     setIsDialogOpen(true);
@@ -390,7 +392,7 @@ export default function ServicosPage() {
         if (!dateRange?.from) return true;
         const fromDate = dateRange.from;
         const toDate = dateRange.to ? dateRange.to : fromDate;
-        const serviceDate = service.prazo;
+        const serviceDate = service.data_cadastro;
         return serviceDate >= fromDate && serviceDate <= addDays(toDate, 1);
     });
 
@@ -497,10 +499,10 @@ export default function ServicosPage() {
                             />
                             <FormField
                             control={form.control}
-                            name="prazo"
+                            name="data_cadastro"
                             render={({ field }) => (
                                 <FormItem>
-                                <FormLabel>Prazo</FormLabel>
+                                <FormLabel>Data de Cadastro</FormLabel>
                                 <Popover>
                                     <PopoverTrigger asChild>
                                     <FormControl>
@@ -625,7 +627,7 @@ export default function ServicosPage() {
                                 format(dateRange.from, "LLL dd, y")
                             )
                             ) : (
-                            <span>Filtrar por prazo...</span>
+                            <span>Filtrar por data...</span>
                             )}
                         </Button>
                         </PopoverTrigger>
@@ -666,7 +668,7 @@ export default function ServicosPage() {
                     <TableRow>
                     <TableHead>Descrição</TableHead>
                     <TableHead>Cliente</TableHead>
-                    <TableHead>Prazo</TableHead>
+                    <TableHead>Data de Cadastro</TableHead>
                     <TableHead>Valor</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead><span className="sr-only">Ações</span></TableHead>
@@ -677,7 +679,7 @@ export default function ServicosPage() {
                     <TableRow key={service.id}>
                         <TableCell className="font-medium">{service.descricao}</TableCell>
                         <TableCell>{getClientName(service.cliente_id)}</TableCell>
-                        <TableCell>{service.prazo ? format(service.prazo, "dd/MM/yyyy") : '-'}</TableCell>
+                        <TableCell>{service.data_cadastro ? format(service.data_cadastro, "dd/MM/yyyy") : '-'}</TableCell>
                         <TableCell>R$ {service.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2})}</TableCell>
                         <TableCell>
                         <Badge variant={

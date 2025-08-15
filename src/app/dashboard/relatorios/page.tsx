@@ -60,7 +60,7 @@ export default function RelatoriosPage() {
 
       const servicesData = servicesSnapshot.docs.map(doc => {
         const data = doc.data();
-        return { ...data, id: doc.id, prazo: data.prazo.toDate() } as Service;
+        return { ...data, id: doc.id, data_cadastro: data.data_cadastro.toDate() } as Service;
       });
       setServices(servicesData);
       
@@ -131,11 +131,11 @@ export default function RelatoriosPage() {
       case 'services':
         data = services;
         title = 'Relatório de Serviços';
-        head = [['Descrição', 'Cliente', 'Prazo', 'Valor', 'Status']];
+        head = [['Descrição', 'Cliente', 'Data de Cadastro', 'Valor', 'Status']];
         body = data.map((item) => [
             item.descricao,
             getClientName(item.cliente_id),
-            item.prazo ? format(item.prazo, "dd/MM/yyyy") : '-',
+            item.data_cadastro ? format(item.data_cadastro, "dd/MM/yyyy") : '-',
             `R$ ${item.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
             item.status,
         ]);
@@ -247,10 +247,10 @@ export default function RelatoriosPage() {
             <CardContent>
               <div className="border rounded-lg">
                 <Table>
-                  <TableHeader><TableRow><TableHead>Descrição</TableHead><TableHead>Cliente</TableHead><TableHead>Prazo</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
+                  <TableHeader><TableRow><TableHead>Descrição</TableHead><TableHead>Cliente</TableHead><TableHead>Data de Cadastro</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
                   <TableBody>
                     {services.length > 0 ? services.slice(0, 10).map((s) => (
-                      <TableRow key={s.id}><TableCell className="font-medium">{s.descricao}</TableCell><TableCell>{getClientName(s.cliente_id)}</TableCell><TableCell>{s.prazo ? format(s.prazo, "dd/MM/yyyy") : '-'}</TableCell><TableCell><Badge variant={s.status === 'concluído' ? 'secondary' : s.status === 'cancelado' ? 'destructive' : 'default'}>{s.status}</Badge></TableCell></TableRow>
+                      <TableRow key={s.id}><TableCell className="font-medium">{s.descricao}</TableCell><TableCell>{getClientName(s.cliente_id)}</TableCell><TableCell>{s.data_cadastro ? format(s.data_cadastro, "dd/MM/yyyy") : '-'}</TableCell><TableCell><Badge variant={s.status === 'concluído' ? 'secondary' : s.status === 'cancelado' ? 'destructive' : 'default'}>{s.status}</Badge></TableCell></TableRow>
                     )) : (<TableRow><TableCell colSpan={4} className="h-24 text-center">Nenhum serviço encontrado.</TableCell></TableRow>)}
                   </TableBody>
                 </Table>

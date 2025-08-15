@@ -51,7 +51,7 @@ export type Service = {
   id: string; 
   descricao: string;
   cliente_id: string;
-  prazo: Date; 
+  data_cadastro: Date; 
   valor: number;
   status: 'em andamento' | 'concluído' | 'cancelado';
   anexos?: string[]; 

@@ -54,7 +54,7 @@ export default function DashboardPage() {
 
         const servicesData = servicesSnapshot.docs.map(doc => {
             const data = doc.data();
-            return { ...data, id: doc.id, prazo: data.prazo.toDate() } as Service;
+            return { ...data, id: doc.id, data_cadastro: data.data_cadastro.toDate() } as Service;
         });
         setServices(servicesData);
 
@@ -215,7 +215,7 @@ export default function DashboardPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Descrição</TableHead>
-                  <TableHead>Prazo</TableHead>
+                  <TableHead>Data de Cadastro</TableHead>
                   <TableHead>Valor</TableHead>
                    <TableHead>Ações</TableHead>
                 </TableRow>
@@ -224,7 +224,7 @@ export default function DashboardPage() {
                 {ongoingServices.length > 0 ? ongoingServices.map((service) => (
                   <TableRow key={service.id}>
                     <TableCell className="font-medium">{service.descricao}</TableCell>
-                    <TableCell>{format(service.prazo, 'dd/MM/yyyy')}</TableCell>
+                    <TableCell>{format(service.data_cadastro, 'dd/MM/yyyy')}</TableCell>
                     <TableCell>R$ {service.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
                     <TableCell>
                       <Button

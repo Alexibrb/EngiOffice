@@ -144,7 +144,7 @@ export default function FinanceiroPage() {
             
             const servicesData = servicesSnapshot.docs.map(doc => {
                 const data = doc.data();
-                return { ...data, id: doc.id, prazo: data.prazo.toDate() } as Service;
+                return { ...data, id: doc.id, data_cadastro: data.data_cadastro.toDate() } as Service;
             });
             setServices(servicesData);
 
@@ -299,11 +299,11 @@ export default function FinanceiroPage() {
         } else {
              autoTable(doc, {
               startY: 35,
-              head: [['Descrição', 'Cliente', 'Prazo', 'Valor', 'Status']],
+              head: [['Descrição', 'Cliente', 'Data de Cadastro', 'Valor', 'Status']],
               body: filteredReceivable.map((service) => [
                 service.descricao,
                 getClientName(service.cliente_id),
-                format(service.prazo, 'dd/MM/yyyy'),
+                format(service.data_cadastro, 'dd/MM/yyyy'),
                 `R$ ${service.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
                 service.status,
               ]),
@@ -357,7 +357,7 @@ export default function FinanceiroPage() {
             if (!receivableDateRange?.from) return true;
             const fromDate = receivableDateRange.from;
             const toDate = receivableDateRange.to ? receivableDateRange.to : fromDate;
-            const serviceDate = service.prazo;
+            const serviceDate = service.data_cadastro;
             return serviceDate >= fromDate && serviceDate <= addDays(toDate, 1);
         });
 
@@ -532,7 +532,7 @@ export default function FinanceiroPage() {
                                                 format(receivableDateRange.from, "LLL dd, y")
                                               )
                                             ) : (
-                                              <span>Filtrar por prazo...</span>
+                                              <span>Filtrar por data...</span>
                                             )}
                                           </Button>
                                         </PopoverTrigger>
@@ -998,7 +998,7 @@ function ReceivableTableComponent({ services, getClientName }: {
                     <TableRow>
                         <TableHead>Serviço</TableHead>
                         <TableHead>Cliente</TableHead>
-                        <TableHead>Prazo Final</TableHead>
+                        <TableHead>Data de Cadastro</TableHead>
                         <TableHead>Valor</TableHead>
                         <TableHead>Status</TableHead>
                          <TableHead>Ações</TableHead>
@@ -1009,7 +1009,7 @@ function ReceivableTableComponent({ services, getClientName }: {
                         <TableRow key={service.id}>
                             <TableCell className="font-medium">{service.descricao}</TableCell>
                             <TableCell>{getClientName(service.cliente_id)}</TableCell>
-                            <TableCell>{format(service.prazo, 'dd/MM/yyyy')}</TableCell>
+                            <TableCell>{format(service.data_cadastro, 'dd/MM/yyyy')}</TableCell>
                             <TableCell>R$ {service.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
                             <TableCell>
                                 <Badge variant={
