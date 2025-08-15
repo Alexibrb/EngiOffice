@@ -92,9 +92,9 @@ export default function DashboardPage() {
     .sort((a, b) => a.vencimento.getTime() - b.vencimento.getTime());
 
   const totalReceivable = services.reduce((acc, curr) => curr.status !== 'cancelado' ? acc + curr.valor : acc, 0);
-  const totalPayable = accountsPayable.reduce((acc, curr) => acc + curr.valor, 0);
-  const totalCommissions = commissions.reduce((acc, curr) => acc + curr.valor, 0);
-  const balance = totalReceivable - totalPayable - totalCommissions;
+  const totalPayablePending = accountsPayable.reduce((acc, curr) => curr.status === 'pendente' ? acc + curr.valor : acc, 0);
+  const totalCommissionsPending = commissions.reduce((acc, curr) => curr.status === 'pendente' ? acc + curr.valor : acc, 0);
+  const balance = totalReceivable - totalPayablePending - totalCommissionsPending;
   
   const totalServices = services.filter(s => s.status !== 'cancelado').length;
   const completedServices = services.filter(s => s.status === 'concluído').length;
@@ -137,7 +137,7 @@ export default function DashboardPage() {
           <CardContent>
             <div className="text-2xl font-bold">R$ {balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
             <p className="text-xs text-muted-foreground">
-              Balanço total (serviços - despesas - comissões)
+              Receber - Pagar (pendente) - Comissões (pendente)
             </p>
           </CardContent>
         </Card>
