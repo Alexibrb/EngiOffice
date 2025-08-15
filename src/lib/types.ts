@@ -57,6 +57,11 @@ export type Service = {
   anexos?: string[]; 
 };
 
+export type ServiceType = {
+  id: string;
+  descricao: string;
+};
+
 export type Account = {
     id: string;
     descricao: string;

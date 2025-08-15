@@ -26,7 +26,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import type { Service, Client } from '@/lib/types';
+import type { Service, Client, ServiceType } from '@/lib/types';
 import { PlusCircle, Search, MoreHorizontal, Loader2, Calendar as CalendarIcon, Wrench, Link as LinkIcon, ExternalLink, ClipboardCopy, XCircle } from 'lucide-react';
 import {
   DropdownMenu,
@@ -66,6 +66,10 @@ const serviceSchema = z.object({
   valor: z.coerce.number().optional(),
   status: z.enum(['em andamento', 'concluído', 'cancelado']),
   anexos: z.string().optional(),
+});
+
+const serviceTypeSchema = z.object({
+  descricao: z.string().min(1, { message: 'Descrição é obrigatória.' }),
 });
 
 
@@ -123,11 +127,76 @@ const AnexosList = ({ urls, toast }: { urls: string[], toast: any }) => {
 };
 
 
+function AddServiceTypeDialog({ isOpen, setIsOpen, onServiceTypeAdded }: { 
+    isOpen: boolean, 
+    setIsOpen: (isOpen: boolean) => void, 
+    onServiceTypeAdded: () => Promise<void> 
+}) {
+  const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
+  const form = useForm<z.infer<typeof serviceTypeSchema>>({
+    resolver: zodResolver(serviceTypeSchema),
+    defaultValues: { descricao: '' },
+  });
+
+  const handleSaveServiceType = async (values: z.infer<typeof serviceTypeSchema>) => {
+    setIsLoading(true);
+    try {
+      await addDoc(collection(db, 'tipos_servico'), values);
+      toast({ title: 'Sucesso!', description: 'Tipo de serviço adicionado com sucesso.' });
+      form.reset();
+      setIsOpen(false);
+      await onServiceTypeAdded();
+    } catch (error) {
+      console.error("Erro ao salvar tipo de serviço: ", error);
+      toast({ variant: 'destructive', title: 'Erro', description: 'Ocorreu um erro ao salvar o tipo de serviço.' });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Adicionar Novo Tipo de Serviço</DialogTitle>
+          <DialogDescription>Preencha a descrição do novo tipo de serviço.</DialogDescription>
+        </DialogHeader>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(handleSaveServiceType)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="descricao"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Descrição *</FormLabel>
+                  <FormControl><Input {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={() => setIsOpen(false)}>Cancelar</Button>
+              <Button type="submit" variant="accent" disabled={isLoading}>
+                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Salvar
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+
 export default function ServicosPage() {
   const [services, setServices] = useState<Service[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
+  const [serviceTypes, setServiceTypes] = useState<ServiceType[]>([]);
   const [search, setSearch] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isServiceTypeDialogOpen, setIsServiceTypeDialogOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
@@ -151,6 +220,25 @@ export default function ServicosPage() {
 
   const anexosValue = useWatch({ control: form.control, name: 'anexos' });
 
+  const fetchServiceTypes = async () => {
+    try {
+      const querySnapshot = await getDocs(collection(db, "tipos_servico"));
+      const typesData = querySnapshot.docs.map(doc => ({
+        ...doc.data(),
+        id: doc.id,
+      })) as ServiceType[];
+      typesData.sort((a, b) => a.descricao.localeCompare(b.descricao));
+      setServiceTypes(typesData);
+    } catch (error) {
+      console.error("Erro ao buscar tipos de serviço: ", error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao buscar dados",
+        description: "Não foi possível carregar a lista de tipos de serviço.",
+      });
+    }
+  };
+
   const fetchServicesAndClients = async () => {
     try {
       const servicesSnapshot = await getDocs(collection(db, "servicos"));
@@ -171,6 +259,8 @@ export default function ServicosPage() {
         codigo_cliente: doc.id,
       })) as Client[];
       setClients(clientsData);
+
+      await fetchServiceTypes();
 
       const editId = searchParams.get('edit');
       if (editId) {
@@ -359,17 +449,29 @@ export default function ServicosPage() {
                     <form onSubmit={form.handleSubmit(handleSaveService)} className="space-y-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <FormField
-                            control={form.control}
-                            name="descricao"
-                            render={({ field }) => (
+                                control={form.control}
+                                name="descricao"
+                                render={({ field }) => (
                                 <FormItem className="md:col-span-2">
-                                <FormLabel>Descrição *</FormLabel>
-                                <FormControl>
-                                    <Input {...field} />
-                                </FormControl>
-                                <FormMessage />
+                                    <FormLabel>Descrição *</FormLabel>
+                                     <div className="flex items-center gap-2">
+                                        <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                                            <FormControl>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Selecione o tipo de serviço" />
+                                            </SelectTrigger>
+                                            </FormControl>
+                                            <SelectContent>
+                                            {serviceTypes.map(type => (
+                                                <SelectItem key={type.id} value={type.descricao}>{type.descricao}</SelectItem>
+                                            ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <Button type="button" variant="outline" size="icon" onClick={() => setIsServiceTypeDialogOpen(true)}><PlusCircle className="h-4 w-4" /></Button>
+                                    </div>
+                                    <FormMessage />
                                 </FormItem>
-                            )}
+                                )}
                             />
                             <FormField
                             control={form.control}
@@ -636,6 +738,7 @@ export default function ServicosPage() {
             </div>
         </CardContent>
       </Card>
+      <AddServiceTypeDialog isOpen={isServiceTypeDialogOpen} setIsOpen={setIsServiceTypeDialogOpen} onServiceTypeAdded={fetchServiceTypes} />
     </div>
   );
 }
