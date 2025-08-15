@@ -50,7 +50,7 @@ import type { Commission, Employee, Service, Client } from '@/lib/types';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
-import { format, endOfDay } from 'date-fns';
+import { format, endOfDay, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
 import { DateRange } from 'react-day-picker';
@@ -316,8 +316,8 @@ export default function ComissoesPage() {
         })
         .filter(commission => {
             if (!dateRange?.from) return true;
-            const fromDate = dateRange.from;
-            const toDate = dateRange.to ? endOfDay(dateRange.to) : fromDate;
+            const fromDate = startOfDay(dateRange.from);
+            const toDate = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from);
             const commissionDate = commission.data;
             return commissionDate >= fromDate && commissionDate <= toDate;
         });

@@ -50,7 +50,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
-import { format, endOfDay } from 'date-fns';
+import { format, endOfDay, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { Account, Supplier, Employee, Payee } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
@@ -299,8 +299,8 @@ export default function ContasAPagarPage() {
         })
         .filter(acc => {
             if (!dateRange?.from) return true;
-            const fromDate = dateRange.from;
-            const toDate = dateRange.to ? endOfDay(dateRange.to) : fromDate;
+            const fromDate = startOfDay(dateRange.from);
+            const toDate = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from);
             const accDate = acc.vencimento;
             return accDate >= fromDate && accDate <= toDate;
         });
@@ -654,7 +654,7 @@ function PayableFormComponent({ form, payees, onAddSupplier, onAddProduct, editi
                                 </Button>
                              </>
                         ) : (
-                            <Input {...field} disabled={!isSupplier} placeholder="Pagamento de Salário"/>
+                            <Input {...field} placeholder={form.getValues('tipo_referencia') === 'funcionario' ? 'Pagamento de Salário' : ''} disabled={!isSupplier}/>
                         )}
                         </div>
 
