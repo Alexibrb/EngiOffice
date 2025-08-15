@@ -98,7 +98,7 @@ export default function DashboardPage() {
     .filter((a) => a.status === 'pendente')
     .sort((a, b) => a.vencimento.getTime() - b.vencimento.getTime());
 
-  const totalReceivablePaid = services.reduce((acc, curr) => curr.status === 'concluído' ? acc + curr.valor_total : acc, 0);
+  const totalReceivablePaid = services.reduce((acc, curr) => curr.status === 'concluído' ? acc + (curr.valor_total || 0) : acc, 0);
   const totalPayablePaid = accountsPayable.reduce((acc, curr) => curr.status === 'pago' ? acc + curr.valor : acc, 0);
   const totalCommissionsPaid = commissions.reduce((acc, curr) => curr.status === 'pago' ? acc + curr.valor : acc, 0);
   const balance = totalReceivablePaid - totalPayablePaid - totalCommissionsPaid;
@@ -111,9 +111,7 @@ export default function DashboardPage() {
     .filter((c) => c.status === 'pendente')
     .reduce((acc, curr) => acc + curr.valor, 0);
 
-  const totalReceivablePending = services
-    .filter((s) => s.status === 'em andamento')
-    .reduce((acc, curr) => acc + curr.valor_total, 0);
+  const totalReceivablePending = services.reduce((acc, curr) => acc + (curr.saldo_devedor || 0), 0);
 
   const totalPayablePending = accountsPayable
     .filter((a) => a.status === 'pendente')
@@ -213,7 +211,7 @@ export default function DashboardPage() {
               <CardContent>
                   <div className="text-2xl font-bold text-green-500">R$ {totalReceivablePending.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
                   <p className="text-xs text-muted-foreground">
-                      Soma de todos os serviços "em andamento"
+                      Soma de todos os saldos devedores
                   </p>
               </CardContent>
           </Card>
