@@ -93,7 +93,7 @@ export default function DashboardPage() {
 
   const totalReceivable = services.reduce((acc, curr) => curr.status !== 'cancelado' ? acc + curr.valor : acc, 0);
   const totalPayable = accountsPayable.reduce((acc, curr) => acc + curr.valor, 0);
-  const totalCommissions = commissions.reduce((acc, curr) => curr.status === 'pendente' ? acc + curr.valor : acc, 0);
+  const totalCommissions = commissions.reduce((acc, curr) => acc + curr.valor, 0);
   const balance = totalReceivable - totalPayable - totalCommissions;
   
   const totalServices = services.filter(s => s.status !== 'cancelado').length;
