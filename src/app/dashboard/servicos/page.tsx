@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
@@ -27,7 +27,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { Service, Client } from '@/lib/types';
-import { PlusCircle, Search, MoreHorizontal, Loader2, Calendar as CalendarIcon, Wrench } from 'lucide-react';
+import { PlusCircle, Search, MoreHorizontal, Loader2, Calendar as CalendarIcon, Wrench, Link as LinkIcon, ExternalLink } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -68,6 +68,35 @@ const serviceSchema = z.object({
 });
 
 
+const AnexosList = ({ urls }: { urls: string[] }) => {
+  if (!urls || urls.length === 0) {
+    return (
+      <div className="text-sm text-muted-foreground p-4 text-center border rounded-md">
+        Nenhum anexo para este serviço.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      {urls.map((url, index) => (
+        <a
+          key={index}
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-2 p-2 rounded-md bg-muted hover:bg-muted/80 transition-colors text-sm"
+        >
+          <LinkIcon className="h-4 w-4 text-primary" />
+          <span className="flex-1 truncate">{url}</span>
+          <ExternalLink className="h-4 w-4 text-muted-foreground" />
+        </a>
+      ))}
+    </div>
+  );
+};
+
+
 export default function ServicosPage() {
   const [services, setServices] = useState<Service[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
@@ -90,6 +119,8 @@ export default function ServicosPage() {
       anexos: '',
     },
   });
+
+  const anexosValue = useWatch({ control: form.control, name: 'anexos' });
 
   const fetchServicesAndClients = async () => {
     try {
@@ -117,7 +148,7 @@ export default function ServicosPage() {
         if (serviceToEdit) {
             handleEditClick(serviceToEdit);
             // Clean the URL
-            router.replace('/dashboard/servicos', undefined);
+            router.replace('/dashboard/servicos', { scroll: false });
         }
       }
 
@@ -388,19 +419,27 @@ export default function ServicosPage() {
                         </FormItem>
                       )}
                     />
-                    <FormField
-                      control={form.control}
-                      name="anexos"
-                      render={({ field }) => (
-                        <FormItem className="md:col-span-2">
-                          <FormLabel>Anexos (URLs, um por linha)</FormLabel>
-                          <FormControl>
-                            <Textarea rows={3} {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                    <div className="md:col-span-2 space-y-4">
+                        {editingService && (
+                            <div>
+                                <FormLabel>Anexos Salvos</FormLabel>
+                                <AnexosList urls={anexosValue?.split('\n').filter(Boolean) || []} />
+                            </div>
+                        )}
+                        <FormField
+                            control={form.control}
+                            name="anexos"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>{editingService ? 'Adicionar ou Remover Anexos (URLs, um por linha)' : 'Anexos (URLs, um por linha)'}</FormLabel>
+                                    <FormControl>
+                                        <Textarea rows={3} {...field} placeholder="https://exemplo.com/documento.pdf&#10;https://exemplo.com/imagem.png" />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    </div>
                 </div>
                 <DialogFooter>
                   <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
