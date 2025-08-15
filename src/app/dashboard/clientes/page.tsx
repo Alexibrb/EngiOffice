@@ -104,11 +104,6 @@ export default function ClientesPage() {
         historico_servicos: [],
       });
       
-      toast({
-        title: "Sucesso!",
-        description: "Cliente adicionado com sucesso.",
-      })
-      
       // Reset form and close dialog
       setNomeCompleto('');
       setCpfCnpj('');
@@ -124,7 +119,12 @@ export default function ClientesPage() {
       setIsDialogOpen(false);
 
       // Refetch clients to update the list
-      fetchClients();
+      await fetchClients();
+
+      toast({
+        title: "Sucesso!",
+        description: "Cliente adicionado com sucesso.",
+      });
 
     } catch (error) {
       console.error("Erro ao adicionar cliente: ", error);
@@ -132,7 +132,7 @@ export default function ClientesPage() {
         variant: "destructive",
         title: "Erro",
         description: "Ocorreu um erro ao salvar o cliente.",
-      })
+      });
     }
   };
 
