@@ -244,7 +244,7 @@ export default function ServicosPage() {
 
   const anexosValue = useWatch({ control: form.control, name: 'anexos' });
 
-  const fetchFinancials = async () => {
+ const fetchFinancials = async () => {
         try {
             const [servicesSnap, accountsPayableSnap, employeesSnap, commissionsSnap] = await Promise.all([
                 getDocs(collection(db, "servicos")),
@@ -261,7 +261,7 @@ export default function ServicosPage() {
             const totalExpenses = allAccountsPayable
                 .filter(acc => acc.status === 'pago')
                 .reduce((sum, currentAccount) => sum + currentAccount.valor, 0);
-
+            
             const allCommissions = commissionsSnap.docs.map(doc => doc.data() as Commission);
             const totalCommissionsPaid = allCommissions
                 .filter(c => c.status === 'pago')
@@ -374,17 +374,11 @@ export default function ServicosPage() {
           description: "Serviço atualizado com sucesso.",
         });
       } else {
-        const newDocRef = await addDoc(collection(db, 'servicos'), serviceData);
+        await addDoc(collection(db, 'servicos'), serviceData);
          toast({
           title: "Sucesso!",
           description: "Serviço adicionado com sucesso.",
         });
-        if (serviceData.status === 'concluído') {
-             const newService = { ...serviceData, id: newDocRef.id };
-             setLastPaymentValue(newService.valor_total);
-             setDistributingService(newService);
-             setIsDistributionDialogOpen(true);
-        }
       }
       
       form.reset();
@@ -1236,10 +1230,3 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, paymentValue, fi
         </Dialog>
     );
 }
-
-    
-
-    
-
-
-    

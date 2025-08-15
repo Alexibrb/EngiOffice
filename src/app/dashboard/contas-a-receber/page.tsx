@@ -79,7 +79,7 @@ export default function ContasAReceberPage() {
         defaultValues: { valor_pago: 0 },
     });
 
-    const fetchFinancials = async () => {
+   const fetchFinancials = async () => {
         try {
              const [servicesSnap, accountsPayableSnap, employeesSnap, commissionsSnap] = await Promise.all([
                 getDocs(collection(db, "servicos")),
@@ -551,7 +551,7 @@ function ReceivableTableComponent({ services, getClientName, totalValor, totalSa
                                         </DropdownMenuItem>
                                          <DropdownMenuItem 
                                             onClick={() => onDistribute(service)} 
-                                            disabled={service.status === 'cancelado' || service.valor_total === service.saldo_devedor}
+                                            disabled={service.status === 'cancelado' || service.saldo_devedor === service.valor_total}
                                          >
                                             <Users className="mr-2 h-4 w-4" />
                                             Distribuir Lucro
@@ -759,12 +759,3 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, paymentValue, fi
         </Dialog>
     );
 }
-
-    
-
-    
-
-    
-
-
-    
