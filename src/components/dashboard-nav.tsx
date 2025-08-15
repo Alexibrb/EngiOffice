@@ -96,10 +96,10 @@ export function DashboardNav() {
                   asChild
                   tooltip={link.label}
                 >
-                  <>
+                  <span>
                     <link.icon />
                     <span>{link.label}</span>
-                  </>
+                  </span>
                 </SidebarMenuButton>
               </Link>
             </SidebarMenuItem>
@@ -122,10 +122,10 @@ export function DashboardNav() {
                         asChild
                         tooltip={link.label}
                         >
-                          <>
+                          <span>
                             <link.icon />
                             <span>{link.label}</span>
-                          </>
+                          </span>
                         </SidebarMenuButton>
                     </Link>
                     </SidebarMenuItem>
@@ -144,10 +144,10 @@ export function DashboardNav() {
                   asChild
                   tooltip={link.label}
                 >
-                  <>
+                  <span>
                     <link.icon />
                     <span>{link.label}</span>
-                  </>
+                  </span>
                 </SidebarMenuButton>
               </Link>
             </SidebarMenuItem>
