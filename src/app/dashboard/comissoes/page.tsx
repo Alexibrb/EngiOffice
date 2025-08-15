@@ -36,7 +36,7 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import { collection, addDoc, getDocs, doc, setDoc, deleteDoc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { PlusCircle, MoreHorizontal, Loader2, Calendar as CalendarIcon } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Loader2, Calendar as CalendarIcon, XCircle } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -49,10 +49,10 @@ import type { Commission, Employee, Service, Client } from '@/lib/types';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
+import { format, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
-
+import { DateRange } from 'react-day-picker';
 
 const commissionSchema = z.object({
   funcionario_id: z.string().min(1, 'Funcionário é obrigatório.'),
@@ -72,7 +72,6 @@ const CommissionFormContent = ({ form, employees, clients, services }: { form: a
     const filteredServices = services.filter(service => service.cliente_id === selectedClientId);
 
     useEffect(() => {
-        // Reset servico_id when cliente_id changes
         form.setValue('servico_id', '');
     }, [selectedClientId, form]);
 
@@ -193,6 +192,9 @@ export default function ComissoesPage() {
     const [editingCommission, setEditingCommission] = useState<Commission | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const { toast } = useToast();
+    
+    const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+    const [statusFilter, setStatusFilter] = useState<string>('');
 
     const form = useForm<z.infer<typeof commissionSchema>>({
         resolver: zodResolver(commissionSchema),
@@ -242,11 +244,7 @@ export default function ComissoesPage() {
     const handleSaveCommission = async (values: z.infer<typeof commissionSchema>) => {
         setIsLoading(true);
         try {
-            const commissionData = {
-                ...values,
-                // cliente_id is already in values
-            };
-
+            const commissionData = { ...values };
             if (editingCommission) {
                 const docRef = doc(db, 'comissoes', editingCommission.id);
                 await setDoc(docRef, commissionData);
@@ -303,6 +301,23 @@ export default function ComissoesPage() {
         });
         setIsDialogOpen(true);
     };
+    
+     const handleClearFilters = () => {
+        setDateRange(undefined);
+        setStatusFilter('');
+    }
+
+    const filteredCommissions = commissions
+        .filter(commission => {
+            return statusFilter ? commission.status === statusFilter : true;
+        })
+        .filter(commission => {
+            if (!dateRange?.from) return true;
+            const fromDate = dateRange.from;
+            const toDate = dateRange.to ? dateRange.to : fromDate;
+            const commissionDate = commission.data;
+            return commissionDate >= fromDate && commissionDate <= addDays(toDate, 1);
+        });
 
     return (
         <div className="flex flex-col gap-8">
@@ -313,11 +328,65 @@ export default function ComissoesPage() {
                 </p>
             </div>
             
-            <div className="flex justify-end">
-                 <Button onClick={handleAddNewClick}>
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Lançar Comissão
-                </Button>
+            <div className="flex flex-col gap-4">
+                <div className="flex justify-end">
+                    <Button onClick={handleAddNewClick}>
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Lançar Comissão
+                    </Button>
+                </div>
+                 <div className="flex items-center gap-4 p-4 bg-muted rounded-lg">
+                    <div className="flex items-center gap-2">
+                        <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                id="date"
+                                variant={"outline"}
+                                className={cn( "w-[300px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}
+                              >
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {dateRange?.from ? (
+                                  dateRange.to ? (
+                                    <>
+                                      {format(dateRange.from, "LLL dd, y")} -{" "}
+                                      {format(dateRange.to, "LLL dd, y")}
+                                    </>
+                                  ) : (
+                                    format(dateRange.from, "LLL dd, y")
+                                  )
+                                ) : (
+                                  <span>Filtrar por data...</span>
+                                )}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <Calendar
+                                initialFocus
+                                mode="range"
+                                defaultMonth={dateRange?.from}
+                                selected={dateRange}
+                                onSelect={setDateRange}
+                                numberOfMonths={2}
+                              />
+                            </PopoverContent>
+                        </Popover>
+                    </div>
+                     <div className="flex items-center gap-2">
+                        <Select value={statusFilter} onValueChange={setStatusFilter}>
+                            <SelectTrigger className="w-[180px]">
+                                <SelectValue placeholder="Filtrar status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="pendente">Pendente</SelectItem>
+                                <SelectItem value="pago">Pago</SelectItem>
+                            </SelectContent>
+                        </Select>
+                     </div>
+                     <Button variant="ghost" onClick={handleClearFilters} className="text-muted-foreground">
+                        <XCircle className="mr-2 h-4 w-4"/>
+                        Limpar Filtros
+                     </Button>
+                </div>
             </div>
 
             <div className="border rounded-lg">
@@ -333,7 +402,7 @@ export default function ComissoesPage() {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {commissions.length > 0 ? commissions.map((commission) => (
+                        {filteredCommissions.length > 0 ? filteredCommissions.map((commission) => (
                             <TableRow key={commission.id}>
                                 <TableCell className="font-medium">{getEmployeeName(commission.funcionario_id)}</TableCell>
                                 <TableCell>{getServiceDescription(commission.servico_id)}</TableCell>
@@ -406,3 +475,5 @@ export default function ComissoesPage() {
         </div>
     );
 }
+
+    

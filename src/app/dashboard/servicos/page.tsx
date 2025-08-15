@@ -27,7 +27,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { Service, Client } from '@/lib/types';
-import { PlusCircle, Search, MoreHorizontal, Loader2, Calendar as CalendarIcon, Wrench, Link as LinkIcon, ExternalLink, ClipboardCopy } from 'lucide-react';
+import { PlusCircle, Search, MoreHorizontal, Loader2, Calendar as CalendarIcon, Wrench, Link as LinkIcon, ExternalLink, ClipboardCopy, XCircle } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -51,10 +51,11 @@ import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
+import { format, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { DateRange } from 'react-day-picker';
 
 const serviceSchema = z.object({
   descricao: z.string().min(1, { message: 'Descrição é obrigatória.' }),
@@ -132,6 +133,9 @@ export default function ServicosPage() {
   const { toast } = useToast();
   const searchParams = useSearchParams();
   const router = useRouter();
+  
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [statusFilter, setStatusFilter] = useState<string>('');
 
 
   const form = useForm<z.infer<typeof serviceSchema>>({
@@ -172,7 +176,6 @@ export default function ServicosPage() {
         const serviceToEdit = servicesData.find(s => s.id === editId);
         if (serviceToEdit) {
             handleEditClick(serviceToEdit);
-            // Clean the URL
             router.replace('/dashboard/servicos', { scroll: false });
         }
       }
@@ -274,12 +277,31 @@ export default function ServicosPage() {
     });
     setIsDialogOpen(true);
   }
+  
+  const handleClearFilters = () => {
+    setDateRange(undefined);
+    setStatusFilter('');
+    setSearch('');
+  }
 
-  const filteredServices = services.filter(
-    (service) =>
-      service.descricao.toLowerCase().includes(search.toLowerCase()) ||
-      getClientName(service.cliente_id).toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredServices = services
+    .filter(service => {
+        const searchTermLower = search.toLowerCase();
+        return (
+            service.descricao.toLowerCase().includes(searchTermLower) ||
+            getClientName(service.cliente_id).toLowerCase().includes(searchTermLower)
+        );
+    })
+    .filter(service => {
+        return statusFilter ? service.status === statusFilter : true;
+    })
+    .filter(service => {
+        if (!dateRange?.from) return true;
+        const fromDate = dateRange.from;
+        const toDate = dateRange.to ? dateRange.to : fromDate;
+        const serviceDate = service.prazo;
+        return serviceDate >= fromDate && serviceDate <= addDays(toDate, 1);
+    });
 
   return (
     <div className="flex flex-col gap-8">
@@ -304,179 +326,234 @@ export default function ServicosPage() {
             </CardContent>
           </Card>
       </div>
-
-      <div className="flex items-center justify-between gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar por descrição ou nome do cliente..."
-            className="pl-10"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-             <Button onClick={handleAddNewClick}>
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Adicionar Serviço
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="font-headline">{editingService ? 'Editar Serviço' : 'Adicionar Novo Serviço'}</DialogTitle>
-              <DialogDescription>
-                Preencha os dados do serviço. Campos marcados com * são obrigatórios.
-              </DialogDescription>
-            </DialogHeader>
-            
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(handleSaveService)} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="descricao"
-                      render={({ field }) => (
-                        <FormItem className="md:col-span-2">
-                          <FormLabel>Descrição *</FormLabel>
-                          <FormControl>
-                            <Input {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                     <FormField
-                      control={form.control}
-                      name="cliente_id"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Cliente *</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Selecione o cliente" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {clients.map(client => (
-                                <SelectItem key={client.codigo_cliente} value={client.codigo_cliente}>{client.nome_completo}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="prazo"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Prazo</FormLabel>
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <FormControl>
-                                <Button
-                                  variant={"outline"}
-                                  className={cn(
-                                    "w-full pl-3 text-left font-normal",
-                                    !field.value && "text-muted-foreground"
-                                  )}
-                                >
-                                  {field.value ? (
-                                    format(field.value, "PPP", { locale: ptBR })
-                                  ) : (
-                                    <span>Escolha uma data</span>
-                                  )}
-                                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                </Button>
-                              </FormControl>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                              <Calendar
-                                mode="single"
-                                selected={field.value}
-                                onSelect={field.onChange}
-                                disabled={(date) =>
-                                  date < new Date("1900-01-01")
-                                }
-                                initialFocus
-                              />
-                            </PopoverContent>
-                          </Popover>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="valor"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Valor (R$)</FormLabel>
-                          <FormControl>
-                            <Input type="number" step="0.01" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                     <FormField
-                      control={form.control}
-                      name="status"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Status</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Selecione o status" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="em andamento">Em andamento</SelectItem>
-                              <SelectItem value="concluído">Concluído</SelectItem>
-                              <SelectItem value="cancelado">Cancelado</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <div className="md:col-span-2 space-y-4">
-                        {editingService && (
-                            <div>
-                                <FormLabel>Anexos Salvos</FormLabel>
-                                <AnexosList urls={anexosValue?.split('\n').filter(Boolean) || []} toast={toast} />
-                            </div>
-                        )}
+      
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-between gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por descrição ou nome do cliente..."
+                className="pl-10"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button onClick={handleAddNewClick}>
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  Adicionar Serviço
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle className="font-headline">{editingService ? 'Editar Serviço' : 'Adicionar Novo Serviço'}</DialogTitle>
+                  <DialogDescription>
+                    Preencha os dados do serviço. Campos marcados com * são obrigatórios.
+                  </DialogDescription>
+                </DialogHeader>
+                
+                <Form {...form}>
+                  <form onSubmit={form.handleSubmit(handleSaveService)} className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <FormField
-                            control={form.control}
-                            name="anexos"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>{editingService ? 'Adicionar ou Remover Anexos (URLs, um por linha)' : 'Anexos (URLs, um por linha)'}</FormLabel>
-                                    <FormControl>
-                                        <Textarea rows={3} {...field} placeholder="https://exemplo.com/documento.pdf&#10;C:\Projetos\Cliente_Alfa\Planta_Baixa.dwg" />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
+                          control={form.control}
+                          name="descricao"
+                          render={({ field }) => (
+                            <FormItem className="md:col-span-2">
+                              <FormLabel>Descrição *</FormLabel>
+                              <FormControl>
+                                <Input {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
                         />
+                        <FormField
+                          control={form.control}
+                          name="cliente_id"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Cliente *</FormLabel>
+                              <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Selecione o cliente" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {clients.map(client => (
+                                    <SelectItem key={client.codigo_cliente} value={client.codigo_cliente}>{client.nome_completo}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="prazo"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Prazo</FormLabel>
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <FormControl>
+                                    <Button
+                                      variant={"outline"}
+                                      className={cn(
+                                        "w-full pl-3 text-left font-normal",
+                                        !field.value && "text-muted-foreground"
+                                      )}
+                                    >
+                                      {field.value ? (
+                                        format(field.value, "PPP", { locale: ptBR })
+                                      ) : (
+                                        <span>Escolha uma data</span>
+                                      )}
+                                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                    </Button>
+                                  </FormControl>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                  <Calendar
+                                    mode="single"
+                                    selected={field.value}
+                                    onSelect={field.onChange}
+                                    disabled={(date) =>
+                                      date < new Date("1900-01-01")
+                                    }
+                                    initialFocus
+                                  />
+                                </PopoverContent>
+                              </Popover>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="valor"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Valor (R$)</FormLabel>
+                              <FormControl>
+                                <Input type="number" step="0.01" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="status"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Status</FormLabel>
+                              <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Selecione o status" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="em andamento">Em andamento</SelectItem>
+                                  <SelectItem value="concluído">Concluído</SelectItem>
+                                  <SelectItem value="cancelado">Cancelado</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <div className="md:col-span-2 space-y-4">
+                            {editingService && (
+                                <div>
+                                    <FormLabel>Anexos Salvos</FormLabel>
+                                    <AnexosList urls={anexosValue?.split('\n').filter(Boolean) || []} toast={toast} />
+                                </div>
+                            )}
+                            <FormField
+                                control={form.control}
+                                name="anexos"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>{editingService ? 'Adicionar ou Remover Anexos (URLs, um por linha)' : 'Anexos (URLs, um por linha)'}</FormLabel>
+                                        <FormControl>
+                                            <Textarea rows={3} {...field} placeholder="https://exemplo.com/documento.pdf&#10;C:\Projetos\Cliente_Alfa\Planta_Baixa.dwg" />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                        </div>
                     </div>
-                </div>
-                <DialogFooter>
-                  <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
-                  <Button type="submit" disabled={isLoading}>
-                    {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    {editingService ? 'Salvar Alterações' : 'Salvar Serviço'}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
+                    <DialogFooter>
+                      <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
+                      <Button type="submit" disabled={isLoading}>
+                        {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        {editingService ? 'Salvar Alterações' : 'Salvar Serviço'}
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </Form>
+              </DialogContent>
+            </Dialog>
+        </div>
+        <div className="flex items-center gap-4 p-4 bg-muted rounded-lg">
+            <div className="flex items-center gap-2">
+                <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        id="date"
+                        variant={"outline"}
+                        className={cn( "w-[300px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {dateRange?.from ? (
+                          dateRange.to ? (
+                            <>
+                              {format(dateRange.from, "LLL dd, y")} -{" "}
+                              {format(dateRange.to, "LLL dd, y")}
+                            </>
+                          ) : (
+                            format(dateRange.from, "LLL dd, y")
+                          )
+                        ) : (
+                          <span>Filtrar por prazo...</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        initialFocus
+                        mode="range"
+                        defaultMonth={dateRange?.from}
+                        selected={dateRange}
+                        onSelect={setDateRange}
+                        numberOfMonths={2}
+                      />
+                    </PopoverContent>
+                </Popover>
+            </div>
+             <div className="flex items-center gap-2">
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-[200px]">
+                        <SelectValue placeholder="Filtrar por status..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="em andamento">Em andamento</SelectItem>
+                        <SelectItem value="concluído">Concluído</SelectItem>
+                        <SelectItem value="cancelado">Cancelado</SelectItem>
+                    </SelectContent>
+                </Select>
+             </div>
+             <Button variant="ghost" onClick={handleClearFilters} className="text-muted-foreground">
+                <XCircle className="mr-2 h-4 w-4"/>
+                Limpar Filtros
+             </Button>
+        </div>
       </div>
 
       <div className="border rounded-lg">
@@ -558,3 +635,5 @@ export default function ServicosPage() {
     </div>
   );
 }
+
+    
