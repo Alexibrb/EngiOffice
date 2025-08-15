@@ -396,7 +396,7 @@ export default function FinanceiroPage() {
                         <ArrowUp className="h-4 w-4 text-green-500" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">R$ {totalReceivablePending.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                        <div className="text-2xl font-bold text-green-500">R$ {totalReceivablePending.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
                         <p className="text-xs text-muted-foreground">
                             Soma de todos os serviços "em andamento"
                         </p>
@@ -408,7 +408,7 @@ export default function FinanceiroPage() {
                         <ArrowDown className="h-4 w-4 text-red-500" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">R$ {totalPayablePending.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                        <div className="text-2xl font-bold text-red-500">R$ {totalPayablePending.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
                          <p className="text-xs text-muted-foreground">
                             Soma de todas as contas pendentes
                         </p>
@@ -420,7 +420,7 @@ export default function FinanceiroPage() {
                         <CircleDollarSign className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">R$ {totalPayable.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                        <div className="text-2xl font-bold text-red-500">R$ {totalPayable.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
                          <p className="text-xs text-muted-foreground">
                             Soma de todas as contas
                         </p>
@@ -970,7 +970,7 @@ function PayableTableComponent({ accounts, getPayeeName, onEdit, onDelete }: {
                             <TableCell className="font-medium">{account.descricao}</TableCell>
                             <TableCell>{getPayeeName(account)}</TableCell>
                             <TableCell>{format(account.vencimento, 'dd/MM/yyyy')}</TableCell>
-                            <TableCell>R$ {account.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
+                            <TableCell className="text-red-500">R$ {account.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
                             <TableCell>
                                 <Badge variant={account.status === 'pendente' ? 'destructive' : 'secondary'}>
                                     {account.status}
@@ -1039,7 +1039,7 @@ function ReceivableTableComponent({ services, getClientName }: {
                             <TableCell className="font-medium">{service.descricao}</TableCell>
                             <TableCell>{getClientName(service.cliente_id)}</TableCell>
                             <TableCell>{format(service.data_cadastro, 'dd/MM/yyyy')}</TableCell>
-                            <TableCell>R$ {service.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
+                            <TableCell className="text-green-500">R$ {service.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
                             <TableCell>
                                 <Badge variant={
                                     service.status === 'concluído' ? 'secondary' :

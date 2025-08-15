@@ -409,7 +409,7 @@ export default function ComissoesPage() {
                                 <TableCell className="font-medium">{getEmployeeName(commission.funcionario_id)}</TableCell>
                                 <TableCell>{getServiceDescription(commission.servico_id)}</TableCell>
                                 <TableCell>{format(commission.data, 'dd/MM/yyyy')}</TableCell>
-                                <TableCell>R$ {commission.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
+                                <TableCell className="text-red-500">R$ {commission.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
                                 <TableCell>
                                     <Badge variant={commission.status === 'pendente' ? 'destructive' : 'secondary'}>
                                         {commission.status}

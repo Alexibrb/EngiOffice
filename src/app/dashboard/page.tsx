@@ -35,6 +35,7 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 export default function DashboardPage() {
   const [services, setServices] = useState<Service[]>([]);
@@ -153,7 +154,7 @@ export default function DashboardPage() {
             <CircleDollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">R$ {balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+             <div className={cn("text-2xl font-bold", balance < 0 ? "text-red-500" : "text-green-500")}>R$ {balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
             <p className="text-xs text-muted-foreground">
               Recebidos - Contas Pagas - Comissões Pagas
             </p>
@@ -208,7 +209,7 @@ export default function DashboardPage() {
                   <ArrowUp className="h-4 w-4 text-green-500" />
               </CardHeader>
               <CardContent>
-                  <div className="text-2xl font-bold">R$ {totalReceivablePending.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                  <div className="text-2xl font-bold text-green-500">R$ {totalReceivablePending.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
                   <p className="text-xs text-muted-foreground">
                       Soma de todos os serviços "em andamento"
                   </p>
@@ -220,7 +221,7 @@ export default function DashboardPage() {
                   <ArrowDown className="h-4 w-4 text-red-500" />
               </CardHeader>
               <CardContent>
-                  <div className="text-2xl font-bold">R$ {totalPayablePending.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                  <div className="text-2xl font-bold text-red-500">R$ {totalPayablePending.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
                     <p className="text-xs text-muted-foreground">
                       Soma de todas as contas pendentes
                   </p>
@@ -234,7 +235,7 @@ export default function DashboardPage() {
                 <HandCoins className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">R$ {totalCommissionsPending.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                <div className="text-2xl font-bold text-red-500">R$ {totalCommissionsPending.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
                 <p className="text-xs text-muted-foreground">
                   Total de comissões a pagar
                 </p>
@@ -265,7 +266,7 @@ export default function DashboardPage() {
                   <TableRow key={service.id}>
                     <TableCell className="font-medium">{service.descricao}</TableCell>
                     <TableCell>{format(service.data_cadastro, 'dd/MM/yyyy')}</TableCell>
-                    <TableCell>R$ {service.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
+                    <TableCell className="text-green-500">R$ {service.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
                     <TableCell>
                       <Button
                         variant="outline"
@@ -317,7 +318,7 @@ export default function DashboardPage() {
                         )}
                       </div>
                     </TableCell>
-                    <TableCell>R$ {account.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
+                    <TableCell className="text-red-500">R$ {account.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
                     <TableCell>
                       <Button
                         variant="outline"

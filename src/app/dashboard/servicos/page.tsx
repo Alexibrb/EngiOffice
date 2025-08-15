@@ -680,7 +680,7 @@ export default function ServicosPage() {
                         <TableCell className="font-medium">{service.descricao}</TableCell>
                         <TableCell>{getClientName(service.cliente_id)}</TableCell>
                         <TableCell>{service.data_cadastro ? format(service.data_cadastro, "dd/MM/yyyy") : '-'}</TableCell>
-                        <TableCell>R$ {service.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2})}</TableCell>
+                        <TableCell className="text-green-500">R$ {service.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2})}</TableCell>
                         <TableCell>
                         <Badge variant={
                             service.status === 'concluído' ? 'secondary' :
