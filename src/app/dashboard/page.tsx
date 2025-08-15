@@ -16,7 +16,6 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-  TableFooter,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { collection, getDocs } from 'firebase/firestore';
@@ -130,10 +129,6 @@ export default function DashboardPage() {
   const handleEditService = (serviceId: string) => {
     router.push(`/dashboard/servicos?edit=${serviceId}`);
   };
-
-  const ongoingServicesTotal = ongoingServices.reduce((acc, curr) => acc + curr.valor, 0);
-  const upcomingPayableTotal = upcomingPayable.reduce((acc, curr) => acc + curr.valor, 0);
-
 
   if (isLoading) {
     return (
@@ -305,15 +300,6 @@ export default function DashboardPage() {
                   </TableRow>
                 )}
               </TableBody>
-              <TableFooter>
-                <TableRow>
-                    <TableCell colSpan={2} className="font-bold">Total</TableCell>
-                    <TableCell className="text-right font-bold text-green-500">
-                        R$ {ongoingServicesTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </TableCell>
-                    <TableCell></TableCell>
-                </TableRow>
-              </TableFooter>
             </Table>
           </CardContent>
         </Card>
@@ -366,15 +352,6 @@ export default function DashboardPage() {
                   </TableRow>
                 )}
               </TableBody>
-                <TableFooter>
-                    <TableRow>
-                        <TableCell colSpan={2} className="font-bold">Total (Próximas 5)</TableCell>
-                        <TableCell className="text-right font-bold text-red-500">
-                            R$ {upcomingPayable.slice(0, 5).reduce((acc, curr) => acc + curr.valor, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                        </TableCell>
-                        <TableCell></TableCell>
-                    </TableRow>
-                </TableFooter>
             </Table>
           </CardContent>
         </Card>
