@@ -14,6 +14,7 @@ import {
   Users,
   Wrench,
   HandCoins,
+  DollarSign,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -49,6 +50,11 @@ const links = [
     href: '/dashboard/financeiro',
     label: 'Financeiro',
     icon: CircleDollarSign,
+  },
+   {
+    href: '/dashboard/financeiro?add=true',
+    label: 'Despesas',
+    icon: DollarSign,
   },
   { href: '/dashboard/relatorios', label: 'Relatórios', icon: FileText },
   {

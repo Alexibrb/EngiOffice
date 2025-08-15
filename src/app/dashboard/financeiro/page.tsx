@@ -112,12 +112,19 @@ export default function FinanceiroPage() {
             setSuppliers(suppliersData);
 
             const editPayableId = searchParams.get('editPayable');
+            const addPayable = searchParams.get('add');
+            
             if (editPayableId) {
                 const accountToEdit = payableData.find(a => a.id === editPayableId);
                 if (accountToEdit) {
                     handleEditClick(accountToEdit);
-                    router.replace('/dashboard/financeiro', undefined);
+                    router.replace('/dashboard/financeiro', { scroll: false });
                 }
+            }
+
+            if (addPayable) {
+              handleAddNewClick();
+              router.replace('/dashboard/financeiro', { scroll: false });
             }
 
 
