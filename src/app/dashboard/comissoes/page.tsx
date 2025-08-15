@@ -322,7 +322,7 @@ export default function ComissoesPage() {
     return (
         <div className="flex flex-col gap-8">
             <div>
-                <h1 className="text-3xl font-bold font-headline">Comissões</h1>
+                <h1 className="text-3xl font-bold font-headline text-primary">Comissões</h1>
                 <p className="text-muted-foreground">
                     Gerencie as comissões dos funcionários por serviço.
                 </p>

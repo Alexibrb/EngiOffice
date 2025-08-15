@@ -324,7 +324,7 @@ export default function ClientesPage() {
   return (
     <div className="flex flex-col gap-8">
         <div>
-            <h1 className="text-3xl font-bold font-headline">Clientes</h1>
+            <h1 className="text-3xl font-bold font-headline text-primary">Clientes</h1>
             <p className="text-muted-foreground">
             Gerencie os clientes do seu escritório.
             </p>

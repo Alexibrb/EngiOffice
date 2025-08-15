@@ -42,7 +42,7 @@ export default function TimelineSugestoesPage() {
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <h1 className="text-3xl font-bold font-headline">
+        <h1 className="text-3xl font-bold font-headline text-primary">
           Sugestões de Timeline com IA
         </h1>
         <p className="text-muted-foreground">

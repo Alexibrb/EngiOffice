@@ -189,7 +189,7 @@ export default function FornecedoresPage() {
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <h1 className="text-3xl font-bold font-headline">Fornecedores</h1>
+        <h1 className="text-3xl font-bold font-headline text-primary">Fornecedores</h1>
         <p className="text-muted-foreground">
           Gerencie os fornecedores do seu escritório.
         </p>

@@ -295,7 +295,7 @@ export default function RelatoriosPage() {
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <h1 className="text-3xl font-bold font-headline">Relatórios</h1>
+        <h1 className="text-3xl font-bold font-headline text-primary">Relatórios</h1>
         <p className="text-muted-foreground">
           Gere relatórios e documentos importantes do seu negócio.
         </p>

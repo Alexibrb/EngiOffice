@@ -190,7 +190,7 @@ export default function FuncionariosPage() {
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <h1 className="text-3xl font-bold font-headline">Funcionários</h1>
+        <h1 className="text-3xl font-bold font-headline text-primary">Funcionários</h1>
         <p className="text-muted-foreground">
           Gerencie os funcionários e colaboradores do seu escritório.
         </p>

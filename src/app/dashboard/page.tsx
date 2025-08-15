@@ -125,7 +125,7 @@ export default function DashboardPage() {
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <h1 className="text-3xl font-bold font-headline">Dashboard</h1>
+        <h1 className="text-3xl font-bold font-headline text-primary">Dashboard</h1>
         <p className="text-muted-foreground">
           Uma visão geral do seu escritório.
         </p>

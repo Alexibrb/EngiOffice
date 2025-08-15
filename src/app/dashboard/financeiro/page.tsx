@@ -365,7 +365,7 @@ export default function FinanceiroPage() {
     return (
         <div className="flex flex-col gap-8">
             <div>
-                <h1 className="text-3xl font-bold font-headline">Financeiro</h1>
+                <h1 className="text-3xl font-bold font-headline text-primary">Financeiro</h1>
                 <p className="text-muted-foreground">
                     Gerencie as finanças do seu escritório.
                 </p>
