@@ -32,6 +32,8 @@ import {
   HandCoins,
   ArrowUp,
   ArrowDown,
+  CheckCircle,
+  CreditCard,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -115,6 +117,9 @@ export default function DashboardPage() {
   const totalPayablePending = accountsPayable
     .filter((a) => a.status === 'pendente')
     .reduce((acc, curr) => acc + curr.valor, 0);
+
+  const totalExpenses = accountsPayable.reduce((acc, curr) => acc + curr.valor, 0);
+
 
   const handlePayAccount = (accountId: string) => {
     router.push(`/dashboard/financeiro?editPayable=${accountId}`);
@@ -247,6 +252,30 @@ export default function DashboardPage() {
                   <div className="text-2xl font-bold text-red-500">R$ {totalPayablePaid.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
                     <p className="text-xs text-muted-foreground">
                       Soma de todas as contas pagas
+                  </p>
+              </CardContent>
+          </Card>
+          <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Serviços Concluídos</CardTitle>
+                  <CheckCircle className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                  <div className="text-2xl font-bold">{completedServices}</div>
+                    <p className="text-xs text-muted-foreground">
+                      Total de serviços finalizados
+                  </p>
+              </CardContent>
+          </Card>
+          <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total de Despesas</CardTitle>
+                  <CreditCard className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                  <div className="text-2xl font-bold text-red-500">R$ {totalExpenses.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                    <p className="text-xs text-muted-foreground">
+                      Soma de despesas pagas e pendentes
                   </p>
               </CardContent>
           </Card>
