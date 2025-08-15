@@ -14,7 +14,7 @@ import {
   Users,
   Wrench,
   HandCoins,
-  DollarSign,
+  Building2,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -24,45 +24,48 @@ import {
   SidebarMenuButton,
   SidebarContent,
   SidebarFooter,
+  SidebarSeparator,
+  SidebarGroup,
+  SidebarGroupLabel,
 } from '@/components/ui/sidebar';
-import { Button } from './ui/button';
 
-const links = [
+const mainLinks = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/dashboard/clientes', label: 'Clientes', icon: Users },
-  {
-    href: '/dashboard/fornecedores',
-    label: 'Fornecedores',
-    icon: Truck,
-  },
-  {
-    href: '/dashboard/funcionarios',
-    label: 'Funcionários',
-    icon: Briefcase,
-  },
   { href: '/dashboard/servicos', label: 'Serviços', icon: Wrench },
-  {
-    href: '/dashboard/comissoes',
-    label: 'Comissões',
-    icon: HandCoins,
-  },
   {
     href: '/dashboard/financeiro',
     label: 'Financeiro',
     icon: CircleDollarSign,
   },
-   {
-    href: '/dashboard/financeiro?add=true',
-    label: 'Despesas',
-    icon: DollarSign,
+  {
+    href: '/dashboard/comissoes',
+    label: 'Comissões',
+    icon: HandCoins,
   },
   { href: '/dashboard/relatorios', label: 'Relatórios', icon: FileText },
-  {
+];
+
+const secondaryLinks = [
+    { href: '/dashboard/clientes', label: 'Clientes', icon: Users },
+    {
+      href: '/dashboard/fornecedores',
+      label: 'Fornecedores',
+      icon: Truck,
+    },
+    {
+      href: '/dashboard/funcionarios',
+      label: 'Funcionários',
+      icon: Briefcase,
+    },
+]
+
+const aiLinks = [
+    {
     href: '/dashboard/timeline-sugestoes',
     label: 'Sugestões IA',
     icon: Sparkles,
   },
-];
+]
 
 export function DashboardNav() {
   const pathname = usePathname();
@@ -77,7 +80,7 @@ export function DashboardNav() {
       </SidebarHeader>
       <SidebarContent>
         <SidebarMenu>
-          {links.map((link) => (
+          {mainLinks.map((link) => (
             <SidebarMenuItem key={link.href}>
               <Link href={link.href} passHref>
                 <SidebarMenuButton
@@ -94,6 +97,56 @@ export function DashboardNav() {
             </SidebarMenuItem>
           ))}
         </SidebarMenu>
+
+        <SidebarSeparator />
+        
+         <SidebarGroup>
+            <SidebarGroupLabel className="flex items-center">
+                <Building2 className="mr-2"/>
+                Cadastros
+            </SidebarGroupLabel>
+            <SidebarMenu>
+                 {secondaryLinks.map((link) => (
+                    <SidebarMenuItem key={link.href}>
+                    <Link href={link.href} passHref>
+                        <SidebarMenuButton
+                        isActive={pathname === link.href}
+                        asChild
+                        tooltip={link.label}
+                        >
+                        <>
+                            <link.icon />
+                            <span>{link.label}</span>
+                        </>
+                        </SidebarMenuButton>
+                    </Link>
+                    </SidebarMenuItem>
+                ))}
+            </SidebarMenu>
+        </SidebarGroup>
+
+        <SidebarSeparator />
+
+         <SidebarMenu>
+          {aiLinks.map((link) => (
+            <SidebarMenuItem key={link.href}>
+              <Link href={link.href} passHref>
+                <SidebarMenuButton
+                  isActive={pathname === link.href}
+                  asChild
+                  tooltip={link.label}
+                >
+                  <>
+                    <link.icon />
+                    <span>{link.label}</span>
+                  </>
+                </SidebarMenuButton>
+              </Link>
+            </SidebarMenuItem>
+          ))}
+        </SidebarMenu>
+
+
       </SidebarContent>
     </Sidebar>
   );

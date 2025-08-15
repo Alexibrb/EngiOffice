@@ -17,13 +17,13 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-sm">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-2xl font-headline">
-            <Rocket className="h-6 w-6 text-primary" />
+        <CardHeader className="items-center text-center">
+          <Rocket className="h-8 w-8 text-primary" />
+          <CardTitle className="font-headline text-3xl">
             EngiFlow
           </CardTitle>
           <CardDescription>
-            Entre com seu email e senha para acessar o painel.
+            Entre para gerenciar seus projetos de engenharia.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -50,7 +50,7 @@ export default function LoginPage() {
               <Input id="password" type="password" required />
             </div>
             <Link href="/dashboard" className="w-full">
-              <Button type="submit" className="w-full bg-accent hover:bg-accent/90">
+              <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground">
                 Login
               </Button>
             </Link>

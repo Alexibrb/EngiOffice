@@ -49,6 +49,7 @@ import {
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatCPF_CNPJ, formatTelefone, formatCEP } from '@/lib/utils';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 const addressSchema = z.object({
   street: z.string().optional(),
@@ -144,7 +145,7 @@ function AddCityDialog({ isOpen, setIsOpen, onCityAdded }: {
             />
             <DialogFooter>
               <Button type="button" variant="ghost" onClick={() => setIsOpen(false)}>Cancelar</Button>
-              <Button type="submit" disabled={isLoading}>
+              <Button type="submit" variant="accent" disabled={isLoading}>
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Salvar Cidade
               </Button>
@@ -322,420 +323,424 @@ export default function ClientesPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <div>
-        <h1 className="text-3xl font-bold font-headline">Clientes</h1>
-        <p className="text-muted-foreground">
-          Gerencie os clientes do seu escritório.
-        </p>
-      </div>
-
-      <div className="flex items-center justify-between gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar por nome ou CPF/CNPJ..."
-            className="pl-10"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+        <div>
+            <h1 className="text-3xl font-bold font-headline">Clientes</h1>
+            <p className="text-muted-foreground">
+            Gerencie os clientes do seu escritório.
+            </p>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-             <Button onClick={handleAddNewClick}>
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Adicionar Cliente
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="font-headline">{editingClient ? 'Editar Cliente' : 'Adicionar Novo Cliente'}</DialogTitle>
-              <DialogDescription>
-                Preencha os dados do cliente. Campos marcados com * são obrigatórios.
-              </DialogDescription>
-            </DialogHeader>
-            
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(handleSaveClient)} className="space-y-6">
-                <div>
-                    <h3 className="text-lg font-medium mb-4">Dados Pessoais</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <FormField
-                          control={form.control}
-                          name="nome_completo"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Nome Completo *</FormLabel>
-                              <FormControl>
-                                <Input {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                         <FormField
-                          control={form.control}
-                          name="rg"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>RG</FormLabel>
-                              <FormControl>
-                                <Input {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                         <FormField
-                          control={form.control}
-                          name="cpf_cnpj"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>CPF/CNPJ</FormLabel>
-                              <FormControl>
-                                <Input 
-                                  {...field} 
-                                  onChange={(e) => {
-                                      const { value } = e.target;
-                                      field.onChange(formatCPF_CNPJ(value));
-                                  }}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name="telefone"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Telefone</FormLabel>
-                              <FormControl>
-                                <Input 
-                                  type="tel"
-                                  {...field}
-                                  onChange={(e) => {
-                                      const { value } = e.target;
-                                      field.onChange(formatTelefone(value));
-                                  }}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
+
+        <Card>
+            <CardHeader>
+                <div className="flex items-center justify-between gap-4">
+                    <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        placeholder="Buscar por nome ou CPF/CNPJ..."
+                        className="pl-10"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                    />
                     </div>
-                </div>
-
-                <Separator />
-
-                <div>
-                    <h3 className="text-lg font-medium mb-4">Endereço Residencial</h3>
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <FormField
-                          control={form.control}
-                          name="endereco_residencial.street"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Rua</FormLabel>
-                              <FormControl>
-                                <Input {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                         <FormField
-                          control={form.control}
-                          name="endereco_residencial.number"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Número</FormLabel>
-                              <FormControl>
-                                <Input {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                         <FormField
-                          control={form.control}
-                          name="endereco_residencial.neighborhood"
-                          render={({ field }) => (
-                            <FormItem className="md:col-span-2">
-                              <FormLabel>Bairro</FormLabel>
-                              <FormControl>
-                                <Input {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                         <FormField
-                            control={form.control}
-                            name="endereco_residencial.city"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Cidade</FormLabel>
-                                <div className="flex items-center gap-2">
-                                  <Select onValueChange={(value) => {
-                                      const selectedCity = cities.find(c => c.nome_cidade === value);
-                                      field.onChange(value);
-                                      form.setValue('endereco_residencial.state', selectedCity?.estado || '');
-                                  }} value={field.value}>
-                                    <FormControl><SelectTrigger><SelectValue placeholder="Selecione a Cidade" /></SelectTrigger></FormControl>
-                                    <SelectContent><>
-                                      {cities.map(city => (<SelectItem key={city.id} value={city.nome_cidade}>{city.nome_cidade}</SelectItem>))}
-                                    </></SelectContent>
-                                  </Select>
-                                   <Button type="button" variant="outline" size="icon" onClick={() => setIsCityDialogOpen(true)}><PlusCircle className="h-4 w-4" /></Button>
-                                </div>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                         <FormField
-                          control={form.control}
-                          name="endereco_residencial.state"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Estado</FormLabel>
-                              <FormControl>
-                                <Input {...field} disabled />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                         <FormField
-                          control={form.control}
-                          name="endereco_residencial.zip"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>CEP</FormLabel>
-                              <FormControl>
-                                 <Input 
-                                  {...field}
-                                  onChange={(e) => {
-                                      const { value } = e.target;
-                                      field.onChange(formatCEP(value));
-                                  }}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                    </div>
-                </div>
-
-                <Separator />
-
-                <div>
-                    <h3 className="text-lg font-medium mb-4">Endereço da Obra e Coordenadas</h3>
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <FormField
-                          control={form.control}
-                          name="endereco_obra.street"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Rua</FormLabel>
-                              <FormControl>
-                                <Input {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                         <FormField
-                          control={form.control}
-                          name="endereco_obra.number"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Número</FormLabel>
-                              <FormControl>
-                                <Input {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                         <FormField
-                          control={form.control}
-                          name="endereco_obra.neighborhood"
-                          render={({ field }) => (
-                            <FormItem className="md:col-span-2">
-                              <FormLabel>Bairro</FormLabel>
-                              <FormControl>
-                                <Input {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                         <FormField
-                            control={form.control}
-                            name="endereco_obra.city"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Cidade</FormLabel>
-                                <div className="flex items-center gap-2">
-                                  <Select onValueChange={(value) => {
-                                      const selectedCity = cities.find(c => c.nome_cidade === value);
-                                      field.onChange(value);
-                                      form.setValue('endereco_obra.state', selectedCity?.estado || '');
-                                  }} value={field.value}>
-                                    <FormControl><SelectTrigger><SelectValue placeholder="Selecione a Cidade" /></SelectTrigger></FormControl>
-                                    <SelectContent><>
-                                      {cities.map(city => (<SelectItem key={city.id} value={city.nome_cidade}>{city.nome_cidade}</SelectItem>))}
-                                    </></SelectContent>
-                                  </Select>
-                                   <Button type="button" variant="outline" size="icon" onClick={() => setIsCityDialogOpen(true)}><PlusCircle className="h-4 w-4" /></Button>
-                                </div>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                           <FormField
-                            control={form.control}
-                            name="endereco_obra.state"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Estado</FormLabel>
-                                <FormControl>
-                                  <Input {...field} disabled />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          <FormField
-                            control={form.control}
-                            name="endereco_obra.zip"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>CEP</FormLabel>
-                                <FormControl>
-                                  <Input 
-                                    {...field}
-                                    onChange={(e) => {
-                                        const { value } = e.target;
-                                        field.onChange(formatCEP(value));
-                                    }}
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                         <FormField
-                          control={form.control}
-                          name="coordenadas.lat"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Latitude</FormLabel>
-                              <FormControl>
-                                <Input type="number" step="any" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                          <FormField
-                          control={form.control}
-                          name="coordenadas.lng"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Longitude</FormLabel>
-                              <FormControl>
-                                <Input type="number" step="any" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                    </div>
-                </div>
-                <DialogFooter>
-                  <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
-                  <Button type="submit" disabled={isLoading}>
-                    {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    {editingClient ? 'Salvar Alterações' : 'Salvar Cliente'}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      <div className="border rounded-lg">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nome</TableHead>
-              <TableHead>CPF/CNPJ</TableHead>
-              <TableHead>Telefone</TableHead>
-              <TableHead><span className="sr-only">Ações</span></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredClients.length > 0 ? filteredClients.map((client) => (
-              <TableRow key={client.codigo_cliente}>
-                <TableCell className="font-medium">{client.nome_completo}</TableCell>
-                <TableCell>{client.cpf_cnpj}</TableCell>
-                <TableCell>{client.telefone}</TableCell>
-                <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button aria-haspopup="true" size="icon" variant="ghost">
-                          <MoreHorizontal className="h-4 w-4" />
-                          <span className="sr-only">Toggle menu</span>
+                    <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                    <DialogTrigger asChild>
+                        <Button onClick={handleAddNewClick} variant="accent">
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Adicionar Cliente
                         </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                        <DropdownMenuItem onClick={() => handleEditClick(client)}>
-                          Editar
-                        </DropdownMenuItem>
-                         <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                             <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                                Excluir
-                             </DropdownMenuItem>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Essa ação não pode ser desfeita. Isso excluirá permanentemente o cliente.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleDeleteClient(client.codigo_cliente)}>
-                                  Excluir
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-              </TableRow>
-            )) : (
-              <TableRow>
-                <TableCell colSpan={4} className="h-24 text-center">
-                  Nenhum cliente encontrado.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
+                        <DialogHeader>
+                        <DialogTitle className="font-headline">{editingClient ? 'Editar Cliente' : 'Adicionar Novo Cliente'}</DialogTitle>
+                        <DialogDescription>
+                            Preencha os dados do cliente. Campos marcados com * são obrigatórios.
+                        </DialogDescription>
+                        </DialogHeader>
+                        
+                        <Form {...form}>
+                        <form onSubmit={form.handleSubmit(handleSaveClient)} className="space-y-6">
+                            <div>
+                                <h3 className="text-lg font-medium mb-4">Dados Pessoais</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <FormField
+                                    control={form.control}
+                                    name="nome_completo"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                        <FormLabel>Nome Completo *</FormLabel>
+                                        <FormControl>
+                                            <Input {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                        </FormItem>
+                                    )}
+                                    />
+                                    <FormField
+                                    control={form.control}
+                                    name="rg"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                        <FormLabel>RG</FormLabel>
+                                        <FormControl>
+                                            <Input {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                        </FormItem>
+                                    )}
+                                    />
+                                    <FormField
+                                    control={form.control}
+                                    name="cpf_cnpj"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                        <FormLabel>CPF/CNPJ</FormLabel>
+                                        <FormControl>
+                                            <Input 
+                                            {...field} 
+                                            onChange={(e) => {
+                                                const { value } = e.target;
+                                                field.onChange(formatCPF_CNPJ(value));
+                                            }}
+                                            />
+                                        </FormControl>
+                                        <FormMessage />
+                                        </FormItem>
+                                    )}
+                                    />
+                                    <FormField
+                                    control={form.control}
+                                    name="telefone"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                        <FormLabel>Telefone</FormLabel>
+                                        <FormControl>
+                                            <Input 
+                                            type="tel"
+                                            {...field}
+                                            onChange={(e) => {
+                                                const { value } = e.target;
+                                                field.onChange(formatTelefone(value));
+                                            }}
+                                            />
+                                        </FormControl>
+                                        <FormMessage />
+                                        </FormItem>
+                                    )}
+                                    />
+                                </div>
+                            </div>
+
+                            <Separator />
+
+                            <div>
+                                <h3 className="text-lg font-medium mb-4">Endereço Residencial</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <FormField
+                                    control={form.control}
+                                    name="endereco_residencial.street"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                        <FormLabel>Rua</FormLabel>
+                                        <FormControl>
+                                            <Input {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                        </FormItem>
+                                    )}
+                                    />
+                                    <FormField
+                                    control={form.control}
+                                    name="endereco_residencial.number"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                        <FormLabel>Número</FormLabel>
+                                        <FormControl>
+                                            <Input {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                        </FormItem>
+                                    )}
+                                    />
+                                    <FormField
+                                    control={form.control}
+                                    name="endereco_residencial.neighborhood"
+                                    render={({ field }) => (
+                                        <FormItem className="md:col-span-2">
+                                        <FormLabel>Bairro</FormLabel>
+                                        <FormControl>
+                                            <Input {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                        </FormItem>
+                                    )}
+                                    />
+                                    <FormField
+                                        control={form.control}
+                                        name="endereco_residencial.city"
+                                        render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Cidade</FormLabel>
+                                            <div className="flex items-center gap-2">
+                                            <Select onValueChange={(value) => {
+                                                const selectedCity = cities.find(c => c.nome_cidade === value);
+                                                field.onChange(value);
+                                                form.setValue('endereco_residencial.state', selectedCity?.estado || '');
+                                            }} value={field.value}>
+                                                <FormControl><SelectTrigger><SelectValue placeholder="Selecione a Cidade" /></SelectTrigger></FormControl>
+                                                <SelectContent><>
+                                                {cities.map(city => (<SelectItem key={city.id} value={city.nome_cidade}>{city.nome_cidade}</SelectItem>))}
+                                                </></SelectContent>
+                                            </Select>
+                                            <Button type="button" variant="outline" size="icon" onClick={() => setIsCityDialogOpen(true)}><PlusCircle className="h-4 w-4" /></Button>
+                                            </div>
+                                            <FormMessage />
+                                        </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                    control={form.control}
+                                    name="endereco_residencial.state"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                        <FormLabel>Estado</FormLabel>
+                                        <FormControl>
+                                            <Input {...field} disabled />
+                                        </FormControl>
+                                        <FormMessage />
+                                        </FormItem>
+                                    )}
+                                    />
+                                    <FormField
+                                    control={form.control}
+                                    name="endereco_residencial.zip"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                        <FormLabel>CEP</FormLabel>
+                                        <FormControl>
+                                            <Input 
+                                            {...field}
+                                            onChange={(e) => {
+                                                const { value } = e.target;
+                                                field.onChange(formatCEP(value));
+                                            }}
+                                            />
+                                        </FormControl>
+                                        <FormMessage />
+                                        </FormItem>
+                                    )}
+                                    />
+                                </div>
+                            </div>
+
+                            <Separator />
+
+                            <div>
+                                <h3 className="text-lg font-medium mb-4">Endereço da Obra e Coordenadas</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <FormField
+                                    control={form.control}
+                                    name="endereco_obra.street"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                        <FormLabel>Rua</FormLabel>
+                                        <FormControl>
+                                            <Input {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                        </FormItem>
+                                    )}
+                                    />
+                                    <FormField
+                                    control={form.control}
+                                    name="endereco_obra.number"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                        <FormLabel>Número</FormLabel>
+                                        <FormControl>
+                                            <Input {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                        </FormItem>
+                                    )}
+                                    />
+                                    <FormField
+                                    control={form.control}
+                                    name="endereco_obra.neighborhood"
+                                    render={({ field }) => (
+                                        <FormItem className="md:col-span-2">
+                                        <FormLabel>Bairro</FormLabel>
+                                        <FormControl>
+                                            <Input {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                        </FormItem>
+                                    )}
+                                    />
+                                    <FormField
+                                        control={form.control}
+                                        name="endereco_obra.city"
+                                        render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Cidade</FormLabel>
+                                            <div className="flex items-center gap-2">
+                                            <Select onValueChange={(value) => {
+                                                const selectedCity = cities.find(c => c.nome_cidade === value);
+                                                field.onChange(value);
+                                                form.setValue('endereco_obra.state', selectedCity?.estado || '');
+                                            }} value={field.value}>
+                                                <FormControl><SelectTrigger><SelectValue placeholder="Selecione a Cidade" /></SelectTrigger></FormControl>
+                                                <SelectContent><>
+                                                {cities.map(city => (<SelectItem key={city.id} value={city.nome_cidade}>{city.nome_cidade}</SelectItem>))}
+                                                </></SelectContent>
+                                            </Select>
+                                            <Button type="button" variant="outline" size="icon" onClick={() => setIsCityDialogOpen(true)}><PlusCircle className="h-4 w-4" /></Button>
+                                            </div>
+                                            <FormMessage />
+                                        </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                    control={form.control}
+                                    name="endereco_obra.state"
+                                    render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Estado</FormLabel>
+                                        <FormControl>
+                                        <Input {...field} disabled />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="endereco_obra.zip"
+                                    render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>CEP</FormLabel>
+                                        <FormControl>
+                                        <Input 
+                                            {...field}
+                                            onChange={(e) => {
+                                                const { value } = e.target;
+                                                field.onChange(formatCEP(value));
+                                            }}
+                                        />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                    )}
+                                />
+                                    <FormField
+                                    control={form.control}
+                                    name="coordenadas.lat"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                        <FormLabel>Latitude</FormLabel>
+                                        <FormControl>
+                                            <Input type="number" step="any" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                        </FormItem>
+                                    )}
+                                    />
+                                    <FormField
+                                    control={form.control}
+                                    name="coordenadas.lng"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                        <FormLabel>Longitude</FormLabel>
+                                        <FormControl>
+                                            <Input type="number" step="any" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                        </FormItem>
+                                    )}
+                                    />
+                                </div>
+                            </div>
+                            <DialogFooter>
+                            <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
+                            <Button type="submit" variant="accent" disabled={isLoading}>
+                                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                {editingClient ? 'Salvar Alterações' : 'Salvar Cliente'}
+                            </Button>
+                            </DialogFooter>
+                        </form>
+                        </Form>
+                    </DialogContent>
+                    </Dialog>
+                </div>
+            </CardHeader>
+
+            <CardContent>
+                <div className="border rounded-lg">
+                    <Table>
+                    <TableHeader>
+                        <TableRow>
+                        <TableHead>Nome</TableHead>
+                        <TableHead>CPF/CNPJ</TableHead>
+                        <TableHead>Telefone</TableHead>
+                        <TableHead><span className="sr-only">Ações</span></TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {filteredClients.length > 0 ? filteredClients.map((client) => (
+                        <TableRow key={client.codigo_cliente}>
+                            <TableCell className="font-medium">{client.nome_completo}</TableCell>
+                            <TableCell>{client.cpf_cnpj}</TableCell>
+                            <TableCell>{client.telefone}</TableCell>
+                            <TableCell>
+                                <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button aria-haspopup="true" size="icon" variant="ghost">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                    <span className="sr-only">Toggle menu</span>
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                    <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                                    <DropdownMenuItem onClick={() => handleEditClick(client)}>
+                                    Editar
+                                    </DropdownMenuItem>
+                                    <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                            Excluir
+                                        </DropdownMenuItem>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                        <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            Essa ação não pode ser desfeita. Isso excluirá permanentemente o cliente.
+                                        </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => handleDeleteClient(client.codigo_cliente)}>
+                                            Excluir
+                                        </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                    </AlertDialog>
+                                </DropdownMenuContent>
+                                </DropdownMenu>
+                            </TableCell>
+                        </TableRow>
+                        )) : (
+                        <TableRow>
+                            <TableCell colSpan={4} className="h-24 text-center">
+                            Nenhum cliente encontrado.
+                            </TableCell>
+                        </TableRow>
+                        )}
+                    </TableBody>
+                    </Table>
+                </div>
+            </CardContent>
+      </Card>
       <AddCityDialog isOpen={isCityDialogOpen} setIsOpen={setIsCityDialogOpen} onCityAdded={fetchCities} />
     </div>
   );
 }
-
-    
