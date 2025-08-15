@@ -52,6 +52,10 @@ export default function ClientesPage() {
   const [resNumber, setResNumber] = useState('');
   const [resNeighborhood, setResNeighborhood] = useState('');
   const [workStreet, setWorkStreet] = useState('');
+  const [workNumber, setWorkNumber] = useState('');
+  const [workNeighborhood, setWorkNeighborhood] = useState('');
+  const [workLat, setWorkLat] = useState('');
+  const [workLng, setWorkLng] = useState('');
 
 
   const fetchClients = async () => {
@@ -81,8 +85,8 @@ export default function ClientesPage() {
 
       const workAddress: Address = {
         street: workStreet,
-        number: '',
-        neighborhood: '',
+        number: workNumber,
+        neighborhood: workNeighborhood,
         city: '',
         state: '',
         zip: '',
@@ -94,8 +98,8 @@ export default function ClientesPage() {
         telefone: telefone,
         endereco_residencial: residentialAddress,
         endereco_obra: workAddress,
+        coordenadas: { lat: Number(workLat) || 0, lng: Number(workLng) || 0 },
         rg: '',
-        coordenadas: { lat: 0, lng: 0 },
         numero_art: '',
         historico_servicos: [],
       });
@@ -113,6 +117,10 @@ export default function ClientesPage() {
       setResNumber('');
       setResNeighborhood('');
       setWorkStreet('');
+      setWorkNumber('');
+      setWorkNeighborhood('');
+      setWorkLat('');
+      setWorkLng('');
       setIsDialogOpen(false);
 
       // Refetch clients to update the list
@@ -212,11 +220,27 @@ export default function ClientesPage() {
                 <Separator />
 
                 <div>
-                    <h3 className="text-lg font-medium mb-4">Endereço da Obra</h3>
+                    <h3 className="text-lg font-medium mb-4">Endereço da Obra e Coordenadas</h3>
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="grid gap-2 md:col-span-2">
                             <Label htmlFor="work-street">Rua</Label>
                             <Input id="work-street" value={workStreet} onChange={(e) => setWorkStreet(e.target.value)} />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="work-number">Número</Label>
+                            <Input id="work-number" value={workNumber} onChange={(e) => setWorkNumber(e.target.value)} />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="work-neighborhood">Bairro</Label>
+                            <Input id="work-neighborhood" value={workNeighborhood} onChange={(e) => setWorkNeighborhood(e.target.value)} />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="work-lat">Latitude</Label>
+                            <Input id="work-lat" type="number" step="any" value={workLat} onChange={(e) => setWorkLat(e.target.value)} />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="work-lng">Longitude</Label>
+                            <Input id="work-lng" type="number" step="any" value={workLng} onChange={(e) => setWorkLng(e.target.value)} />
                         </div>
                     </div>
                 </div>
