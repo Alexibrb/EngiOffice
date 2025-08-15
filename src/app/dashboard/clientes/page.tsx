@@ -249,7 +249,7 @@ export default function ClientesPage() {
 
             <DialogFooter>
                <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
-               <Button type="submit" variant="accent">Salvar Cliente</Button>
+               <Button type="submit">Salvar Cliente</Button>
             </DialogFooter>
             </form>
           </DialogContent>
@@ -263,7 +263,6 @@ export default function ClientesPage() {
               <TableHead>Nome</TableHead>
               <TableHead>CPF/CNPJ</TableHead>
               <TableHead>Telefone</TableHead>
-              <TableHead>Cidade</TableHead>
               <TableHead><span className="sr-only">Ações</span></TableHead>
             </TableRow>
           </TableHeader>
@@ -273,7 +272,6 @@ export default function ClientesPage() {
                 <TableCell className="font-medium">{client.nome_completo}</TableCell>
                 <TableCell>{client.cpf_cnpj}</TableCell>
                 <TableCell>{client.telefone}</TableCell>
-                <TableCell>{client.endereco_residencial?.city}</TableCell>
                 <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
