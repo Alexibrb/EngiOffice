@@ -16,6 +16,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TableFooter,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { collection, getDocs } from 'firebase/firestore';
@@ -129,6 +130,9 @@ export default function DashboardPage() {
   const handleEditService = (serviceId: string) => {
     router.push(`/dashboard/servicos?edit=${serviceId}`);
   };
+
+  const ongoingServicesTotal = ongoingServices.reduce((acc, curr) => acc + curr.valor, 0);
+  const upcomingPayableTotal = upcomingPayable.reduce((acc, curr) => acc + curr.valor, 0);
 
 
   if (isLoading) {
@@ -272,7 +276,7 @@ export default function DashboardPage() {
                 <TableRow>
                   <TableHead>Descrição</TableHead>
                   <TableHead>Data de Cadastro</TableHead>
-                  <TableHead>Valor</TableHead>
+                  <TableHead className="text-right">Valor</TableHead>
                    <TableHead>Ações</TableHead>
                 </TableRow>
               </TableHeader>
@@ -281,7 +285,7 @@ export default function DashboardPage() {
                   <TableRow key={service.id}>
                     <TableCell className="font-medium">{service.descricao}</TableCell>
                     <TableCell>{format(service.data_cadastro, 'dd/MM/yyyy')}</TableCell>
-                    <TableCell className="text-green-500">R$ {service.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
+                    <TableCell className="text-right text-green-500">R$ {service.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
                     <TableCell>
                       <Button
                         variant="outline"
@@ -301,6 +305,15 @@ export default function DashboardPage() {
                   </TableRow>
                 )}
               </TableBody>
+              <TableFooter>
+                <TableRow>
+                    <TableCell colSpan={2} className="font-bold">Total</TableCell>
+                    <TableCell className="text-right font-bold text-green-500">
+                        R$ {ongoingServicesTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </TableCell>
+                    <TableCell></TableCell>
+                </TableRow>
+              </TableFooter>
             </Table>
           </CardContent>
         </Card>
@@ -317,7 +330,7 @@ export default function DashboardPage() {
                 <TableRow>
                   <TableHead>Descrição</TableHead>
                   <TableHead>Vencimento</TableHead>
-                  <TableHead>Valor</TableHead>
+                  <TableHead className="text-right">Valor</TableHead>
                   <TableHead>Ações</TableHead>
                 </TableRow>
               </TableHeader>
@@ -333,7 +346,7 @@ export default function DashboardPage() {
                         )}
                       </div>
                     </TableCell>
-                    <TableCell className="text-red-500">R$ {account.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
+                    <TableCell className="text-right text-red-500">R$ {account.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
                     <TableCell>
                       <Button
                         variant="outline"
@@ -353,6 +366,15 @@ export default function DashboardPage() {
                   </TableRow>
                 )}
               </TableBody>
+                <TableFooter>
+                    <TableRow>
+                        <TableCell colSpan={2} className="font-bold">Total (Próximas 5)</TableCell>
+                        <TableCell className="text-right font-bold text-red-500">
+                            R$ {upcomingPayable.slice(0, 5).reduce((acc, curr) => acc + curr.valor, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </TableCell>
+                        <TableCell></TableCell>
+                    </TableRow>
+                </TableFooter>
             </Table>
           </CardContent>
         </Card>

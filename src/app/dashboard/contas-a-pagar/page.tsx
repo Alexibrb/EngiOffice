@@ -21,6 +21,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TableFooter,
 } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -315,6 +316,8 @@ export default function ContasAPagarPage() {
 
     const totalExpenses = accountsPayable.reduce((acc, curr) => acc + curr.valor, 0);
 
+    const filteredTotal = filteredPayable.reduce((acc, curr) => acc + curr.valor, 0);
+
 
     return (
         <div className="flex flex-col gap-8">
@@ -427,7 +430,8 @@ export default function ContasAPagarPage() {
                         accounts={filteredPayable} 
                         getPayeeName={getPayeeName} 
                         onEdit={handleEditClick} 
-                        onDelete={handleDeleteAccount} 
+                        onDelete={handleDeleteAccount}
+                        total={filteredTotal}
                     />
                 </CardContent>
             </Card>
@@ -581,7 +585,7 @@ function PayableFormComponent({ form, payees, onAddSupplier, onAddProduct }: {
                 form.setValue('valor', (selectedPayee as Employee).salario || 0);
             } else {
                  form.setValue('valor', 0);
-                 form.setValue('descricao', '');
+                 // Não limpar a descrição aqui para permitir a seleção
             }
         }
     }, [selectedPayee, form]);
@@ -786,11 +790,12 @@ function AddProductDialog({ isOpen, setIsOpen, supplierId, onProductAdded, toast
 }
 
 
-function PayableTableComponent({ accounts, getPayeeName, onEdit, onDelete }: { 
+function PayableTableComponent({ accounts, getPayeeName, onEdit, onDelete, total }: { 
     accounts: Account[], 
     getPayeeName: (account: Account) => string, 
     onEdit: (account: Account) => void, 
-    onDelete: (id: string) => void 
+    onDelete: (id: string) => void,
+    total: number
 }) {
     return (
         <div className="border rounded-lg">
@@ -800,7 +805,7 @@ function PayableTableComponent({ accounts, getPayeeName, onEdit, onDelete }: {
                         <TableHead>Descrição</TableHead>
                         <TableHead>Favorecido</TableHead>
                         <TableHead>Vencimento</TableHead>
-                        <TableHead>Valor</TableHead>
+                        <TableHead className="text-right">Valor</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead><span className="sr-only">Ações</span></TableHead>
                     </TableRow>
@@ -811,7 +816,7 @@ function PayableTableComponent({ accounts, getPayeeName, onEdit, onDelete }: {
                             <TableCell className="font-medium">{account.descricao}</TableCell>
                             <TableCell>{getPayeeName(account)}</TableCell>
                             <TableCell>{format(account.vencimento, 'dd/MM/yyyy')}</TableCell>
-                            <TableCell className="text-red-500">R$ {account.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
+                            <TableCell className="text-right text-red-500">R$ {account.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
                             <TableCell>
                                 <Badge variant={account.status === 'pendente' ? 'destructive' : 'secondary'}>
                                     {account.status}
@@ -846,6 +851,15 @@ function PayableTableComponent({ accounts, getPayeeName, onEdit, onDelete }: {
                         </TableRow>
                     )}
                 </TableBody>
+                <TableFooter>
+                    <TableRow>
+                        <TableCell colSpan={3} className="font-bold">Total</TableCell>
+                        <TableCell className="text-right font-bold text-red-500">
+                           R$ {total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </TableCell>
+                        <TableCell colSpan={2}></TableCell>
+                    </TableRow>
+                </TableFooter>
             </Table>
         </div>
     );

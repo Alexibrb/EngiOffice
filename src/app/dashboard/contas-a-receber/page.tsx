@@ -10,6 +10,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TableFooter,
 } from '@/components/ui/table';
 import {
   Form,
@@ -121,6 +122,8 @@ export default function ContasAReceberPage() {
 
     const totalReceivablePaid = services.reduce((acc, curr) => curr.status === 'concluído' ? acc + curr.valor : acc, 0);
 
+    const filteredTotal = filteredReceivable.reduce((acc, curr) => acc + curr.valor, 0);
+
     return (
         <div className="flex flex-col gap-8">
             <div>
@@ -225,7 +228,8 @@ export default function ContasAReceberPage() {
                 <CardContent>
                     <ReceivableTableComponent 
                         services={filteredReceivable} 
-                        getClientName={getClientName} 
+                        getClientName={getClientName}
+                        total={filteredTotal}
                     />
                 </CardContent>
             </Card>
@@ -234,9 +238,10 @@ export default function ContasAReceberPage() {
 }
 
 
-function ReceivableTableComponent({ services, getClientName }: { 
+function ReceivableTableComponent({ services, getClientName, total }: { 
     services: Service[], 
-    getClientName: (id: string) => string
+    getClientName: (id: string) => string,
+    total: number
 }) {
     const router = useRouter();
 
@@ -252,7 +257,7 @@ function ReceivableTableComponent({ services, getClientName }: {
                         <TableHead>Serviço</TableHead>
                         <TableHead>Cliente</TableHead>
                         <TableHead>Data de Cadastro</TableHead>
-                        <TableHead>Valor</TableHead>
+                        <TableHead className="text-right">Valor</TableHead>
                         <TableHead>Status</TableHead>
                          <TableHead>Ações</TableHead>
                     </TableRow>
@@ -263,7 +268,7 @@ function ReceivableTableComponent({ services, getClientName }: {
                             <TableCell className="font-medium">{service.descricao}</TableCell>
                             <TableCell>{getClientName(service.cliente_id)}</TableCell>
                             <TableCell>{format(service.data_cadastro, 'dd/MM/yyyy')}</TableCell>
-                            <TableCell className="text-green-500">R$ {service.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
+                            <TableCell className="text-right text-green-500">R$ {service.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
                             <TableCell>
                                 <Badge variant={
                                     service.status === 'concluído' ? 'secondary' :
@@ -290,6 +295,15 @@ function ReceivableTableComponent({ services, getClientName }: {
                         </TableRow>
                     )}
                 </TableBody>
+                <TableFooter>
+                    <TableRow>
+                        <TableCell colSpan={3} className="font-bold">Total</TableCell>
+                        <TableCell className="text-right font-bold text-green-500">
+                           R$ {total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </TableCell>
+                        <TableCell colSpan={2}></TableCell>
+                    </TableRow>
+                </TableFooter>
             </Table>
         </div>
     );

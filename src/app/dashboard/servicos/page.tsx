@@ -22,6 +22,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TableFooter,
 } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -396,6 +397,8 @@ export default function ServicosPage() {
         return serviceDate >= fromDate && serviceDate <= addDays(toDate, 1);
     });
 
+    const filteredTotal = filteredServices.reduce((acc, curr) => acc + curr.valor, 0);
+
   return (
     <div className="flex flex-col gap-8">
       <div>
@@ -669,7 +672,7 @@ export default function ServicosPage() {
                     <TableHead>Descrição</TableHead>
                     <TableHead>Cliente</TableHead>
                     <TableHead>Data de Cadastro</TableHead>
-                    <TableHead>Valor</TableHead>
+                    <TableHead className="text-right">Valor</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead><span className="sr-only">Ações</span></TableHead>
                     </TableRow>
@@ -680,7 +683,7 @@ export default function ServicosPage() {
                         <TableCell className="font-medium">{service.descricao}</TableCell>
                         <TableCell>{getClientName(service.cliente_id)}</TableCell>
                         <TableCell>{service.data_cadastro ? format(service.data_cadastro, "dd/MM/yyyy") : '-'}</TableCell>
-                        <TableCell className="text-green-500">R$ {service.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2})}</TableCell>
+                        <TableCell className="text-right text-green-500">R$ {service.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2})}</TableCell>
                         <TableCell>
                         <Badge variant={
                             service.status === 'concluído' ? 'secondary' :
@@ -736,6 +739,15 @@ export default function ServicosPage() {
                     </TableRow>
                     )}
                 </TableBody>
+                <TableFooter>
+                    <TableRow>
+                        <TableCell colSpan={3} className="font-bold">Total</TableCell>
+                        <TableCell className="text-right font-bold text-green-500">
+                           R$ {filteredTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </TableCell>
+                        <TableCell colSpan={2}></TableCell>
+                    </TableRow>
+                </TableFooter>
                 </Table>
             </div>
         </CardContent>

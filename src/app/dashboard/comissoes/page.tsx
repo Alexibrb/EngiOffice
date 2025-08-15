@@ -22,6 +22,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TableFooter,
 } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -320,6 +321,8 @@ export default function ComissoesPage() {
             const commissionDate = commission.data;
             return commissionDate >= fromDate && commissionDate <= addDays(toDate, 1);
         });
+    
+    const filteredTotal = filteredCommissions.reduce((acc, curr) => acc + curr.valor, 0);
 
     return (
         <div className="flex flex-col gap-8">
@@ -398,7 +401,7 @@ export default function ComissoesPage() {
                             <TableHead>Funcionário</TableHead>
                             <TableHead>Serviço Referente</TableHead>
                             <TableHead>Data</TableHead>
-                            <TableHead>Valor</TableHead>
+                            <TableHead className="text-right">Valor</TableHead>
                             <TableHead>Status</TableHead>
                             <TableHead><span className="sr-only">Ações</span></TableHead>
                         </TableRow>
@@ -409,7 +412,7 @@ export default function ComissoesPage() {
                                 <TableCell className="font-medium">{getEmployeeName(commission.funcionario_id)}</TableCell>
                                 <TableCell>{getServiceDescription(commission.servico_id)}</TableCell>
                                 <TableCell>{format(commission.data, 'dd/MM/yyyy')}</TableCell>
-                                <TableCell className="text-red-500">R$ {commission.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
+                                <TableCell className="text-right text-red-500">R$ {commission.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
                                 <TableCell>
                                     <Badge variant={commission.status === 'pendente' ? 'destructive' : 'secondary'}>
                                         {commission.status}
@@ -444,6 +447,15 @@ export default function ComissoesPage() {
                             </TableRow>
                         )}
                     </TableBody>
+                    <TableFooter>
+                        <TableRow>
+                            <TableCell colSpan={3} className="font-bold">Total</TableCell>
+                            <TableCell className="text-right font-bold text-red-500">
+                               R$ {filteredTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            </TableCell>
+                            <TableCell colSpan={2}></TableCell>
+                        </TableRow>
+                    </TableFooter>
                 </Table>
             </div>
 
