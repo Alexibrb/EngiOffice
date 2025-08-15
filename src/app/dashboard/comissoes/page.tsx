@@ -330,7 +330,7 @@ export default function ComissoesPage() {
             
             <div className="flex flex-col gap-4">
                 <div className="flex justify-end">
-                    <Button onClick={handleAddNewClick}>
+                    <Button onClick={handleAddNewClick} variant="accent">
                         <PlusCircle className="mr-2 h-4 w-4" />
                         Lançar Comissão
                     </Button>
@@ -420,7 +420,7 @@ export default function ComissoesPage() {
                                             <DropdownMenuLabel>Ações</DropdownMenuLabel>
                                             <DropdownMenuItem onClick={() => handleEditClick(commission)}>Editar</DropdownMenuItem>
                                             <AlertDialog>
-                                                <AlertDialogTrigger asChild><DropdownMenuItem onSelect={(e) => e.preventDefault()}>Excluir</DropdownMenuItem></AlertDialogTrigger>
+                                                <AlertDialogTrigger asChild><DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600">Excluir</DropdownMenuItem></AlertDialogTrigger>
                                                 <AlertDialogContent>
                                                     <AlertDialogHeader>
                                                         <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
@@ -428,7 +428,7 @@ export default function ComissoesPage() {
                                                     </AlertDialogHeader>
                                                     <AlertDialogFooter>
                                                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                                        <AlertDialogAction onClick={() => handleDeleteCommission(commission.id)}>Excluir</AlertDialogAction>
+                                                        <AlertDialogAction onClick={() => handleDeleteCommission(commission.id)} variant="destructive">Excluir</AlertDialogAction>
                                                     </AlertDialogFooter>
                                                 </AlertDialogContent>
                                             </AlertDialog>
@@ -463,7 +463,7 @@ export default function ComissoesPage() {
                             />
                             <DialogFooter>
                                 <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
-                                <Button type="submit" disabled={isLoading}>
+                                <Button type="submit" disabled={isLoading} variant="accent">
                                     {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                     Salvar
                                 </Button>

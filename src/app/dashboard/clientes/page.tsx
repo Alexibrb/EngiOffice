@@ -705,7 +705,7 @@ export default function ClientesPage() {
                                     </DropdownMenuItem>
                                     <AlertDialog>
                                     <AlertDialogTrigger asChild>
-                                        <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                        <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600">
                                             Excluir
                                         </DropdownMenuItem>
                                     </AlertDialogTrigger>
@@ -718,7 +718,7 @@ export default function ClientesPage() {
                                         </AlertDialogHeader>
                                         <AlertDialogFooter>
                                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                        <AlertDialogAction onClick={() => handleDeleteClient(client.codigo_cliente)}>
+                                        <AlertDialogAction onClick={() => handleDeleteClient(client.codigo_cliente)} variant="destructive">
                                             Excluir
                                         </AlertDialogAction>
                                         </AlertDialogFooter>

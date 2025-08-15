@@ -429,7 +429,7 @@ export default function FinanceiroPage() {
                                         <Download className="mr-2 h-4 w-4" />
                                         Exportar PDF
                                     </Button>
-                                    <Button onClick={handleAddNewClick}>
+                                    <Button onClick={handleAddNewClick} variant="accent">
                                         <PlusCircle className="mr-2 h-4 w-4" />
                                         Adicionar
                                     </Button>
@@ -594,7 +594,7 @@ export default function FinanceiroPage() {
                             />
                             <DialogFooter>
                                 <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
-                                <Button type="submit" disabled={isLoading}>
+                                <Button type="submit" disabled={isLoading} variant="accent">
                                     {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                     Salvar
                                 </Button>
@@ -684,7 +684,7 @@ export default function FinanceiroPage() {
                             </div>
                             <DialogFooter>
                                 <Button type="button" variant="ghost" onClick={() => setIsSupplierDialogOpen(false)}>Cancelar</Button>
-                                <Button type="submit" disabled={isSupplierLoading}>
+                                <Button type="submit" disabled={isSupplierLoading} variant="accent">
                                     {isSupplierLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                     Salvar Fornecedor
                                 </Button>
@@ -905,7 +905,7 @@ function AddProductDialog({ isOpen, setIsOpen, supplierId, onProductAdded, toast
                 </div>
                 <DialogFooter>
                      <Button type="button" variant="ghost" onClick={() => setIsOpen(false)}>Cancelar</Button>
-                    <Button onClick={handleAddProduct} disabled={isLoading}>
+                    <Button onClick={handleAddProduct} disabled={isLoading} variant="accent">
                         {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         Salvar Produto
                     </Button>
@@ -954,7 +954,7 @@ function PayableTableComponent({ accounts, getReferenceName, onEdit, onDelete }:
                                         <DropdownMenuLabel>Ações</DropdownMenuLabel>
                                         <DropdownMenuItem onClick={() => onEdit(account)}>Editar</DropdownMenuItem>
                                         <AlertDialog>
-                                            <AlertDialogTrigger asChild><DropdownMenuItem onSelect={(e) => e.preventDefault()}>Excluir</DropdownMenuItem></AlertDialogTrigger>
+                                            <AlertDialogTrigger asChild><DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600">Excluir</DropdownMenuItem></AlertDialogTrigger>
                                             <AlertDialogContent>
                                                 <AlertDialogHeader>
                                                     <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
@@ -962,7 +962,7 @@ function PayableTableComponent({ accounts, getReferenceName, onEdit, onDelete }:
                                                 </AlertDialogHeader>
                                                 <AlertDialogFooter>
                                                     <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                                    <AlertDialogAction onClick={() => onDelete(account.id)}>Excluir</AlertDialogAction>
+                                                    <AlertDialogAction onClick={() => onDelete(account.id)} variant="destructive">Excluir</AlertDialogAction>
                                                 </AlertDialogFooter>
                                             </AlertDialogContent>
                                         </AlertDialog>
