@@ -410,16 +410,17 @@ export default function ServicosPage() {
 
     // Corpo do Recibo
     doc.setFontSize(12);
-    const receiptText = `Recebemos de ${client.nome_completo}, CPF/CNPJ nº ${client.cpf_cnpj}, a importância de R$ ${service.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} referente ao pagamento pelo serviço de "${service.descricao}".`;
+    const obraAddress = client.endereco_obra ? `${client.endereco_obra.street}, ${client.endereco_obra.number} - ${client.endereco_obra.neighborhood}, ${client.endereco_obra.city} - ${client.endereco_obra.state}` : 'Endereço da obra não informado';
+    const receiptText = `Recebemos de ${client.nome_completo}, CPF/CNPJ nº ${client.cpf_cnpj}, a importância de R$ ${service.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} referente ao pagamento pelo serviço de "${service.descricao}".\n\nEndereço da Obra: ${obraAddress}`;
     const splitText = doc.splitTextToSize(receiptText, pageWidth - 40);
     doc.text(splitText, 20, 90);
 
     // Data e Assinatura
     const today = format(new Date(), "d 'de' MMMM 'de' yyyy", { locale: ptBR });
-    doc.text(`São Paulo, ${today}.`, 20, 140);
+    doc.text(`${client.endereco_residencial.city}, ${today}.`, 20, 160);
     
-    doc.line(pageWidth / 2 - 40, 170, pageWidth / 2 + 40, 170);
-    doc.text('EngiFlow', pageWidth / 2, 175, { align: 'center' });
+    doc.line(pageWidth / 2 - 40, 190, pageWidth / 2 + 40, 190);
+    doc.text('EngiFlow', pageWidth / 2, 195, { align: 'center' });
 
 
     doc.save(`recibo_${client.nome_completo.replace(/\s/g, '_')}_${service.id}.pdf`);
