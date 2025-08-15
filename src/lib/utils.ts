@@ -57,15 +57,10 @@ export function formatCEP(value: string): string {
 export function formatCurrency(value: string): string {
     if (!value) return '';
     let numericValue = value.replace(/\D/g, '');
-
-    if (numericValue === '') return '0,00';
     
-    // Remove leading zeros, unless it's the only digit
-    if (numericValue.length > 1) {
-        numericValue = numericValue.replace(/^0+/, '');
-    }
+    if (numericValue === '') return '';
 
-    // Pad with leading zeros if necessary
+    // Pad with leading zeros to ensure there are at least 3 digits for formatting
     numericValue = numericValue.padStart(3, '0');
 
     // Insert comma for decimals
