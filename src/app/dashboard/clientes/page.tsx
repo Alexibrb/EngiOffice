@@ -25,7 +25,7 @@ import {
 } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import type { Client } from '@/lib/types';
+import type { Client, City } from '@/lib/types';
 import { PlusCircle, Search, MoreHorizontal, Loader2 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -47,7 +47,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const addressSchema = z.object({
   street: z.string().optional(),
@@ -71,13 +71,93 @@ const clientSchema = z.object({
   }).optional(),
 });
 
+const citySchema = z.object({
+  nome_cidade: z.string().min(1, { message: 'Nome da cidade é obrigatório.' }),
+  estado: z.string().min(2, { message: 'Estado é obrigatório (UF com 2 letras).' }).max(2),
+});
+
+function AddCityDialog({ isOpen, setIsOpen, onCityAdded }: {
+  isOpen: boolean,
+  setIsOpen: (isOpen: boolean) => void,
+  onCityAdded: () => Promise<void>
+}) {
+  const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
+  const form = useForm<z.infer<typeof citySchema>>({
+    resolver: zodResolver(citySchema),
+    defaultValues: { nome_cidade: '', estado: '' },
+  });
+
+  const handleSaveCity = async (values: z.infer<typeof citySchema>) => {
+    setIsLoading(true);
+    try {
+      await addDoc(collection(db, 'cidades'), values);
+      toast({ title: 'Sucesso!', description: 'Cidade adicionada com sucesso.' });
+      form.reset();
+      setIsOpen(false);
+      await onCityAdded();
+    } catch (error) {
+      console.error("Erro ao salvar cidade: ", error);
+      toast({ variant: 'destructive', title: 'Erro', description: 'Ocorreu um erro ao salvar a cidade.' });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Adicionar Nova Cidade</DialogTitle>
+          <DialogDescription>Preencha os dados da nova cidade.</DialogDescription>
+        </DialogHeader>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(handleSaveCity)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="nome_cidade"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nome da Cidade *</FormLabel>
+                  <FormControl><Input {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="estado"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Estado (UF) *</FormLabel>
+                  <FormControl><Input {...field} maxLength={2} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={() => setIsOpen(false)}>Cancelar</Button>
+              <Button type="submit" disabled={isLoading}>
+                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Salvar Cidade
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 
 export default function ClientesPage() {
   const [clients, setClients] = useState<Client[]>([]);
+  const [cities, setCities] = useState<City[]>([]);
   const [search, setSearch] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isCityDialogOpen, setIsCityDialogOpen] = useState(false);
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof clientSchema>>({
@@ -87,11 +167,30 @@ export default function ClientesPage() {
       rg: '',
       cpf_cnpj: '',
       telefone: '',
-      endereco_residencial: { street: '', number: '', neighborhood: '' },
-      endereco_obra: { street: '', number: '', neighborhood: '' },
+      endereco_residencial: { street: '', number: '', neighborhood: '', city: '', state: '', zip: '' },
+      endereco_obra: { street: '', number: '', neighborhood: '', city: '', state: '', zip: '' },
       coordenadas: { lat: 0, lng: 0 },
     },
   });
+
+  const fetchCities = async () => {
+    try {
+      const querySnapshot = await getDocs(collection(db, "cidades"));
+      const citiesData = querySnapshot.docs.map(doc => ({
+        ...doc.data(),
+        id: doc.id,
+      })) as City[];
+      citiesData.sort((a, b) => a.nome_cidade.localeCompare(b.nome_cidade));
+      setCities(citiesData);
+    } catch (error) {
+      console.error("Erro ao buscar cidades: ", error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao buscar cidades",
+        description: "Não foi possível carregar a lista de cidades.",
+      });
+    }
+  };
 
   const fetchClients = async () => {
     try {
@@ -113,6 +212,7 @@ export default function ClientesPage() {
 
   useEffect(() => {
     fetchClients();
+    fetchCities();
   }, []);
 
   const handleSaveClient = async (values: z.infer<typeof clientSchema>) => {
@@ -315,7 +415,7 @@ export default function ClientesPage() {
                           control={form.control}
                           name="endereco_residencial.street"
                           render={({ field }) => (
-                            <FormItem className="md:col-span-2">
+                            <FormItem>
                               <FormLabel>Rua</FormLabel>
                               <FormControl>
                                 <Input {...field} />
@@ -341,8 +441,57 @@ export default function ClientesPage() {
                           control={form.control}
                           name="endereco_residencial.neighborhood"
                           render={({ field }) => (
-                            <FormItem>
+                            <FormItem className="md:col-span-2">
                               <FormLabel>Bairro</FormLabel>
+                              <FormControl>
+                                <Input {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                         <FormField
+                            control={form.control}
+                            name="endereco_residencial.city"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Cidade</FormLabel>
+                                <div className="flex items-center gap-2">
+                                  <Select onValueChange={(value) => {
+                                      const selectedCity = cities.find(c => c.nome_cidade === value);
+                                      field.onChange(value);
+                                      form.setValue('endereco_residencial.state', selectedCity?.estado || '');
+                                  }} value={field.value}>
+                                    <FormControl><SelectTrigger><SelectValue placeholder="Selecione a Cidade" /></SelectTrigger></FormControl>
+                                    <SelectContent><>
+                                      {cities.map(city => (<SelectItem key={city.id} value={city.nome_cidade}>{city.nome_cidade}</SelectItem>))}
+                                    </></SelectContent>
+                                  </Select>
+                                   <Button type="button" variant="outline" size="icon" onClick={() => setIsCityDialogOpen(true)}><PlusCircle className="h-4 w-4" /></Button>
+                                </div>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                         <FormField
+                          control={form.control}
+                          name="endereco_residencial.state"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Estado</FormLabel>
+                              <FormControl>
+                                <Input {...field} disabled />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                         <FormField
+                          control={form.control}
+                          name="endereco_residencial.zip"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>CEP</FormLabel>
                               <FormControl>
                                 <Input {...field} />
                               </FormControl>
@@ -362,7 +511,7 @@ export default function ClientesPage() {
                           control={form.control}
                           name="endereco_obra.street"
                           render={({ field }) => (
-                            <FormItem className="md:col-span-2">
+                            <FormItem>
                               <FormLabel>Rua</FormLabel>
                               <FormControl>
                                 <Input {...field} />
@@ -388,7 +537,7 @@ export default function ClientesPage() {
                           control={form.control}
                           name="endereco_obra.neighborhood"
                           render={({ field }) => (
-                            <FormItem>
+                            <FormItem className="md:col-span-2">
                               <FormLabel>Bairro</FormLabel>
                               <FormControl>
                                 <Input {...field} />
@@ -397,6 +546,55 @@ export default function ClientesPage() {
                             </FormItem>
                           )}
                         />
+                         <FormField
+                            control={form.control}
+                            name="endereco_obra.city"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Cidade</FormLabel>
+                                <div className="flex items-center gap-2">
+                                  <Select onValueChange={(value) => {
+                                      const selectedCity = cities.find(c => c.nome_cidade === value);
+                                      field.onChange(value);
+                                      form.setValue('endereco_obra.state', selectedCity?.estado || '');
+                                  }} value={field.value}>
+                                    <FormControl><SelectTrigger><SelectValue placeholder="Selecione a Cidade" /></SelectTrigger></FormControl>
+                                    <SelectContent><>
+                                      {cities.map(city => (<SelectItem key={city.id} value={city.nome_cidade}>{city.nome_cidade}</SelectItem>))}
+                                    </></SelectContent>
+                                  </Select>
+                                   <Button type="button" variant="outline" size="icon" onClick={() => setIsCityDialogOpen(true)}><PlusCircle className="h-4 w-4" /></Button>
+                                </div>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                           <FormField
+                            control={form.control}
+                            name="endereco_obra.state"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Estado</FormLabel>
+                                <FormControl>
+                                  <Input {...field} disabled />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="endereco_obra.zip"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>CEP</FormLabel>
+                                <FormControl>
+                                  <Input {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
                          <FormField
                           control={form.control}
                           name="coordenadas.lat"
@@ -502,6 +700,8 @@ export default function ClientesPage() {
           </TableBody>
         </Table>
       </div>
+      <AddCityDialog isOpen={isCityDialogOpen} setIsOpen={setIsCityDialogOpen} onCityAdded={fetchCities} />
     </div>
   );
 }
+

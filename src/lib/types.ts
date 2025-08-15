@@ -94,4 +94,9 @@ export type Document = {
   data: string;
 }
 
+export type City = {
+  id: string;
+  nome_cidade: string;
+  estado: string;
+};
     
