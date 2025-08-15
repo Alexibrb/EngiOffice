@@ -2,6 +2,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 import {
   Card,
   CardContent,
@@ -18,7 +21,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
+import { collection, getDocs, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { Service, Account, Client, Commission } from '@/lib/types';
 import { format, isPast } from 'date-fns';
@@ -52,7 +55,13 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useToast } from "@/hooks/use-toast"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
 
+const paymentSchema = z.object({
+  valor_pago: z.coerce.number().min(0.01, "O valor deve ser maior que zero.")
+});
 
 export default function DashboardPage() {
   const [services, setServices] = useState<Service[]>([]);
@@ -62,6 +71,15 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
   const { toast } = useToast();
+
+  const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
+  const [editingService, setEditingService] = useState<Service | null>(null);
+  const [isPaymentLoading, setIsPaymentLoading] = useState(false);
+
+  const paymentForm = useForm<z.infer<typeof paymentSchema>>({
+    resolver: zodResolver(paymentSchema),
+    defaultValues: { valor_pago: 0 },
+  });
 
   const fetchData = async () => {
       try {
@@ -145,9 +163,11 @@ export default function DashboardPage() {
   const handleEditService = (serviceId: string) => {
     router.push(`/dashboard/servicos?edit=${serviceId}`);
   };
-
-  const handlePaymentClick = (serviceId: string) => {
-    router.push(`/dashboard/servicos?edit=${serviceId}`);
+  
+  const handlePaymentClick = (service: Service) => {
+    setEditingService(service);
+    paymentForm.reset({ valor_pago: 0 });
+    setIsPaymentDialogOpen(true);
   };
   
   const handleDeleteService = async (serviceId: string) => {
@@ -219,6 +239,38 @@ export default function DashboardPage() {
 
 
     doc.save(`recibo_${client.nome_completo.replace(/\s/g, '_')}_${service.id}.pdf`);
+  };
+
+  const handleProcessPayment = async (values: z.infer<typeof paymentSchema>) => {
+    if (!editingService) return;
+
+    setIsPaymentLoading(true);
+    try {
+        const newBalance = editingService.saldo_devedor - values.valor_pago;
+        if (newBalance < 0) {
+            toast({ variant: 'destructive', title: 'Erro', description: 'O valor pago não pode ser maior que o saldo devedor.' });
+            setIsPaymentLoading(false);
+            return;
+        }
+
+        const serviceDocRef = doc(db, 'servicos', editingService.id);
+        await updateDoc(serviceDocRef, {
+            saldo_devedor: newBalance,
+            status: newBalance === 0 ? 'concluído' : 'em andamento'
+        });
+
+        toast({ title: 'Sucesso!', description: 'Pagamento lançado com sucesso.' });
+        setIsPaymentDialogOpen(false);
+        setEditingService(null);
+        paymentForm.reset();
+        await fetchData();
+
+    } catch (error) {
+         console.error("Erro ao processar pagamento: ", error);
+         toast({ variant: 'destructive', title: 'Erro', description: 'Não foi possível processar o pagamento.' });
+    } finally {
+        setIsPaymentLoading(false);
+    }
   };
 
 
@@ -396,7 +448,7 @@ export default function DashboardPage() {
                                 <DropdownMenuItem onClick={() => handleEditService(service.id)}>
                                   Editar
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handlePaymentClick(service.id)} disabled={service.forma_pagamento !== 'a_prazo' || service.status !== 'em andamento'}>
+                                <DropdownMenuItem onClick={() => handlePaymentClick(service)} disabled={service.forma_pagamento !== 'a_prazo' || service.status !== 'em andamento'}>
                                   <HandCoins className="mr-2 h-4 w-4" />
                                   Lançar Pagamento
                                 </DropdownMenuItem>
@@ -493,6 +545,40 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                  <DialogTitle>Lançar Pagamento</DialogTitle>
+                  <DialogDescription>
+                    Serviço: {editingService?.descricao}<br/>
+                    Saldo Devedor Atual: <span className="font-bold text-red-500">R$ {(editingService?.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                  </DialogDescription>
+              </DialogHeader>
+              <Form {...paymentForm}>
+                <form onSubmit={paymentForm.handleSubmit(handleProcessPayment)} className="space-y-4">
+                    <FormField
+                    control={paymentForm.control}
+                    name="valor_pago"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Valor Recebido (R$)</FormLabel>
+                        <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                    />
+                    <DialogFooter>
+                        <Button type="button" variant="ghost" onClick={() => setIsPaymentDialogOpen(false)}>Cancelar</Button>
+                        <Button type="submit" variant="accent" disabled={isPaymentLoading}>
+                            {isPaymentLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Confirmar Pagamento
+                        </Button>
+                    </DialogFooter>
+                </form>
+              </Form>
+          </DialogContent>
+      </Dialog>
     </div>
   );
 }
