@@ -36,7 +36,7 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import { collection, addDoc, getDocs, doc, setDoc, deleteDoc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { PlusCircle, MoreHorizontal, Loader2, Calendar as CalendarIcon, Download, XCircle } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Loader2, Calendar as CalendarIcon, Download, XCircle, ArrowDown, CreditCard } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -308,6 +308,12 @@ export default function ContasAPagarPage() {
         ...suppliers.map(s => ({ id: s.id, nome: s.razao_social, tipo: 'fornecedor' as const, ...s })),
         ...employees.filter(e => e.tipo_contratacao === 'salario_fixo').map(e => ({ id: e.id, nome: e.nome, tipo: 'funcionario' as const, ...e })),
     ];
+    
+    const totalPayablePending = accountsPayable
+      .filter((a) => a.status === 'pendente')
+      .reduce((acc, curr) => acc + curr.valor, 0);
+
+    const totalExpenses = accountsPayable.reduce((acc, curr) => acc + curr.valor, 0);
 
 
     return (
@@ -318,6 +324,33 @@ export default function ContasAPagarPage() {
                     Gerencie as faturas, salários e despesas a serem pagas.
                 </p>
             </div>
+            
+             <div className="grid gap-4 md:grid-cols-2">
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Contas a Pagar (Pendente)</CardTitle>
+                        <ArrowDown className="h-4 w-4 text-red-500" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold text-red-500">R$ {totalPayablePending.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                          <p className="text-xs text-muted-foreground">
+                            Soma de todas as contas pendentes
+                        </p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Total de Despesas</CardTitle>
+                        <CreditCard className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold text-red-500">R$ {totalExpenses.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                          <p className="text-xs text-muted-foreground">
+                            Soma de despesas pagas e pendentes
+                        </p>
+                    </CardContent>
+                </Card>
+             </div>
 
             <Card>
                 <CardHeader>

@@ -17,7 +17,7 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Calendar as CalendarIcon, Download, ExternalLink, XCircle } from 'lucide-react';
+import { Calendar as CalendarIcon, Download, ExternalLink, XCircle, ArrowUp, TrendingUp } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -115,6 +115,12 @@ export default function ContasAReceberPage() {
             return serviceDate >= fromDate && serviceDate <= addDays(toDate, 1);
         });
 
+    const totalReceivablePending = services
+        .filter((s) => s.status === 'em andamento')
+        .reduce((acc, curr) => acc + curr.valor, 0);
+
+    const totalReceivablePaid = services.reduce((acc, curr) => curr.status === 'concluído' ? acc + curr.valor : acc, 0);
+
     return (
         <div className="flex flex-col gap-8">
             <div>
@@ -124,6 +130,33 @@ export default function ContasAReceberPage() {
                 </p>
             </div>
             
+             <div className="grid gap-4 md:grid-cols-2">
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Contas a Receber (Pendente)</CardTitle>
+                        <ArrowUp className="h-4 w-4 text-green-500" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold text-green-500">R$ {totalReceivablePending.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                        <p className="text-xs text-muted-foreground">
+                            Soma de todos os serviços "em andamento"
+                        </p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Receita de Serviços Concluídos</CardTitle>
+                        <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold text-green-500">R$ {totalReceivablePaid.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                         <p className="text-xs text-muted-foreground">
+                            Soma do valor de todos os serviços concluídos
+                        </p>
+                    </CardContent>
+                </Card>
+            </div>
+
              <Card>
                  <CardHeader>
                     <div className="flex flex-row items-center justify-between">
@@ -261,4 +294,3 @@ function ReceivableTableComponent({ services, getClientName }: {
         </div>
     );
 }
-
