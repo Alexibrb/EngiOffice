@@ -431,7 +431,11 @@ export default function FinanceiroPage() {
                     </DialogHeader>
                     <Form {...form}>
                         <form onSubmit={form.handleSubmit(handleSaveAccount)} className="space-y-6">
-                            <PayableFormComponent form={form} suppliers={suppliers} />
+                            <PayableFormComponent 
+                                form={form} 
+                                suppliers={suppliers} 
+                                onAddSupplier={() => setIsSupplierDialogOpen(true)}
+                            />
                             <DialogFooter>
                                 <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
                                 <Button type="submit" disabled={isLoading}>
@@ -538,9 +542,7 @@ export default function FinanceiroPage() {
     );
 }
 
-function PayableFormComponent({ form, suppliers }: { form: any, suppliers: Supplier[] }) {
-    const [isSupplierDialogOpen, setIsSupplierDialogOpen] = useState(false);
-    
+function PayableFormComponent({ form, suppliers, onAddSupplier }: { form: any, suppliers: Supplier[], onAddSupplier: () => void }) {
     const supplierId = useWatch({
       control: form.control,
       name: 'referencia_id',
@@ -577,7 +579,7 @@ function PayableFormComponent({ form, suppliers }: { form: any, suppliers: Suppl
                                     ))}
                                 </SelectContent>
                             </Select>
-                            <Button type="button" variant="outline" size="icon" onClick={() => setIsSupplierDialogOpen(true)}>
+                            <Button type="button" variant="outline" size="icon" onClick={onAddSupplier}>
                                 <PlusCircle className="h-4 w-4" />
                             </Button>
                         </div>
