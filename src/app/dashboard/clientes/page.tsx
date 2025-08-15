@@ -2,6 +2,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -22,8 +25,8 @@ import {
 } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import type { Client, Address } from '@/lib/types';
-import { PlusCircle, Search } from 'lucide-react';
+import type { Client } from '@/lib/types';
+import { PlusCircle, Search, MoreHorizontal, Loader2 } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,94 +34,115 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { MoreHorizontal } from "lucide-react"
-import { collection, addDoc, getDocs } from 'firebase/firestore';
+import { collection, addDoc, getDocs, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from "@/hooks/use-toast"
 import { Separator } from '@/components/ui/separator';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+
+const addressSchema = z.object({
+  street: z.string().optional(),
+  number: z.string().optional(),
+  neighborhood: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  zip: z.string().optional(),
+});
+
+const clientSchema = z.object({
+  nome_completo: z.string().min(1, { message: 'Nome completo é obrigatório.' }),
+  cpf_cnpj: z.string().optional(),
+  telefone: z.string().optional(),
+  endereco_residencial: addressSchema.optional(),
+  endereco_obra: addressSchema.optional(),
+  coordenadas: z.object({
+    lat: z.coerce.number().optional(),
+    lng: z.coerce.number().optional(),
+  }).optional(),
+});
 
 
 export default function ClientesPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [search, setSearch] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  // Form state
-  const [nomeCompleto, setNomeCompleto] = useState('');
-  const [cpfCnpj, setCpfCnpj] = useState('');
-  const [telefone, setTelefone] = useState('');
-  const [resStreet, setResStreet] = useState('');
-  const [resNumber, setResNumber] = useState('');
-  const [resNeighborhood, setResNeighborhood] = useState('');
-  const [workStreet, setWorkStreet] = useState('');
-  const [workNumber, setWorkNumber] = useState('');
-  const [workNeighborhood, setWorkNeighborhood] = useState('');
-  const [workLat, setWorkLat] = useState('');
-  const [workLng, setWorkLng] = useState('');
-
+  const form = useForm<z.infer<typeof clientSchema>>({
+    resolver: zodResolver(clientSchema),
+    defaultValues: {
+      nome_completo: '',
+      cpf_cnpj: '',
+      telefone: '',
+      endereco_residencial: { street: '', number: '', neighborhood: '' },
+      endereco_obra: { street: '', number: '', neighborhood: '' },
+      coordenadas: { lat: 0, lng: 0 },
+    },
+  });
 
   const fetchClients = async () => {
-    const querySnapshot = await getDocs(collection(db, "clientes"));
-    const clientsData = querySnapshot.docs.map(doc => ({
-      ...doc.data(),
-      codigo_cliente: doc.id,
-    })) as Client[];
-    setClients(clientsData);
+    try {
+      const querySnapshot = await getDocs(collection(db, "clientes"));
+      const clientsData = querySnapshot.docs.map(doc => ({
+        ...doc.data(),
+        codigo_cliente: doc.id,
+      })) as Client[];
+      setClients(clientsData);
+    } catch (error) {
+      console.error("Erro ao buscar clientes: ", error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao buscar dados",
+        description: "Não foi possível carregar a lista de clientes.",
+      });
+    }
   };
 
   useEffect(() => {
     fetchClients();
   }, []);
 
-  const handleSaveClient = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSaveClient = async (values: z.infer<typeof clientSchema>) => {
+    setIsLoading(true);
     try {
-      const residentialAddress: Address = {
-        street: resStreet,
-        number: resNumber,
-        neighborhood: resNeighborhood,
-        city: '',
-        state: '',
-        zip: '',
-      };
-
-      const workAddress: Address = {
-        street: workStreet,
-        number: workNumber,
-        neighborhood: workNeighborhood,
-        city: '',
-        state: '',
-        zip: '',
-      };
-
       await addDoc(collection(db, 'clientes'), {
-        nome_completo: nomeCompleto,
-        cpf_cnpj: cpfCnpj,
-        telefone: telefone,
-        endereco_residencial: residentialAddress,
-        endereco_obra: workAddress,
-        coordenadas: { lat: parseFloat(workLat) || 0, lng: parseFloat(workLng) || 0 },
+        ...values,
+        coordenadas: {
+          lat: values.coordenadas?.lat || 0,
+          lng: values.coordenadas?.lng || 0,
+        },
+        // Campos obrigatórios no tipo, mas não no formulário
         rg: '',
         numero_art: '',
         historico_servicos: [],
+        endereco_residencial: {
+            street: values.endereco_residencial?.street || '',
+            number: values.endereco_residencial?.number || '',
+            neighborhood: values.endereco_residencial?.neighborhood || '',
+            city: '',
+            state: '',
+            zip: '',
+        },
+         endereco_obra: {
+            street: values.endereco_obra?.street || '',
+            number: values.endereco_obra?.number || '',
+            neighborhood: values.endereco_obra?.neighborhood || '',
+            city: '',
+            state: '',
+            zip: '',
+        }
       });
       
-      // Reset form and close dialog
-      setNomeCompleto('');
-      setCpfCnpj('');
-      setTelefone('');
-      setResStreet('');
-      setResNumber('');
-      setResNeighborhood('');
-      setWorkStreet('');
-      setWorkNumber('');
-      setWorkNeighborhood('');
-      setWorkLat('');
-      setWorkLng('');
+      form.reset();
       setIsDialogOpen(false);
-
-      // Refetch clients to update the list
       await fetchClients();
 
       toast({
@@ -133,6 +157,8 @@ export default function ClientesPage() {
         title: "Erro",
         description: "Ocorreu um erro ao salvar o cliente.",
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -164,13 +190,15 @@ export default function ClientesPage() {
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="bg-primary hover:bg-primary/90">
+             <Button onClick={() => {
+                form.reset();
+                setIsDialogOpen(true);
+             }}>
               <PlusCircle className="mr-2 h-4 w-4" />
               Adicionar Cliente
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
-           <form onSubmit={handleSaveClient}>
             <DialogHeader>
               <DialogTitle className="font-headline">Adicionar Novo Cliente</DialogTitle>
               <DialogDescription>
@@ -178,22 +206,50 @@ export default function ClientesPage() {
               </DialogDescription>
             </DialogHeader>
             
-            <div className="py-4 flex flex-col gap-6">
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(handleSaveClient)} className="space-y-6">
                 <div>
                     <h3 className="text-lg font-medium mb-4">Dados Pessoais</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="grid gap-2">
-                            <Label htmlFor="name">Nome Completo *</Label>
-                            <Input id="name" value={nomeCompleto} onChange={(e) => setNomeCompleto(e.target.value)} required />
-                        </div>
-                         <div className="grid gap-2">
-                            <Label htmlFor="cpfCnpj">CPF/CNPJ</Label>
-                            <Input id="cpfCnpj" value={cpfCnpj} onChange={(e) => setCpfCnpj(e.target.value)} />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="phone">Telefone</Label>
-                            <Input id="phone" type="tel" value={telefone} onChange={(e) => setTelefone(e.target.value)} />
-                        </div>
+                        <FormField
+                          control={form.control}
+                          name="nome_completo"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Nome Completo *</FormLabel>
+                              <FormControl>
+                                <Input {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                         <FormField
+                          control={form.control}
+                          name="cpf_cnpj"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>CPF/CNPJ</FormLabel>
+                              <FormControl>
+                                <Input {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="telefone"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Telefone</FormLabel>
+                              <FormControl>
+                                <Input type="tel" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
                     </div>
                 </div>
 
@@ -202,18 +258,45 @@ export default function ClientesPage() {
                 <div>
                     <h3 className="text-lg font-medium mb-4">Endereço Residencial</h3>
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="grid gap-2 md:col-span-2">
-                            <Label htmlFor="res-street">Rua</Label>
-                            <Input id="res-street" value={resStreet} onChange={(e) => setResStreet(e.target.value)} />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="res-number">Número</Label>
-                            <Input id="res-number" value={resNumber} onChange={(e) => setResNumber(e.target.value)} />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="res-neighborhood">Bairro</Label>
-                            <Input id="res-neighborhood" value={resNeighborhood} onChange={(e) => setResNeighborhood(e.target.value)} />
-                        </div>
+                        <FormField
+                          control={form.control}
+                          name="endereco_residencial.street"
+                          render={({ field }) => (
+                            <FormItem className="md:col-span-2">
+                              <FormLabel>Rua</FormLabel>
+                              <FormControl>
+                                <Input {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                         <FormField
+                          control={form.control}
+                          name="endereco_residencial.number"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Número</FormLabel>
+                              <FormControl>
+                                <Input {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                         <FormField
+                          control={form.control}
+                          name="endereco_residencial.neighborhood"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Bairro</FormLabel>
+                              <FormControl>
+                                <Input {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
                     </div>
                 </div>
 
@@ -222,36 +305,82 @@ export default function ClientesPage() {
                 <div>
                     <h3 className="text-lg font-medium mb-4">Endereço da Obra e Coordenadas</h3>
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="grid gap-2 md:col-span-2">
-                            <Label htmlFor="work-street">Rua</Label>
-                            <Input id="work-street" value={workStreet} onChange={(e) => setWorkStreet(e.target.value)} />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="work-number">Número</Label>
-                            <Input id="work-number" value={workNumber} onChange={(e) => setWorkNumber(e.target.value)} />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="work-neighborhood">Bairro</Label>
-                            <Input id="work-neighborhood" value={workNeighborhood} onChange={(e) => setWorkNeighborhood(e.target.value)} />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="work-lat">Latitude</Label>
-                            <Input id="work-lat" type="number" step="any" value={workLat} onChange={(e) => setWorkLat(e.target.value)} />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="work-lng">Longitude</Label>
-                            <Input id="work-lng" type="number" step="any" value={workLng} onChange={(e) => setWorkLng(e.target.value)} />
-                        </div>
+                        <FormField
+                          control={form.control}
+                          name="endereco_obra.street"
+                          render={({ field }) => (
+                            <FormItem className="md:col-span-2">
+                              <FormLabel>Rua</FormLabel>
+                              <FormControl>
+                                <Input {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                         <FormField
+                          control={form.control}
+                          name="endereco_obra.number"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Número</FormLabel>
+                              <FormControl>
+                                <Input {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                         <FormField
+                          control={form.control}
+                          name="endereco_obra.neighborhood"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Bairro</FormLabel>
+                              <FormControl>
+                                <Input {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                         <FormField
+                          control={form.control}
+                          name="coordenadas.lat"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Latitude</FormLabel>
+                              <FormControl>
+                                <Input type="number" step="any" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                          <FormField
+                          control={form.control}
+                          name="coordenadas.lng"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Longitude</FormLabel>
+                              <FormControl>
+                                <Input type="number" step="any" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
                     </div>
                 </div>
-
-            </div>
-
-            <DialogFooter>
-               <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
-               <Button type="submit">Salvar Cliente</Button>
-            </DialogFooter>
-            </form>
+                <DialogFooter>
+                  <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
+                  <Button type="submit" disabled={isLoading}>
+                    {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Salvar Cliente
+                  </Button>
+                </DialogFooter>
+              </form>
+            </Form>
           </DialogContent>
         </Dialog>
       </div>
@@ -267,7 +396,7 @@ export default function ClientesPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredClients.map((client) => (
+            {filteredClients.length > 0 ? filteredClients.map((client) => (
               <TableRow key={client.codigo_cliente}>
                 <TableCell className="font-medium">{client.nome_completo}</TableCell>
                 <TableCell>{client.cpf_cnpj}</TableCell>
@@ -288,7 +417,13 @@ export default function ClientesPage() {
                     </DropdownMenu>
                   </TableCell>
               </TableRow>
-            ))}
+            )) : (
+              <TableRow>
+                <TableCell colSpan={4} className="h-24 text-center">
+                  Nenhum cliente encontrado.
+                </TableCell>
+              </TableRow>
+            )}
           </TableBody>
         </Table>
       </div>
