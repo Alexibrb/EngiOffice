@@ -21,7 +21,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { useToast } from "@/hooks/use-toast"
-import { collection, getDocs, doc, updateDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, updateDoc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Calendar as CalendarIcon, Download, ExternalLink, XCircle, ArrowUp, TrendingUp, MoreHorizontal, HandCoins, FileText, Loader2 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -80,7 +80,11 @@ export default function ContasAReceberPage() {
             
             const servicesData = servicesSnapshot.docs.map(doc => {
                 const data = doc.data();
-                return { ...data, id: doc.id, data_cadastro: data.data_cadastro.toDate() } as Service;
+                 return {
+                  ...data,
+                  id: doc.id,
+                  data_cadastro: data.data_cadastro instanceof Timestamp ? data.data_cadastro.toDate() : new Date(data.data_cadastro),
+                } as Service
             });
             setServices(servicesData);
 
@@ -218,6 +222,7 @@ export default function ContasAReceberPage() {
     const totalReceivablePaid = services.reduce((acc, curr) => curr.status === 'concluído' ? acc + curr.valor_total : acc, 0);
 
     const filteredTotal = filteredReceivable.reduce((acc, curr) => acc + curr.valor_total, 0);
+    const filteredSaldoDevedor = filteredReceivable.reduce((acc, curr) => acc + (curr.saldo_devedor || 0), 0);
 
     const generatePdf = () => {
         const doc = new jsPDF();
@@ -233,16 +238,20 @@ export default function ContasAReceberPage() {
     
         autoTable(doc, {
             startY: 35,
-            head: [['Descrição', 'Cliente', 'Data de Cadastro', 'Valor', 'Status']],
+            head: [['Descrição', 'Cliente', 'Data de Cadastro', 'Valor Total', 'Saldo Devedor', 'Status']],
             body: filteredReceivable.map((service) => [
             service.descricao,
             getClientName(service.cliente_id),
             format(service.data_cadastro, 'dd/MM/yyyy'),
-            `R$ ${service.valor_total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+            `R$ ${(service.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+            `R$ ${(service.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
             service.status,
             ]),
             foot: [
-                ['Total', '', '', `R$ ${filteredTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, '']
+                ['Total', '', '', 
+                `R$ ${filteredTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+                `R$ ${filteredSaldoDevedor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+                 '']
             ],
             theme: 'striped',
             headStyles: { fillColor: [34, 139, 34] },
@@ -362,7 +371,8 @@ export default function ContasAReceberPage() {
                     <ReceivableTableComponent 
                         services={filteredReceivable} 
                         getClientName={getClientName}
-                        total={filteredTotal}
+                        totalValor={filteredTotal}
+                        totalSaldo={filteredSaldoDevedor}
                         onPayment={handlePaymentClick}
                         onReceipt={generateReceipt}
                     />
@@ -407,10 +417,11 @@ export default function ContasAReceberPage() {
 }
 
 
-function ReceivableTableComponent({ services, getClientName, total, onPayment, onReceipt }: { 
+function ReceivableTableComponent({ services, getClientName, totalValor, totalSaldo, onPayment, onReceipt }: { 
     services: Service[], 
     getClientName: (id: string) => string,
-    total: number,
+    totalValor: number,
+    totalSaldo: number,
     onPayment: (service: Service) => void,
     onReceipt: (service: Service) => void,
 }) {
@@ -427,10 +438,10 @@ function ReceivableTableComponent({ services, getClientName, total, onPayment, o
                     <TableRow>
                         <TableHead>Serviço</TableHead>
                         <TableHead>Cliente</TableHead>
-                        <TableHead>Data de Cadastro</TableHead>
-                        <TableHead className="text-right">Valor</TableHead>
+                        <TableHead>Valor Total</TableHead>
+                        <TableHead>Saldo Devedor</TableHead>
                         <TableHead>Status</TableHead>
-                         <TableHead>Ações</TableHead>
+                         <TableHead><span className="sr-only">Ações</span></TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -438,8 +449,8 @@ function ReceivableTableComponent({ services, getClientName, total, onPayment, o
                         <TableRow key={service.id}>
                             <TableCell className="font-medium">{service.descricao}</TableCell>
                             <TableCell>{getClientName(service.cliente_id)}</TableCell>
-                            <TableCell>{format(service.data_cadastro, 'dd/MM/yyyy')}</TableCell>
-                            <TableCell className="text-right text-green-500">R$ {service.valor_total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
+                            <TableCell className="text-green-500">R$ {(service.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
+                            <TableCell className="text-red-500">R$ {(service.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
                             <TableCell>
                                 <Badge variant={
                                     service.status === 'concluído' ? 'secondary' :
@@ -483,9 +494,12 @@ function ReceivableTableComponent({ services, getClientName, total, onPayment, o
                 </TableBody>
                 <TableFooter>
                     <TableRow>
-                        <TableCell colSpan={3} className="font-bold">Total</TableCell>
+                        <TableCell colSpan={2} className="font-bold">Total</TableCell>
                         <TableCell className="text-right font-bold text-green-500">
-                           R$ {total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                           R$ {totalValor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </TableCell>
+                         <TableCell className="text-right font-bold text-red-500">
+                           R$ {totalSaldo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                         </TableCell>
                         <TableCell colSpan={2}></TableCell>
                     </TableRow>
@@ -494,3 +508,5 @@ function ReceivableTableComponent({ services, getClientName, total, onPayment, o
         </div>
     );
 }
+
+    
