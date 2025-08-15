@@ -18,7 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import type { Client, Supplier, Service, Account, Employee } from '@/lib/types';
+import type { Client, Supplier, Service, Account, Employee, Commission } from '@/lib/types';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Download } from 'lucide-react';
@@ -30,15 +30,16 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 
-type ReportType = 'clients' | 'suppliers' | 'services' | 'accountsPayable';
+type ReportType = 'clients' | 'suppliers' | 'services' | 'accountsPayable' | 'commissions';
 
 
 export default function RelatoriosPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [accountsPayable, setAccountsPayable] = useState<Account[]>([]);
+  const [commissions, setCommissions] = useState<Commission[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedReport, setSelectedReport] = useState<ReportType>('clients');
   const { toast } = useToast();
@@ -46,12 +47,13 @@ export default function RelatoriosPage() {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const [clientsSnapshot, suppliersSnapshot, servicesSnapshot, accountsPayableSnapshot, employeesSnapshot] = await Promise.all([
+      const [clientsSnapshot, suppliersSnapshot, servicesSnapshot, accountsPayableSnapshot, employeesSnapshot, commissionsSnapshot] = await Promise.all([
         getDocs(collection(db, "clientes")),
         getDocs(collection(db, "fornecedores")),
         getDocs(collection(db, "servicos")),
         getDocs(collection(db, "contas_a_pagar")),
         getDocs(collection(db, "funcionarios")),
+        getDocs(collection(db, "comissoes")),
       ]);
 
       const clientsData = clientsSnapshot.docs.map(doc => ({ ...doc.data(), codigo_cliente: doc.id })) as Client[];
@@ -75,6 +77,12 @@ export default function RelatoriosPage() {
       const employeesData = employeesSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Employee[];
       setEmployees(employeesData);
 
+      const commissionsData = commissionsSnapshot.docs.map(doc => {
+        const data = doc.data();
+        return { ...data, id: doc.id, data: data.data.toDate() } as Commission;
+      });
+      setCommissions(commissionsData);
+
     } catch (error) {
       console.error("Erro ao buscar dados: ", error);
       toast({
@@ -95,6 +103,14 @@ export default function RelatoriosPage() {
     return clients.find(c => c.codigo_cliente === clientId)?.nome_completo || 'Desconhecido';
   }
   
+  const getEmployeeName = (employeeId: string) => {
+      return employees.find(e => e.id === employeeId)?.nome || 'Desconhecido';
+  }
+  
+  const getServiceDescription = (serviceId: string) => {
+      return services.find(s => s.id === serviceId)?.descricao || 'Desconhecido';
+  }
+
   const getPayeeName = (account: Account) => {
       if (account.tipo_referencia === 'funcionario') {
           return employees.find(e => e.id === account.referencia_id)?.nome || 'Funcionário não encontrado';
@@ -160,6 +176,19 @@ export default function RelatoriosPage() {
             item.status,
         ]);
         fileName = 'relatorio_contas_a_pagar.pdf';
+        break;
+       case 'commissions':
+        data = commissions;
+        title = 'Relatório de Comissões';
+        head = [['Funcionário', 'Serviço Referente', 'Data', 'Valor', 'Status']];
+        body = data.map((item) => [
+            getEmployeeName(item.funcionario_id),
+            getServiceDescription(item.servico_id),
+            item.data ? format(item.data, "dd/MM/yyyy") : '-',
+            `R$ ${item.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+            item.status,
+        ]);
+        fileName = 'relatorio_comissoes.pdf';
         break;
       default:
         return;
@@ -289,6 +318,30 @@ export default function RelatoriosPage() {
             </CardContent>
           </Card>
         );
+       case 'commissions':
+        return (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Relatório de Comissões</CardTitle>
+                <CardDescription>Exporte o histórico de comissões pagas e pendentes.</CardDescription>
+              </div>
+              <Button onClick={() => generatePdf('commissions')} variant="accent"><Download className="mr-2 h-4 w-4" />Exportar PDF</Button>
+            </CardHeader>
+            <CardContent>
+              <div className="border rounded-lg">
+                <Table>
+                  <TableHeader><TableRow><TableHead>Funcionário</TableHead><TableHead>Serviço Referente</TableHead><TableHead>Data</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
+                  <TableBody>
+                    {commissions.length > 0 ? commissions.slice(0, 10).map((comm) => (
+                      <TableRow key={comm.id}><TableCell className="font-medium">{getEmployeeName(comm.funcionario_id)}</TableCell><TableCell>{getServiceDescription(comm.servico_id)}</TableCell><TableCell>{comm.data ? format(comm.data, "dd/MM/yyyy") : '-'}</TableCell><TableCell><Badge variant={comm.status === 'pago' ? 'secondary' : 'destructive'}>{comm.status}</Badge></TableCell></TableRow>
+                    )) : (<TableRow><TableCell colSpan={4} className="h-24 text-center">Nenhuma comissão encontrada.</TableCell></TableRow>)}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        );
       default:
         return null;
     }
@@ -319,6 +372,7 @@ export default function RelatoriosPage() {
                 <SelectItem value="suppliers">Fornecedores</SelectItem>
                 <SelectItem value="services">Serviços</SelectItem>
                 <SelectItem value="accountsPayable">Contas a Pagar</SelectItem>
+                <SelectItem value="commissions">Comissões</SelectItem>
             </SelectContent>
         </Select>
       </div>
@@ -330,7 +384,3 @@ export default function RelatoriosPage() {
     </div>
   );
 }
-
-    
-
-    
