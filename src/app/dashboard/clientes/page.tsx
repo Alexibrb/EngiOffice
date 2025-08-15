@@ -60,6 +60,7 @@ const addressSchema = z.object({
 
 const clientSchema = z.object({
   nome_completo: z.string().min(1, { message: 'Nome completo é obrigatório.' }),
+  rg: z.string().optional(),
   cpf_cnpj: z.string().optional(),
   telefone: z.string().optional(),
   endereco_residencial: addressSchema.optional(),
@@ -83,6 +84,7 @@ export default function ClientesPage() {
     resolver: zodResolver(clientSchema),
     defaultValues: {
       nome_completo: '',
+      rg: '',
       cpf_cnpj: '',
       telefone: '',
       endereco_residencial: { street: '', number: '', neighborhood: '' },
@@ -122,7 +124,6 @@ export default function ClientesPage() {
           lat: values.coordenadas?.lat || 0,
           lng: values.coordenadas?.lng || 0,
         },
-        rg: editingClient?.rg || '',
         numero_art: editingClient?.numero_art || '',
         historico_servicos: editingClient?.historico_servicos || [],
         endereco_residencial: {
@@ -256,6 +257,19 @@ export default function ClientesPage() {
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel>Nome Completo *</FormLabel>
+                              <FormControl>
+                                <Input {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                         <FormField
+                          control={form.control}
+                          name="rg"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>RG</FormLabel>
                               <FormControl>
                                 <Input {...field} />
                               </FormControl>
