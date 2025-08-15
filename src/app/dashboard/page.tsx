@@ -28,13 +28,17 @@ import {
   ClipboardList,
   Users,
   Loader2,
+  ExternalLink,
 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
 
 export default function DashboardPage() {
   const [services, setServices] = useState<Service[]>([]);
   const [accountsPayable, setAccountsPayable] = useState<Account[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -85,6 +89,10 @@ export default function DashboardPage() {
   const totalServices = services.filter(s => s.status !== 'cancelado').length;
   const completedServices = services.filter(s => s.status === 'concluído').length;
   const completionRate = totalServices > 0 ? (completedServices / totalServices) * 100 : 0;
+  
+  const handlePayAccount = (accountId: string) => {
+    router.push(`/dashboard/financeiro?editPayable=${accountId}`);
+  };
 
 
   if (isLoading) {
@@ -209,7 +217,8 @@ export default function DashboardPage() {
                 <TableRow>
                   <TableHead>Descrição</TableHead>
                   <TableHead>Vencimento</TableHead>
-                  <TableHead className="text-right">Valor</TableHead>
+                  <TableHead>Valor</TableHead>
+                  <TableHead>Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -224,11 +233,21 @@ export default function DashboardPage() {
                         )}
                       </div>
                     </TableCell>
-                    <TableCell className="text-right">R$ {account.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
+                    <TableCell>R$ {account.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
+                    <TableCell>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handlePayAccount(account.id)}
+                      >
+                        <ExternalLink className="mr-2 h-3 w-3" />
+                        Pagar
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 )) : (
                    <TableRow>
-                    <TableCell colSpan={3} className="h-24 text-center">
+                    <TableCell colSpan={4} className="h-24 text-center">
                       Nenhuma conta pendente.
                     </TableCell>
                   </TableRow>

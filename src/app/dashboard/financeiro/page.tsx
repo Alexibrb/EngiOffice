@@ -56,7 +56,7 @@ import type { Account, Client, Supplier, Service } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 
 const accountSchema = z.object({
@@ -77,6 +77,8 @@ export default function FinanceiroPage() {
     const [editingAccount, setEditingAccount] = useState<Account | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const { toast } = useToast();
+    const router = useRouter();
+    const searchParams = useSearchParams();
 
     const form = useForm<z.infer<typeof accountSchema>>({
         resolver: zodResolver(accountSchema),
@@ -109,6 +111,16 @@ export default function FinanceiroPage() {
             const suppliersData = suppliersSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Supplier[];
             setSuppliers(suppliersData);
 
+            const editPayableId = searchParams.get('editPayable');
+            if (editPayableId) {
+                const accountToEdit = payableData.find(a => a.id === editPayableId);
+                if (accountToEdit) {
+                    handleEditClick(accountToEdit);
+                    router.replace('/dashboard/financeiro', undefined);
+                }
+            }
+
+
         } catch (error) {
             console.error("Erro ao buscar dados: ", error);
             toast({ variant: "destructive", title: "Erro ao buscar dados", description: "Não foi possível carregar os dados financeiros." });
@@ -117,7 +129,7 @@ export default function FinanceiroPage() {
 
     useEffect(() => {
         fetchData();
-    }, []);
+    }, [searchParams]);
 
     const getClientName = (id: string) => {
         return clients.find(c => c.codigo_cliente === id)?.nome_completo || 'Desconhecido';
