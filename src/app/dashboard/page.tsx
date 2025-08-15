@@ -20,7 +20,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import type { Service, Account, Client } from '@/lib/types';
+import type { Service, Account, Client, Commission } from '@/lib/types';
 import { format, isPast } from 'date-fns';
 import {
   Activity,
@@ -37,16 +37,18 @@ export default function DashboardPage() {
   const [services, setServices] = useState<Service[]>([]);
   const [accountsPayable, setAccountsPayable] = useState<Account[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
+  const [commissions, setCommissions] = useState<Commission[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [servicesSnapshot, payableSnapshot, clientsSnapshot] = await Promise.all([
+        const [servicesSnapshot, payableSnapshot, clientsSnapshot, commissionsSnapshot] = await Promise.all([
           getDocs(collection(db, "servicos")),
           getDocs(collection(db, "contas_a_pagar")),
           getDocs(collection(db, "clientes")),
+          getDocs(collection(db, "comissoes")),
         ]);
 
         const servicesData = servicesSnapshot.docs.map(doc => {
@@ -63,6 +65,13 @@ export default function DashboardPage() {
         
         const clientsData = clientsSnapshot.docs.map(doc => ({ ...doc.data(), codigo_cliente: doc.id })) as Client[];
         setClients(clientsData);
+        
+        const commissionsData = commissionsSnapshot.docs.map(doc => {
+            const data = doc.data();
+            return { ...data, id: doc.id, data: data.data.toDate() } as Commission;
+        });
+        setCommissions(commissionsData);
+
 
       } catch (error) {
         console.error("Erro ao buscar dados do dashboard: ", error);
@@ -84,7 +93,8 @@ export default function DashboardPage() {
 
   const totalReceivable = services.reduce((acc, curr) => curr.status !== 'cancelado' ? acc + curr.valor : acc, 0);
   const totalPayable = accountsPayable.reduce((acc, curr) => acc + curr.valor, 0);
-  const balance = totalReceivable - totalPayable;
+  const totalCommissions = commissions.reduce((acc, curr) => curr.status === 'pendente' ? acc + curr.valor : acc, 0);
+  const balance = totalReceivable - totalPayable - totalCommissions;
   
   const totalServices = services.filter(s => s.status !== 'cancelado').length;
   const completedServices = services.filter(s => s.status === 'concluído').length;
@@ -123,7 +133,7 @@ export default function DashboardPage() {
           <CardContent>
             <div className="text-2xl font-bold">R$ {balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
             <p className="text-xs text-muted-foreground">
-              Balanço total (serviços - despesas)
+              Balanço total (serviços - despesas - comissões)
             </p>
           </CardContent>
         </Card>
