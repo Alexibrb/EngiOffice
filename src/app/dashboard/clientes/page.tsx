@@ -70,7 +70,7 @@ export default function ClientesPage() {
   const handleSaveClient = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const residentialAddress: Partial<Address> = {
+      const residentialAddress: Address = {
         street: resStreet,
         number: resNumber,
         neighborhood: resNeighborhood,
@@ -79,7 +79,7 @@ export default function ClientesPage() {
         zip: '',
       };
 
-      const workAddress: Partial<Address> = {
+      const workAddress: Address = {
         street: workStreet,
         number: '',
         neighborhood: '',
@@ -94,7 +94,6 @@ export default function ClientesPage() {
         telefone: telefone,
         endereco_residencial: residentialAddress,
         endereco_obra: workAddress,
-        // Add default/empty values for other required fields from Client type
         rg: '',
         coordenadas: { lat: 0, lng: 0 },
         numero_art: '',
