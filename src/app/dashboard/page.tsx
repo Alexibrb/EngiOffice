@@ -34,6 +34,7 @@ import {
   ArrowDown,
   CheckCircle,
   CreditCard,
+  TrendingUp,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -164,13 +165,15 @@ export default function DashboardPage() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Clientes Ativos</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">
+              Receita de Serviços Concluídos
+            </CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{clients.length}</div>
-            <p className="text-xs text-muted-foreground">
-              Total de clientes cadastrados
+            <div className="text-2xl font-bold text-green-500">R$ {totalReceivablePaid.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+             <p className="text-xs text-muted-foreground">
+                Soma do valor de todos os serviços concluídos
             </p>
           </CardContent>
         </Card>
@@ -189,18 +192,16 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
          <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Taxa de Conclusão
-            </CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{completionRate.toFixed(1)}%</div>
-            <p className="text-xs text-muted-foreground">
-              De todos os serviços não cancelados
-            </p>
-          </CardContent>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Serviços Concluídos</CardTitle>
+                <CheckCircle className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+                <div className="text-2xl font-bold">{completedServices}</div>
+                  <p className="text-xs text-muted-foreground">
+                    Total de serviços finalizados
+                </p>
+            </CardContent>
         </Card>
       </div>
 
@@ -244,30 +245,6 @@ export default function DashboardPage() {
               </CardContent>
           </Card>
            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Contas Pagas</CardTitle>
-                  <CircleDollarSign className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                  <div className="text-2xl font-bold text-red-500">R$ {totalPayablePaid.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
-                    <p className="text-xs text-muted-foreground">
-                      Soma de todas as contas pagas
-                  </p>
-              </CardContent>
-          </Card>
-          <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Serviços Concluídos</CardTitle>
-                  <CheckCircle className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                  <div className="text-2xl font-bold">{completedServices}</div>
-                    <p className="text-xs text-muted-foreground">
-                      Total de serviços finalizados
-                  </p>
-              </CardContent>
-          </Card>
-          <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Total de Despesas</CardTitle>
                   <CreditCard className="h-4 w-4 text-muted-foreground" />
