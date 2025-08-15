@@ -94,7 +94,6 @@ export default function ServicosPage() {
         return {
           ...data,
           id: doc.id,
-          // Convert Firestore Timestamp to JS Date
           prazo: data.prazo instanceof Timestamp ? data.prazo.toDate() : new Date(data.prazo),
         } as Service
       });
@@ -465,3 +464,5 @@ export default function ServicosPage() {
     </div>
   );
 }
+
+    

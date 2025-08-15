@@ -1,6 +1,7 @@
 
 'use client';
 
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -17,14 +18,51 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { mockClients } from '@/lib/data';
 import type { Client } from '@/lib/types';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Download } from 'lucide-react';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { useToast } from "@/hooks/use-toast"
+
 
 export default function RelatoriosPage() {
+  const [clients, setClients] = useState<Client[]>([]);
+  const { toast } = useToast();
+
+  const fetchClients = async () => {
+    try {
+      const querySnapshot = await getDocs(collection(db, "clientes"));
+      const clientsData = querySnapshot.docs.map(doc => ({
+        ...doc.data(),
+        codigo_cliente: doc.id,
+      })) as Client[];
+      setClients(clientsData);
+    } catch (error) {
+      console.error("Erro ao buscar clientes: ", error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao buscar dados",
+        description: "Não foi possível carregar a lista de clientes.",
+      });
+    }
+  };
+
+  useEffect(() => {
+    fetchClients();
+  }, []);
+
   const generatePdf = () => {
+    if (clients.length === 0) {
+      toast({
+        variant: "destructive",
+        title: "Nenhum cliente",
+        description: "Não há clientes para gerar o relatório.",
+      });
+      return;
+    }
+
     const doc = new jsPDF();
     
     doc.setFont('helvetica', 'bold');
@@ -38,12 +76,12 @@ export default function RelatoriosPage() {
     autoTable(doc, {
       startY: 35,
       head: [['ID', 'Nome', 'CPF/CNPJ', 'Telefone', 'Cidade']],
-      body: mockClients.map((client) => [
+      body: clients.map((client) => [
         client.codigo_cliente,
         client.nome_completo,
-        client.cpf_cnpj,
-        client.telefone,
-        client.endereco_residencial.city,
+        client.cpf_cnpj || '-',
+        client.telefone || '-',
+        client.endereco_residencial?.city || '-',
       ]),
       theme: 'striped',
       headStyles: { fillColor: [52, 152, 219] }, // #3498DB
@@ -86,14 +124,20 @@ export default function RelatoriosPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {mockClients.map((client) => (
+                {clients.length > 0 ? clients.map((client) => (
                   <TableRow key={client.codigo_cliente}>
                     <TableCell className="font-medium">{client.nome_completo}</TableCell>
-                    <TableCell>{client.cpf_cnpj}</TableCell>
-                    <TableCell>{client.telefone}</TableCell>
-                    <TableCell>{client.endereco_residencial.city}</TableCell>
+                    <TableCell>{client.cpf_cnpj || '-'}</TableCell>
+                    <TableCell>{client.telefone || '-'}</TableCell>
+                    <TableCell>{client.endereco_residencial?.city || '-'}</TableCell>
                   </TableRow>
-                ))}
+                )) : (
+                   <TableRow>
+                    <TableCell colSpan={4} className="h-24 text-center">
+                      Nenhum cliente encontrado.
+                    </TableCell>
+                  </TableRow>
+                )}
               </TableBody>
             </Table>
           </div>
@@ -102,3 +146,5 @@ export default function RelatoriosPage() {
     </div>
   );
 }
+
+    

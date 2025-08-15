@@ -1,4 +1,5 @@
 
+
 export type Address = {
   street: string;
   number: string;
@@ -27,7 +28,7 @@ export type Client = {
 };
 
 export type Supplier = {
-  id: string; // Adicionado para consistencia
+  id: string; 
   razao_social: string;
   cnpj: string;
   endereco: string;
@@ -37,7 +38,7 @@ export type Supplier = {
 };
 
 export type Employee = {
-  id: string; // Adicionado para consistencia
+  id: string; 
   nome: string;
   cpf: string;
   cargo: string;
@@ -48,27 +49,27 @@ export type Employee = {
 };
 
 export type Service = {
-  id: string; // Adicionado para consistencia
+  id: string; 
   descricao: string;
   cliente_id: string;
-  prazo: string; // Mantido como string para simplicidade no mock
+  prazo: Date; 
   valor: number;
   status: 'em andamento' | 'concluído' | 'cancelado';
-  anexos?: string[]; // Adicionado campo
+  anexos?: string[]; 
 };
 
 export type Account = {
     id: string;
     descricao: string;
-    referencia_id: string; // ID do cliente ou fornecedor
+    referencia_id: string; 
     valor: number;
-    vencimento: string; // Mantido como string
+    vencimento: Date; 
     status: 'pago' | 'pendente' | 'recebido';
 }
 
 export type CashFlow = {
   id: string;
-  data: string; // Mantido como string
+  data: string; 
   tipo: 'entrada' | 'saida';
   descricao: string;
   valor: number;
@@ -78,7 +79,9 @@ export type CashFlow = {
 export type Document = {
   id: string;
   tipo: string;
-  referencia: string; // ID do cliente, servico, etc.
-  arquivo: string; // URL ou path do arquivo
-  data: string; // Mantido como string
+  referencia: string; 
+  arquivo: string; 
+  data: string;
 }
+
+    
