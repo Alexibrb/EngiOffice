@@ -53,7 +53,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { format, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import type { Account, Client, Supplier, Service } from '@/lib/types';
+import type { Account, Client, Supplier, Service, Employee, Payee } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -63,7 +63,8 @@ import { DateRange } from 'react-day-picker';
 
 const accountSchema = z.object({
   descricao: z.string().min(1, 'Descrição é obrigatória.'),
-  referencia_id: z.string().min(1, 'Referência é obrigatória.'),
+  referencia_id: z.string().min(1, 'Favorecido é obrigatório.'),
+  tipo_referencia: z.enum(['fornecedor', 'funcionario']).optional(),
   valor: z.coerce.number().min(0.01, 'Valor deve ser maior que zero.'),
   vencimento: z.date({ required_error: 'Data de vencimento é obrigatória.' }),
   status: z.enum(['pendente', 'pago']),
@@ -84,6 +85,7 @@ export default function FinanceiroPage() {
     const [services, setServices] = useState<Service[]>([]);
     const [clients, setClients] = useState<Client[]>([]);
     const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+    const [employees, setEmployees] = useState<Employee[]>([]);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isSupplierDialogOpen, setIsSupplierDialogOpen] = useState(false);
     const [isAddProductDialogOpen, setIsAddProductDialogOpen] = useState(false);
@@ -125,6 +127,12 @@ export default function FinanceiroPage() {
       setSuppliers(suppliersData);
       return suppliersData;
     };
+    
+    const fetchEmployees = async () => {
+        const employeesSnapshot = await getDocs(collection(db, "funcionarios"));
+        const employeesData = employeesSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Employee[];
+        setEmployees(employeesData);
+    }
 
     const fetchData = async () => {
         try {
@@ -135,6 +143,7 @@ export default function FinanceiroPage() {
             ]);
             
             await fetchSuppliers();
+            await fetchEmployees();
 
             const payableData = payableSnapshot.docs.map(doc => {
                 const data = doc.data();
@@ -182,9 +191,13 @@ export default function FinanceiroPage() {
         return clients.find(c => c.codigo_cliente === id)?.nome_completo || 'Desconhecido';
     };
 
-    const getSupplierName = (id: string) => {
-        return suppliers.find(s => s.id === id)?.razao_social || 'Desconhecido';
+    const getPayeeName = (account: Account) => {
+        if (account.tipo_referencia === 'funcionario') {
+            return employees.find(e => e.id === account.referencia_id)?.nome || 'Funcionário não encontrado';
+        }
+        return suppliers.find(s => s.id === account.referencia_id)?.razao_social || 'Fornecedor não encontrado';
     };
+
 
     const handleSaveAccount = async (values: z.infer<typeof accountSchema>) => {
         setIsLoading(true);
@@ -285,16 +298,16 @@ export default function FinanceiroPage() {
         if (type === 'pagar') {
             autoTable(doc, {
               startY: 35,
-              head: [['Descrição', 'Referência', 'Vencimento', 'Valor', 'Status']],
+              head: [['Descrição', 'Favorecido', 'Vencimento', 'Valor', 'Status']],
               body: filteredPayable.map((acc) => [
                 acc.descricao,
-                getSupplierName(acc.referencia_id),
+                getPayeeName(acc),
                 format(acc.vencimento, 'dd/MM/yyyy'),
                 `R$ ${acc.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
                 acc.status,
               ]),
               theme: 'striped',
-              headStyles: { fillColor: [52, 152, 219] },
+              headStyles: { fillColor: [34, 139, 34] },
             });
         } else {
              autoTable(doc, {
@@ -308,7 +321,7 @@ export default function FinanceiroPage() {
                 service.status,
               ]),
               theme: 'striped',
-              headStyles: { fillColor: [52, 152, 219] },
+              headStyles: { fillColor: [34, 139, 34] },
             });
         }
     
@@ -360,6 +373,11 @@ export default function FinanceiroPage() {
             const serviceDate = service.data_cadastro;
             return serviceDate >= fromDate && serviceDate <= addDays(toDate, 1);
         });
+
+    const payees: Payee[] = [
+        ...suppliers.map(s => ({ id: s.id, nome: s.razao_social, tipo: 'fornecedor' as const, ...s })),
+        ...employees.filter(e => e.tipo_contratacao === 'salario_fixo').map(e => ({ id: e.id, nome: e.nome, tipo: 'funcionario' as const, ...e })),
+    ];
 
 
     return (
@@ -422,7 +440,7 @@ export default function FinanceiroPage() {
                             <div className="flex flex-row items-center justify-between">
                                 <div>
                                     <CardTitle>Contas a Pagar</CardTitle>
-                                    <CardDescription>Faturas e despesas a serem pagas.</CardDescription>
+                                    <CardDescription>Faturas, salários e despesas a serem pagas.</CardDescription>
                                 </div>
                                 <div className="flex gap-2">
                                     <Button onClick={() => generatePdf('pagar')} variant="outline">
@@ -491,7 +509,7 @@ export default function FinanceiroPage() {
                         <CardContent>
                             <PayableTableComponent 
                                 accounts={filteredPayable} 
-                                getReferenceName={getSupplierName} 
+                                getPayeeName={getPayeeName} 
                                 onEdit={handleEditClick} 
                                 onDelete={handleDeleteAccount} 
                             />
@@ -588,7 +606,7 @@ export default function FinanceiroPage() {
                         <form onSubmit={form.handleSubmit(handleSaveAccount)} className="space-y-6">
                             <PayableFormComponent 
                                 form={form} 
-                                suppliers={suppliers} 
+                                payees={payees} 
                                 onAddSupplier={() => setIsSupplierDialogOpen(true)}
                                 onAddProduct={() => setIsAddProductDialogOpen(true)}
                             />
@@ -706,23 +724,30 @@ export default function FinanceiroPage() {
     );
 }
 
-function PayableFormComponent({ form, suppliers, onAddSupplier, onAddProduct }: { 
+function PayableFormComponent({ form, payees, onAddSupplier, onAddProduct }: { 
     form: any, 
-    suppliers: Supplier[], 
+    payees: Payee[], 
     onAddSupplier: () => void,
     onAddProduct: () => void
 }) {
-    const supplierId = useWatch({
-      control: form.control,
-      name: 'referencia_id',
-    });
+    const payeeId = useWatch({ control: form.control, name: 'referencia_id' });
+    const selectedPayee = payees.find(p => p.id === payeeId);
 
-    const selectedSupplier = suppliers.find(s => s.id === supplierId);
-    const productOptions = selectedSupplier?.produtos_servicos || [];
-
+    const isSupplier = selectedPayee?.tipo === 'fornecedor';
+    const productOptions = isSupplier ? (selectedPayee as Supplier).produtos_servicos || [] : [];
+    
     useEffect(() => {
-        form.setValue('descricao', '');
-    }, [supplierId, form]);
+        if (selectedPayee) {
+            form.setValue('tipo_referencia', selectedPayee.tipo);
+            if (selectedPayee.tipo === 'funcionario') {
+                form.setValue('descricao', 'Pagamento de Salário');
+                form.setValue('valor', (selectedPayee as Employee).salario || 0);
+            } else {
+                 form.setValue('descricao', '');
+            }
+        }
+    }, [selectedPayee, form]);
+
 
     return (
          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -731,18 +756,18 @@ function PayableFormComponent({ form, suppliers, onAddSupplier, onAddProduct }: 
                 name="referencia_id"
                 render={({ field }) => (
                     <FormItem>
-                        <FormLabel>Fornecedor *</FormLabel>
+                        <FormLabel>Favorecido *</FormLabel>
                         <div className="flex items-center gap-2">
                             <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
                                 <FormControl>
                                     <SelectTrigger>
-                                        <SelectValue placeholder="Selecione o Fornecedor" />
+                                        <SelectValue placeholder="Selecione o Favorecido" />
                                     </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
-                                    {suppliers.map(ref => (
-                                        <SelectItem key={ref.id} value={ref.id}>
-                                            {ref.razao_social}
+                                    {payees.map(p => (
+                                        <SelectItem key={p.id} value={p.id}>
+                                            {p.nome} ({p.tipo === 'funcionario' ? 'Funcionário' : 'Fornecedor'})
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
@@ -761,25 +786,29 @@ function PayableFormComponent({ form, suppliers, onAddSupplier, onAddProduct }: 
                 render={({ field }) => (
                     <FormItem>
                         <FormLabel>Descrição *</FormLabel>
-                        <div className="flex items-center gap-2">
-                            <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value} disabled={!supplierId}>
-                                <FormControl>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder={supplierId ? "Selecione o produto/serviço" : "Selecione um fornecedor"} />
-                                    </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                    {productOptions.map(product => (
-                                        <SelectItem key={product} value={product}>
-                                            {product}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                             <Button type="button" variant="outline" size="icon" onClick={onAddProduct} disabled={!supplierId}>
-                                <PlusCircle className="h-4 w-4" />
-                            </Button>
-                        </div>
+                         {isSupplier ? (
+                            <div className="flex items-center gap-2">
+                                <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value} disabled={!isSupplier}>
+                                    <FormControl>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder={isSupplier ? "Selecione o produto/serviço" : "Descrição"} />
+                                        </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                        {productOptions.map(product => (
+                                            <SelectItem key={product} value={product}>
+                                                {product}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <Button type="button" variant="outline" size="icon" onClick={onAddProduct} disabled={!isSupplier}>
+                                    <PlusCircle className="h-4 w-4" />
+                                </Button>
+                            </div>
+                         ) : (
+                             <FormControl><Input {...field} disabled={!isSupplier} /></FormControl>
+                         )}
                         <FormMessage />
                     </FormItem>
                 )}
@@ -916,9 +945,9 @@ function AddProductDialog({ isOpen, setIsOpen, supplierId, onProductAdded, toast
 }
 
 
-function PayableTableComponent({ accounts, getReferenceName, onEdit, onDelete }: { 
+function PayableTableComponent({ accounts, getPayeeName, onEdit, onDelete }: { 
     accounts: Account[], 
-    getReferenceName: (id: string) => string, 
+    getPayeeName: (account: Account) => string, 
     onEdit: (account: Account) => void, 
     onDelete: (id: string) => void 
 }) {
@@ -928,7 +957,7 @@ function PayableTableComponent({ accounts, getReferenceName, onEdit, onDelete }:
                 <TableHeader>
                     <TableRow>
                         <TableHead>Descrição</TableHead>
-                        <TableHead>Fornecedor</TableHead>
+                        <TableHead>Favorecido</TableHead>
                         <TableHead>Vencimento</TableHead>
                         <TableHead>Valor</TableHead>
                         <TableHead>Status</TableHead>
@@ -939,7 +968,7 @@ function PayableTableComponent({ accounts, getReferenceName, onEdit, onDelete }:
                     {accounts.length > 0 ? accounts.map((account) => (
                         <TableRow key={account.id}>
                             <TableCell className="font-medium">{account.descricao}</TableCell>
-                            <TableCell>{getReferenceName(account.referencia_id)}</TableCell>
+                            <TableCell>{getPayeeName(account)}</TableCell>
                             <TableCell>{format(account.vencimento, 'dd/MM/yyyy')}</TableCell>
                             <TableCell>R$ {account.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
                             <TableCell>
@@ -1041,5 +1070,7 @@ function ReceivableTableComponent({ services, getClientName }: {
         </div>
     );
 }
+
+    
 
     

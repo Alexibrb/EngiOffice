@@ -18,7 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import type { Client, Supplier, Service, Account } from '@/lib/types';
+import type { Client, Supplier, Service, Account, Employee } from '@/lib/types';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Download } from 'lucide-react';
@@ -36,6 +36,7 @@ type ReportType = 'clients' | 'suppliers' | 'services' | 'accountsPayable';
 export default function RelatoriosPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+   const [employees, setEmployees] = useState<Employee[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [accountsPayable, setAccountsPayable] = useState<Account[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -45,11 +46,12 @@ export default function RelatoriosPage() {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const [clientsSnapshot, suppliersSnapshot, servicesSnapshot, accountsPayableSnapshot] = await Promise.all([
+      const [clientsSnapshot, suppliersSnapshot, servicesSnapshot, accountsPayableSnapshot, employeesSnapshot] = await Promise.all([
         getDocs(collection(db, "clientes")),
         getDocs(collection(db, "fornecedores")),
         getDocs(collection(db, "servicos")),
-        getDocs(collection(db, "contas_a_pagar"))
+        getDocs(collection(db, "contas_a_pagar")),
+        getDocs(collection(db, "funcionarios")),
       ]);
 
       const clientsData = clientsSnapshot.docs.map(doc => ({ ...doc.data(), codigo_cliente: doc.id })) as Client[];
@@ -69,6 +71,9 @@ export default function RelatoriosPage() {
         return { ...data, id: doc.id, vencimento: data.vencimento.toDate() } as Account;
       });
       setAccountsPayable(accountsPayableData);
+
+      const employeesData = employeesSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Employee[];
+      setEmployees(employeesData);
 
     } catch (error) {
       console.error("Erro ao buscar dados: ", error);
@@ -90,9 +95,11 @@ export default function RelatoriosPage() {
     return clients.find(c => c.codigo_cliente === clientId)?.nome_completo || 'Desconhecido';
   }
   
-  const getSupplierName = (supplierId: string) => {
-      const supplier = suppliers.find(s => s.id === supplierId);
-      return supplier ? supplier.razao_social : 'Desconhecido';
+  const getPayeeName = (account: Account) => {
+      if (account.tipo_referencia === 'funcionario') {
+          return employees.find(e => e.id === account.referencia_id)?.nome || 'Funcionário não encontrado';
+      }
+      return suppliers.find(s => s.id === account.referencia_id)?.razao_social || 'Fornecedor não encontrado';
   };
 
 
@@ -144,10 +151,10 @@ export default function RelatoriosPage() {
       case 'accountsPayable':
         data = accountsPayable;
         title = 'Relatório de Contas a Pagar';
-        head = [['Descrição', 'Fornecedor', 'Vencimento', 'Valor', 'Status']];
+        head = [['Descrição', 'Favorecido', 'Vencimento', 'Valor', 'Status']];
         body = data.map((item) => [
             item.descricao,
-            getSupplierName(item.referencia_id),
+            getPayeeName(item),
             item.vencimento ? format(item.vencimento, "dd/MM/yyyy") : '-',
             `R$ ${item.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
             item.status,
@@ -179,7 +186,7 @@ export default function RelatoriosPage() {
       head: head,
       body: body,
       theme: 'striped',
-      headStyles: { fillColor: [52, 152, 219] },
+      headStyles: { fillColor: [34, 139, 34] },
     });
     doc.save(fileName);
   };
@@ -271,10 +278,10 @@ export default function RelatoriosPage() {
             <CardContent>
               <div className="border rounded-lg">
                 <Table>
-                  <TableHeader><TableRow><TableHead>Descrição</TableHead><TableHead>Fornecedor</TableHead><TableHead>Vencimento</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
+                  <TableHeader><TableRow><TableHead>Descrição</TableHead><TableHead>Favorecido</TableHead><TableHead>Vencimento</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
                   <TableBody>
                     {accountsPayable.length > 0 ? accountsPayable.slice(0, 10).map((acc) => (
-                      <TableRow key={acc.id}><TableCell className="font-medium">{acc.descricao}</TableCell><TableCell>{getSupplierName(acc.referencia_id)}</TableCell><TableCell>{acc.vencimento ? format(acc.vencimento, "dd/MM/yyyy") : '-'}</TableCell><TableCell><Badge variant={acc.status === 'pago' ? 'secondary' : 'destructive'}>{acc.status}</Badge></TableCell></TableRow>
+                      <TableRow key={acc.id}><TableCell className="font-medium">{acc.descricao}</TableCell><TableCell>{getPayeeName(acc)}</TableCell><TableCell>{acc.vencimento ? format(acc.vencimento, "dd/MM/yyyy") : '-'}</TableCell><TableCell><Badge variant={acc.status === 'pago' ? 'secondary' : 'destructive'}>{acc.status}</Badge></TableCell></TableRow>
                     )) : (<TableRow><TableCell colSpan={4} className="h-24 text-center">Nenhuma conta a pagar encontrada.</TableCell></TableRow>)}
                   </TableBody>
                 </Table>
@@ -323,5 +330,7 @@ export default function RelatoriosPage() {
     </div>
   );
 }
+
+    
 
     

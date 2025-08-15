@@ -30,6 +30,8 @@ export type Client = {
 export type Supplier = {
   id: string; 
   razao_social: string;
+  nome: string; // Para unificação com Payee
+  tipo: 'fornecedor';
   cnpj: string;
   endereco: string;
   telefone: string;
@@ -40,6 +42,7 @@ export type Supplier = {
 export type Employee = {
   id: string; 
   nome: string;
+  tipo: 'funcionario';
   cpf: string;
   cargo: string;
   telefone: string;
@@ -68,6 +71,7 @@ export type Account = {
     id: string;
     descricao: string;
     referencia_id: string; 
+    tipo_referencia?: 'fornecedor' | 'funcionario';
     valor: number;
     vencimento: Date; 
     status: 'pago' | 'pendente';
@@ -106,4 +110,13 @@ export type City = {
   nome_cidade: string;
   estado: string;
 };
+
+// Tipo unificado para favorecidos (funcionários ou fornecedores)
+export type Payee = (Employee | Supplier) & {
+    id: string;
+    nome: string;
+    tipo: 'funcionario' | 'fornecedor';
+};
+    
+
     
