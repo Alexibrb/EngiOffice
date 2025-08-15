@@ -367,6 +367,9 @@ export default function ServicosPage() {
         });
 
         toast({ title: 'Sucesso!', description: 'Pagamento lançado com sucesso.' });
+        
+        generateReceipt(editingService, values.valor_pago);
+
         setIsPaymentDialogOpen(false);
         setEditingService(null);
         paymentForm.reset();
@@ -429,7 +432,7 @@ export default function ServicosPage() {
   };
 
 
-  const generateReceipt = (service: Service) => {
+  const generateReceipt = (service: Service, paymentValue?: number) => {
     const client = clients.find(c => c.codigo_cliente === service.cliente_id);
     if (!client) {
         toast({ variant: 'destructive', title: 'Erro', description: 'Cliente não encontrado para gerar o recibo.' });
@@ -438,11 +441,16 @@ export default function ServicosPage() {
 
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
+    
+    const isPartialPayment = paymentValue !== undefined && paymentValue < service.valor_total;
+    const valueToDisplay = isPartialPayment ? paymentValue : service.valor_total;
+    const title = isPartialPayment ? 'RECIBO DE PAGAMENTO PARCIAL' : 'RECIBO DE PAGAMENTO';
+
 
     // Cabeçalho
     doc.setFontSize(20);
     doc.setFont('helvetica', 'bold');
-    doc.text('RECIBO DE PAGAMENTO', pageWidth / 2, 20, { align: 'center' });
+    doc.text(title, pageWidth / 2, 20, { align: 'center' });
 
     // Informações da Empresa
     doc.setFontSize(12);
@@ -458,7 +466,7 @@ export default function ServicosPage() {
     doc.setFontSize(14);
     doc.text('Valor:', 20, 70);
     doc.setFont('helvetica', 'bold');
-    doc.text(`R$ ${service.valor_total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, pageWidth - 20, 70, { align: 'right' });
+    doc.text(`R$ ${valueToDisplay.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, pageWidth - 20, 70, { align: 'right' });
     
     doc.setFont('helvetica', 'normal');
     doc.setLineWidth(0.2);
@@ -467,7 +475,7 @@ export default function ServicosPage() {
     // Corpo do Recibo
     doc.setFontSize(12);
     const obraAddress = (client.endereco_obra && client.endereco_obra.street) ? `${client.endereco_obra.street}, ${client.endereco_obra.number} - ${client.endereco_obra.neighborhood}, ${client.endereco_obra.city} - ${client.endereco_obra.state}` : 'Endereço da obra não informado';
-    const receiptText = `Recebemos de ${client.nome_completo}, CPF/CNPJ nº ${client.cpf_cnpj || 'Não informado'}, a importância de R$ ${service.valor_total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} referente ao pagamento pelo serviço de "${service.descricao}".\n\nEndereço da Obra: ${obraAddress}`;
+    const receiptText = `Recebemos de ${client.nome_completo}, CPF/CNPJ nº ${client.cpf_cnpj || 'Não informado'}, a importância de R$ ${valueToDisplay.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} referente ao pagamento ${isPartialPayment ? 'parcial' : ''} pelo serviço de "${service.descricao}".\n\nEndereço da Obra: ${obraAddress}`;
     const splitText = doc.splitTextToSize(receiptText, pageWidth - 40);
     doc.text(splitText, 20, 90);
 
