@@ -940,7 +940,7 @@ export default function ServicosPage() {
                                   <HandCoins className="mr-2 h-4 w-4" />
                                   Lançar Pagamento
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleDistributionClick(service)} disabled={service.status !== 'concluído'}>
+                                <DropdownMenuItem onClick={() => handleDistributionClick(service)} disabled={service.saldo_devedor !== 0}>
                                   <HandCoins className="mr-2 h-4 w-4" />
                                   Distribuir Lucro
                                 </DropdownMenuItem>
@@ -1060,26 +1060,34 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, financials, toas
     useEffect(() => {
         const fetchCosts = async () => {
             if (!service) return;
+            
+            setIsLoading(true);
+            try {
+                const accountsPayableSnap = await getDocs(collection(db, 'contas_a_pagar'));
+                const accountsPayable = accountsPayableSnap.docs.map(doc => doc.data() as Account);
+                const relatedExpenses = accountsPayable
+                    .filter(acc => acc.servico_id === service.id && acc.status === 'pago')
+                    .reduce((sum, acc) => sum + acc.valor, 0);
 
-            const accountsPayableSnap = await getDocs(collection(db, 'contas_a_pagar'));
-            const accountsPayable = accountsPayableSnap.docs.map(doc => doc.data() as Account);
-            const relatedExpenses = accountsPayable
-                .filter(acc => acc.servico_id === service.id && acc.status === 'pago')
-                .reduce((sum, acc) => sum + acc.valor, 0);
+                const commissionsSnap = await getDocs(collection(db, 'comissoes'));
+                const commissions = commissionsSnap.docs.map(doc => doc.data() as Commission);
+                const relatedCommissions = commissions
+                    .filter(c => c.servico_id === service.id && c.status === 'pago')
+                    .reduce((sum, c) => sum + c.valor, 0);
 
-            const commissionsSnap = await getDocs(collection(db, 'comissoes'));
-            const commissions = commissionsSnap.docs.map(doc => doc.data() as Commission);
-            const relatedCommissions = commissions
-                .filter(c => c.servico_id === service.id && c.status === 'pago')
-                .reduce((sum, c) => sum + c.valor, 0);
-
-            setServiceCosts(relatedExpenses + relatedCommissions);
+                setServiceCosts(relatedExpenses + relatedCommissions);
+            } catch (error) {
+                console.error("Erro ao buscar custos do serviço:", error);
+                toast({ variant: 'destructive', title: 'Erro', description: 'Não foi possível calcular os custos do serviço.' });
+            } finally {
+                setIsLoading(false);
+            }
         };
 
         if (isOpen) {
             fetchCosts();
         }
-    }, [isOpen, service]);
+    }, [isOpen, service, toast]);
 
     const cashBalance = financials.totalRevenue - financials.totalExpenses;
     const serviceProfit = service.valor_total - serviceCosts;
@@ -1190,4 +1198,3 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, financials, toas
         </Dialog>
     );
 }
-
