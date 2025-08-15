@@ -28,7 +28,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { Service, Client, ServiceType } from '@/lib/types';
-import { PlusCircle, Search, MoreHorizontal, Loader2, Calendar as CalendarIcon, Wrench, Link as LinkIcon, ExternalLink, ClipboardCopy, XCircle } from 'lucide-react';
+import { PlusCircle, Search, MoreHorizontal, Loader2, Calendar as CalendarIcon, Wrench, Link as LinkIcon, ExternalLink, ClipboardCopy, XCircle, FileText } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -57,6 +57,7 @@ import { ptBR } from 'date-fns/locale';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DateRange } from 'react-day-picker';
+import jsPDF from 'jspdf';
 
 const serviceSchema = z.object({
   descricao: z.string().min(1, { message: 'Descrição é obrigatória.' }),
@@ -371,6 +372,58 @@ export default function ServicosPage() {
     });
     setIsDialogOpen(true);
   }
+
+  const generateReceipt = (service: Service) => {
+    const client = clients.find(c => c.codigo_cliente === service.cliente_id);
+    if (!client) {
+        toast({ variant: 'destructive', title: 'Erro', description: 'Cliente não encontrado para gerar o recibo.' });
+        return;
+    }
+
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+
+    // Cabeçalho
+    doc.setFontSize(20);
+    doc.setFont('helvetica', 'bold');
+    doc.text('RECIBO DE PAGAMENTO', pageWidth / 2, 20, { align: 'center' });
+
+    // Informações da Empresa
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'normal');
+    doc.text('EngiFlow - Soluções em Engenharia', 20, 40);
+    doc.text('CNPJ: 00.000.000/0001-00', 20, 46);
+    doc.text('contato@engiflow.com', 20, 52);
+
+    doc.setLineWidth(0.5);
+    doc.line(20, 60, pageWidth - 20, 60);
+
+    // Valor
+    doc.setFontSize(14);
+    doc.text('Valor:', 20, 70);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`R$ ${service.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, pageWidth - 20, 70, { align: 'right' });
+    
+    doc.setFont('helvetica', 'normal');
+    doc.setLineWidth(0.2);
+    doc.line(20, 75, pageWidth - 20, 75);
+
+    // Corpo do Recibo
+    doc.setFontSize(12);
+    const receiptText = `Recebemos de ${client.nome_completo}, CPF/CNPJ nº ${client.cpf_cnpj}, a importância de R$ ${service.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} referente ao pagamento pelo serviço de "${service.descricao}".`;
+    const splitText = doc.splitTextToSize(receiptText, pageWidth - 40);
+    doc.text(splitText, 20, 90);
+
+    // Data e Assinatura
+    const today = format(new Date(), "d 'de' MMMM 'de' yyyy", { locale: ptBR });
+    doc.text(`São Paulo, ${today}.`, 20, 140);
+    
+    doc.line(pageWidth / 2 - 40, 170, pageWidth / 2 + 40, 170);
+    doc.text('EngiFlow', pageWidth / 2, 175, { align: 'center' });
+
+
+    doc.save(`recibo_${client.nome_completo.replace(/\s/g, '_')}_${service.id}.pdf`);
+  };
   
   const handleClearFilters = () => {
     setDateRange(undefined);
@@ -706,6 +759,10 @@ export default function ServicosPage() {
                                 <DropdownMenuItem onClick={() => handleEditClick(service)}>
                                 Editar
                                 </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => generateReceipt(service)} disabled={service.status !== 'concluído'}>
+                                  <FileText className="mr-2 h-4 w-4" />
+                                  Gerar Recibo
+                                </DropdownMenuItem>
                                 <AlertDialog>
                                 <AlertDialogTrigger asChild>
                                     <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600">
@@ -756,5 +813,7 @@ export default function ServicosPage() {
     </div>
   );
 }
+
+    
 
     
