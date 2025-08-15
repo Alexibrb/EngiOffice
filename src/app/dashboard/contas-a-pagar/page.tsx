@@ -49,7 +49,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { cn } from '@/lib/utils';
+import { cn, formatCurrency } from '@/lib/utils';
 import { format, endOfDay, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { Account, Supplier, Employee, Payee } from '@/lib/types';
@@ -177,12 +177,19 @@ export default function ContasAPagarPage() {
         setIsLoading(true);
         const collectionName = 'contas_a_pagar';
         try {
+             const submissionValues = {
+                ...values,
+                valor: typeof values.valor === 'string' 
+                    ? parseFloat(values.valor.replace('.', '').replace(',', '.')) 
+                    : values.valor,
+            };
+
             if (editingAccount) {
                 const docRef = doc(db, collectionName, editingAccount.id);
-                await setDoc(docRef, values);
+                await setDoc(docRef, submissionValues);
                 toast({ title: "Sucesso!", description: "Conta atualizada com sucesso." });
             } else {
-                await addDoc(collection(db, collectionName), values);
+                await addDoc(collection(db, collectionName), submissionValues);
                 toast({ title: "Sucesso!", description: "Conta adicionada com sucesso." });
             }
             form.reset();
@@ -252,6 +259,7 @@ export default function ContasAPagarPage() {
         setEditingAccount(account);
         form.reset({
             ...account,
+            valor: account.valor, // Zod handles coercion, keep as number for form
             vencimento: account.vencimento instanceof Date ? account.vencimento : new Date(account.vencimento),
         });
         setIsDialogOpen(true);
@@ -670,10 +678,21 @@ function PayableFormComponent({ form, payees, onAddSupplier, onAddProduct, editi
             <FormField
                 control={form.control}
                 name="valor"
-                render={({ field }) => (
+                render={({ field: { onChange, ...restField } }) => (
                     <FormItem>
                         <FormLabel>Valor (R$)</FormLabel>
-                        <FormControl><Input type="number" step="0.01" {...field} disabled={form.getValues('tipo_referencia') === 'funcionario' && !editingAccount} /></FormControl>
+                        <FormControl>
+                             <Input 
+                                {...restField}
+                                type="text"
+                                inputMode="decimal"
+                                disabled={form.getValues('tipo_referencia') === 'funcionario' && !editingAccount}
+                                onChange={(e) => {
+                                    const formattedValue = formatCurrency(e.target.value);
+                                    onChange(formattedValue);
+                                }}
+                            />
+                        </FormControl>
                         <FormMessage />
                     </FormItem>
                 )}

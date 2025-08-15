@@ -53,4 +53,31 @@ export function formatCEP(value: string): string {
     .replace(/(\d{5})(\d)/, '$1-$2')
     .slice(0, 9);
 }
-    
+
+export function formatCurrency(value: string): string {
+  if (!value) return '';
+  let numericValue = value.replace(/\D/g, '');
+
+  if (numericValue === '') return '';
+
+  // Pad with leading zeros if necessary
+  numericValue = numericValue.padStart(3, '0');
+
+  // Insert comma for decimals
+  const integerPart = numericValue.slice(0, -2);
+  const decimalPart = numericValue.slice(-2);
+  
+  let formattedIntegerPart = '';
+  if (integerPart.length > 3) {
+      formattedIntegerPart = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  } else {
+      formattedIntegerPart = integerPart;
+  }
+  
+  if(formattedIntegerPart === '0' || formattedIntegerPart === '00') {
+    formattedIntegerPart = '0';
+  }
+
+
+  return `${formattedIntegerPart},${decimalPart}`;
+}
