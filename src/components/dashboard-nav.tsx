@@ -15,6 +15,7 @@ import {
   Wrench,
   HandCoins,
   Building2,
+  CreditCard,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -36,6 +37,11 @@ const mainLinks = [
     href: '/dashboard/financeiro',
     label: 'Financeiro',
     icon: CircleDollarSign,
+  },
+  {
+    href: '/dashboard/financeiro?add=true',
+    label: 'Despesas',
+    icon: CreditCard,
   },
   {
     href: '/dashboard/comissoes',
