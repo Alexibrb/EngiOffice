@@ -247,8 +247,8 @@ export default function FinanceiroPage() {
 
     const totalPayable = accountsPayable.reduce((acc, curr) => acc + curr.valor, 0);
 
-    const totalReceivable = services
-        .filter((s) => s.status !== 'cancelado')
+    const totalReceivablePending = services
+        .filter((s) => s.status === 'em andamento')
         .reduce((acc, curr) => acc + curr.valor, 0);
 
     return (
@@ -263,13 +263,13 @@ export default function FinanceiroPage() {
             <div className="grid gap-4 md:grid-cols-3">
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Contas a Receber (Total)</CardTitle>
+                        <CardTitle className="text-sm font-medium">Contas a Receber (Pendente)</CardTitle>
                         <ArrowUp className="h-4 w-4 text-green-500" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">R$ {totalReceivable.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                        <div className="text-2xl font-bold">R$ {totalReceivablePending.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
                         <p className="text-xs text-muted-foreground">
-                            Soma de todos os serviços não cancelados
+                            Soma de todos os serviços "em andamento"
                         </p>
                     </CardContent>
                 </Card>
