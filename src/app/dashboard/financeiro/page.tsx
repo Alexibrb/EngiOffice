@@ -736,7 +736,6 @@ function PayableFormComponent({ form, payees, onAddSupplier, onAddProduct }: {
     const selectedPayee = payees.find(p => p.id === payeeId);
 
     const isSupplier = selectedPayee?.tipo === 'fornecedor';
-    const productOptions = isSupplier ? (selectedPayee as Supplier).produtos_servicos || [] : [];
     
     useEffect(() => {
         if (selectedPayee) {
@@ -745,6 +744,7 @@ function PayableFormComponent({ form, payees, onAddSupplier, onAddProduct }: {
                 form.setValue('descricao', 'Pagamento de Salário');
                 form.setValue('valor', (selectedPayee as Employee).salario || 0);
             } else {
+                 // Deixa o usuário digitar a descrição para fornecedores
                  form.setValue('descricao', '');
             }
         }
@@ -788,29 +788,7 @@ function PayableFormComponent({ form, payees, onAddSupplier, onAddProduct }: {
                 render={({ field }) => (
                     <FormItem>
                         <FormLabel>Descrição *</FormLabel>
-                         {isSupplier ? (
-                            <div className="flex items-center gap-2">
-                                <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value} disabled={!isSupplier}>
-                                    <FormControl>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder={isSupplier ? "Selecione o produto/serviço" : "Descrição"} />
-                                        </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                        {productOptions.map(product => (
-                                            <SelectItem key={product} value={product}>
-                                                {product}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                                <Button type="button" variant="outline" size="icon" onClick={onAddProduct} disabled={!isSupplier}>
-                                    <PlusCircle className="h-4 w-4" />
-                                </Button>
-                            </div>
-                         ) : (
-                             <FormControl><Input {...field} disabled={!isSupplier} /></FormControl>
-                         )}
+                        <FormControl><Input {...field} placeholder="Ex: Compra de material" /></FormControl>
                         <FormMessage />
                     </FormItem>
                 )}
