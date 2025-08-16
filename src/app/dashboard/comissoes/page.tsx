@@ -131,7 +131,9 @@ export default function ComissoesPage() {
     
     const getEmployeeName = (id: string) => employees.find(e => e.id === id)?.nome || 'Desconhecido';
     const getServiceDescription = (id: string) => services.find(s => s.id === id)?.descricao || 'Desconhecido';
-    const getClientName = (id: string) => clients.find(c => c.codigo_cliente === id)?.nome_completo || 'Desconhecido';
+    const getClient = (id: string) => {
+        return clients.find(c => c.codigo_cliente === id);
+    };
     
     const handleDeleteCommission = async (id: string) => {
         try {
@@ -218,6 +220,21 @@ export default function ComissoesPage() {
       const isEligible = (s.valor_pago || 0) > 0 && s.status !== 'cancelado' && !s.lucro_distribuido;
       return isEligible;
     });
+    
+    const getDistributionStatus = (service: Service) => {
+        const isDistributable = service.status !== 'cancelado' && (service.valor_pago || 0) > 0;
+        
+        if (!isDistributable) {
+            return <Badge variant="outline">Aguardando</Badge>
+        }
+        
+        if (service.lucro_distribuido) {
+            return <Badge variant="secondary">Realizada</Badge>;
+        }
+        
+        return <Badge variant="destructive">Pendente</Badge>;
+    }
+
 
     return (
         <div className="flex flex-col gap-8">
@@ -405,11 +422,11 @@ export default function ComissoesPage() {
             </div>
 
             <Dialog open={isDistributionListOpen} onOpenChange={setIsDistributionListOpen}>
-                <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
+                <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle>Distribuir Lucro de Serviços</DialogTitle>
                         <DialogDescription>
-                            Selecione um serviço para calcular e distribuir as comissões.
+                            Selecione um serviço para calcular e distribuir as comissões. Apenas serviços com pagamentos recebidos e distribuição pendente são listados.
                         </DialogDescription>
                     </DialogHeader>
                     <div className="border rounded-lg mt-4">
@@ -418,28 +435,47 @@ export default function ComissoesPage() {
                                 <TableRow>
                                     <TableHead>Cliente</TableHead>
                                     <TableHead>Descrição</TableHead>
-                                    <TableHead>Valor Pago</TableHead>
+                                    <TableHead>Endereço da Obra</TableHead>
+                                    <TableHead>Valor do Serviço</TableHead>
+                                    <TableHead>Saldo Devedor</TableHead>
+                                    <TableHead>Status</TableHead>
+                                    <TableHead>Distribuição</TableHead>
                                     <TableHead className="text-right">Ações</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {servicesWithPendingDistribution.length > 0 ? servicesWithPendingDistribution.map(service => (
-                                    <TableRow key={service.id}>
-                                        <TableCell className="font-medium">{getClientName(service.cliente_id)}</TableCell>
-                                        <TableCell>{service.descricao}</TableCell>
-                                        <TableCell className="text-green-500">
-                                            {service.valor_pago.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <Button variant="accent" size="sm" onClick={() => handleDistributeClick(service)}>
-                                                <Users className="mr-2 h-4 w-4" />
-                                                Distribuir
-                                            </Button>
-                                        </TableCell>
-                                    </TableRow>
-                                )) : (
+                                {servicesWithPendingDistribution.length > 0 ? servicesWithPendingDistribution.map(service => {
+                                    const client = getClient(service.cliente_id);
+                                    const address = client?.endereco_obra;
+                                    const formattedAddress = address ? `${address.street}, ${address.number} - ${address.neighborhood}, ${address.city} - ${address.state}` : 'N/A';
+                                    return (
+                                        <TableRow key={service.id}>
+                                            <TableCell className="font-medium">{client?.nome_completo || 'Desconhecido'}</TableCell>
+                                            <TableCell>{service.descricao}</TableCell>
+                                            <TableCell>{formattedAddress}</TableCell>
+                                            <TableCell>R$ {(service.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
+                                            <TableCell className="text-red-500">R$ {(service.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
+                                            <TableCell>
+                                                <Badge variant={
+                                                    service.status === 'concluído' ? 'secondary' :
+                                                    service.status === 'cancelado' ? 'destructive' :
+                                                    'default'
+                                                }>
+                                                    {service.status}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell>{getDistributionStatus(service)}</TableCell>
+                                            <TableCell className="text-right">
+                                                <Button variant="accent" size="sm" onClick={() => handleDistributeClick(service)}>
+                                                    <Users className="mr-2 h-4 w-4" />
+                                                    Distribuir
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    )
+                                }) : (
                                     <TableRow>
-                                        <TableCell colSpan={4} className="h-24 text-center">Nenhum serviço com distribuição pendente.</TableCell>
+                                        <TableCell colSpan={8} className="h-24 text-center">Nenhum serviço com distribuição pendente.</TableCell>
                                     </TableRow>
                                 )}
                             </TableBody>
@@ -551,7 +587,6 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, financials, toas
                 }
             });
             
-            // Marcar o serviço como tendo o lucro distribuído
             const serviceDocRef = doc(db, 'servicos', service.id);
             batch.update(serviceDocRef, { lucro_distribuido: true });
 
