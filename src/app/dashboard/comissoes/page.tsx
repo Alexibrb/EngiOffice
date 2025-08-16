@@ -55,6 +55,7 @@ import { ptBR } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
 import { DateRange } from 'react-day-picker';
 import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 
 const commissionSchema = z.object({
   funcionario_id: z.string().min(1, 'Funcionário é obrigatório.'),
@@ -80,7 +81,9 @@ const CommissionFormContent = ({ form, employees, clients, services }: { form: a
     
     const commissionBasedEmployees = employees.filter(emp => emp.tipo_contratacao === 'comissao');
     
-    const selectedClient = clients.find(c => c.codigo_cliente === selectedClientId);
+    const selectedService = services.find(s => s.id === selectedServicoId);
+    const selectedClient = clients.find(c => c.codigo_cliente === selectedService?.cliente_id);
+
 
     useEffect(() => {
         form.setValue('servico_id', '');
@@ -123,18 +126,6 @@ const CommissionFormContent = ({ form, employees, clients, services }: { form: a
                     </FormItem>
                 )}
             />
-            {selectedClient && (
-                <>
-                    <div className="md:col-span-2 space-y-2">
-                        <Label>Nome do Cliente</Label>
-                        <Input value={selectedClient.nome_completo} readOnly disabled />
-                    </div>
-                    <div className="md:col-span-2 space-y-2">
-                        <Label>Endereço da Obra</Label>
-                        <Textarea value={fullAddress} readOnly disabled rows={2} />
-                    </div>
-                </>
-            )}
             <FormField
                 control={form.control}
                 name="servico_id"
@@ -151,6 +142,18 @@ const CommissionFormContent = ({ form, employees, clients, services }: { form: a
                     </FormItem>
                 )}
             />
+             {selectedClient && (
+                <>
+                    <div className="md:col-span-2 space-y-2">
+                        <Label>Nome do Cliente</Label>
+                        <Input value={selectedClient.nome_completo} readOnly disabled />
+                    </div>
+                    <div className="md:col-span-2 space-y-2">
+                        <Label>Endereço da Obra</Label>
+                        <Textarea value={fullAddress} readOnly disabled rows={2} />
+                    </div>
+                </>
+            )}
              <FormField
                 control={form.control}
                 name="valor"
@@ -512,9 +515,5 @@ export default function ComissoesPage() {
         </div>
     );
 }
-
-    
-
-    
 
     
