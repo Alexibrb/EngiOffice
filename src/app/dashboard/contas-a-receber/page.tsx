@@ -50,6 +50,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { ptBR } from 'date-fns/locale';
+import { useAuth } from '@/app/dashboard/layout';
 
 const paymentSchema = z.object({
   valor_pago: z.coerce.number().min(0.01, "O valor deve ser maior que zero.")
@@ -504,6 +505,8 @@ function ReceivableTableComponent({ services, getClient, totalValor, totalSaldo,
     onDistribute: (service: Service) => void,
 }) {
     const router = useRouter();
+    const { user } = useAuth();
+    const isAdmin = user?.role === 'admin';
 
     const handleEditService = (serviceId: string) => {
         router.push(`/dashboard/servicos?edit=${serviceId}`);
@@ -585,7 +588,7 @@ function ReceivableTableComponent({ services, getClient, totalValor, totalSaldo,
                                             <DropdownMenuSeparator />
                                              <DropdownMenuItem 
                                                 onClick={() => onDistribute(service)} 
-                                                disabled={service.status === 'cancelado' || (service.valor_pago || 0) === 0 || service.lucro_distribuido}
+                                                disabled={!isAdmin || service.status === 'cancelado' || (service.valor_pago || 0) === 0 || service.lucro_distribuido}
                                              >
                                                 <Users className="mr-2 h-4 w-4" />
                                                 Distribuir Lucro
@@ -802,5 +805,7 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, paymentValue, fi
     
 
 
+
+    
 
     

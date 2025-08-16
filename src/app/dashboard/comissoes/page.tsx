@@ -42,6 +42,7 @@ import { Badge } from '@/components/ui/badge';
 import { DateRange } from 'react-day-picker';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useAuth } from '@/app/dashboard/layout';
 
 export default function ComissoesPage() {
     const [commissions, setCommissions] = useState<Commission[]>([]);
@@ -54,6 +55,8 @@ export default function ComissoesPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [isDeletingAll, setIsDeletingAll] = useState(false);
     const { toast } = useToast();
+    const { user } = useAuth();
+    const isAdmin = user?.role === 'admin';
     
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
     const [statusFilter, setStatusFilter] = useState<string>('');
@@ -286,7 +289,7 @@ export default function ComissoesPage() {
                           </AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>
-                    <Button onClick={() => setIsDistributionListOpen(true)} variant="accent">
+                    <Button onClick={() => setIsDistributionListOpen(true)} variant="accent" disabled={!isAdmin}>
                         <PlusCircle className="mr-2 h-4 w-4" />
                         Lançar Comissão
                     </Button>
@@ -380,7 +383,7 @@ export default function ComissoesPage() {
                                 </TableCell>
                                 <TableCell>
                                     <DropdownMenu>
-                                        <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                        <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" disabled={!isAdmin}><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
                                             <DropdownMenuLabel>Ações</DropdownMenuLabel>
                                             <AlertDialog>
@@ -680,3 +683,5 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, financials, toas
         </Dialog>
     );
 }
+
+    

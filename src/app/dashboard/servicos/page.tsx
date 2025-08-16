@@ -60,6 +60,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { DateRange } from 'react-day-picker';
 import jsPDF from 'jspdf';
 import { Label } from '@/components/ui/label';
+import { useAuth } from '@/app/dashboard/layout';
 
 const serviceSchema = z.object({
   descricao: z.string().min(1, { message: 'Descrição é obrigatória.' }),
@@ -221,6 +222,8 @@ export default function ServicosPage() {
   const { toast } = useToast();
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
   
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [statusFilter, setStatusFilter] = useState<string>('');
@@ -1047,7 +1050,7 @@ export default function ServicosPage() {
                                         <DropdownMenuSeparator />
                                         <DropdownMenuItem 
                                             onClick={() => handleDistributionClick(service)} 
-                                            disabled={service.status === 'cancelado' || (service.valor_pago || 0) === 0 || service.lucro_distribuido}
+                                            disabled={!isAdmin || service.status === 'cancelado' || (service.valor_pago || 0) === 0 || service.lucro_distribuido}
                                         >
                                             <Users className="mr-2 h-4 w-4" />
                                             Distribuir Lucro
@@ -1337,5 +1340,7 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, paymentValue, fi
 
     
 
+
+    
 
     
