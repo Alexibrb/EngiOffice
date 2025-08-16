@@ -638,9 +638,7 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, paymentValue, fi
     }, [isOpen, service, toast]);
 
     const profitFromPayment = valueForCalculation * profitMargin;
-    
-    // This is the cash balance *before* this payment is considered.
-    const cashBalanceBeforeThisPayment = financials.balance - valueForCalculation;
+    const cashBalanceBeforeThisPayment = financials.balance;
 
     let amountToDistribute = profitFromPayment;
     let deficitCoverage = 0;

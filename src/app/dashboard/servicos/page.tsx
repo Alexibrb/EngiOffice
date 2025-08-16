@@ -950,7 +950,7 @@ export default function ServicosPage() {
                                 </DropdownMenuItem>
                                 <DropdownMenuItem 
                                     onClick={() => handleDistributionClick(service)} 
-                                    disabled={service.status === 'cancelado' || service.valor_total === service.saldo_devedor}
+                                    disabled={service.status === 'cancelado' || service.saldo_devedor === service.valor_total}
                                 >
                                     <Users className="mr-2 h-4 w-4" />
                                     Distribuir Lucro
@@ -1109,9 +1109,7 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, paymentValue, fi
     }, [isOpen, service, toast]);
 
     const profitFromPayment = valueForCalculation * profitMargin;
-    
-    // This is the cash balance *before* this payment is considered.
-    const cashBalanceBeforeThisPayment = financials.balance - valueForCalculation;
+    const cashBalanceBeforeThisPayment = financials.balance;
 
     let amountToDistribute = profitFromPayment;
     let deficitCoverage = 0;
