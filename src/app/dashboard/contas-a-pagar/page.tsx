@@ -939,25 +939,31 @@ function PayableTableComponent({ accounts, getPayeeName, onEdit, onDelete, total
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {accounts.length > 0 ? accounts.map((account) => (
+                    {accounts.length > 0 ? accounts.map((account) => {
+                        const isPaid = account.status === 'pago';
+                        return (
                         <TableRow key={account.id}>
                             <TableCell className="font-medium">{account.descricao}</TableCell>
                             <TableCell>{getPayeeName(account)}</TableCell>
                             <TableCell>{format(account.vencimento, 'dd/MM/yyyy')}</TableCell>
                             <TableCell className="text-right text-red-500">R$ {account.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
                             <TableCell>
-                                <Badge variant={account.status === 'pendente' ? 'destructive' : 'secondary'}>
+                                <Badge variant={isPaid ? 'secondary' : 'destructive'}>
                                     {account.status}
                                 </Badge>
                             </TableCell>
                             <TableCell>
                                 <DropdownMenu>
-                                    <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" disabled={!isAdmin}><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" size="icon" disabled={isPaid}>
+                                            <MoreHorizontal className="h-4 w-4" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
                                         <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                                        <DropdownMenuItem onClick={() => onEdit(account)} disabled={!isAdmin}>Editar</DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => onEdit(account)} disabled={!isAdmin || isPaid}>Editar</DropdownMenuItem>
                                         <AlertDialog>
-                                            <AlertDialogTrigger asChild><DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600" disabled={!isAdmin}>Excluir</DropdownMenuItem></AlertDialogTrigger>
+                                            <AlertDialogTrigger asChild><DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600" disabled={!isAdmin || isPaid}>Excluir</DropdownMenuItem></AlertDialogTrigger>
                                             <AlertDialogContent>
                                                 <AlertDialogHeader>
                                                     <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
@@ -973,7 +979,7 @@ function PayableTableComponent({ accounts, getPayeeName, onEdit, onDelete, total
                                 </DropdownMenu>
                             </TableCell>
                         </TableRow>
-                    )) : (
+                    )}) : (
                         <TableRow>
                             <TableCell colSpan={6} className="h-24 text-center">Nenhum lançamento encontrado.</TableCell>
                         </TableRow>

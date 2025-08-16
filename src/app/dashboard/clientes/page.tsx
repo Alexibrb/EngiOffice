@@ -185,14 +185,14 @@ function ClientTableRow({ client, onEdit, onDelete }: { client: Client, onEdit: 
           <TableCell>
               <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                  <Button aria-haspopup="true" size="icon" variant="ghost" disabled={!isAdmin}>
+                  <Button aria-haspopup="true" size="icon" variant="ghost">
                   <MoreHorizontal className="h-4 w-4" />
                   <span className="sr-only">Toggle menu</span>
                   </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                   <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                  <DropdownMenuItem onClick={() => onEdit(client)} disabled={!isAdmin}>
+                  <DropdownMenuItem onClick={() => onEdit(client)}>
                   Editar
                   </DropdownMenuItem>
                   <AlertDialog>

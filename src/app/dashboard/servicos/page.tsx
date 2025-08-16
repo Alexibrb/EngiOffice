@@ -743,7 +743,7 @@ export default function ServicosPage() {
                     </AlertDialog>
                 <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogTrigger asChild>
-                    <Button onClick={handleAddNewClick} variant="accent" disabled={!isAdmin}>
+                    <Button onClick={handleAddNewClick} variant="accent">
                     <PlusCircle className="mr-2 h-4 w-4" />
                     Adicionar Serviço
                     </Button>
@@ -1341,3 +1341,4 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, paymentValue, fi
     
 
     
+

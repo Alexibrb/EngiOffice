@@ -36,6 +36,7 @@ import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { DateRange } from 'react-day-picker';
+import { useAuth } from '@/app/dashboard/layout';
 
 type ReportType = 'clients' | 'suppliers' | 'services' | 'accountsPayable' | 'commissions';
 
@@ -53,6 +54,9 @@ export default function RelatoriosPage() {
   const [searchFilter, setSearchFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
 
   const { toast } = useToast();
 
@@ -253,7 +257,7 @@ export default function RelatoriosPage() {
             const service = getService(item.servico_id);
             const client = service ? getClient(service.cliente_id) : undefined;
             const address = client?.endereco_obra;
-            const formattedAddress = address ? `${address.street}, ${address.number} - ${address.neighborhood}, ${address.city} - ${address.state}` : 'N/A';
+            const formattedAddress = address ? `${address.street}, ${address.number}, ${address.neighborhood}, ${address.city} - ${address.state}` : '';
 
             return [
                 getEmployeeName(item.funcionario_id), 
@@ -592,7 +596,7 @@ export default function RelatoriosPage() {
                 <SelectItem value="suppliers">Fornecedores</SelectItem>
                 <SelectItem value="services">Serviços</SelectItem>
                 <SelectItem value="accountsPayable">Contas a Pagar</SelectItem>
-                <SelectItem value="commissions">Comissões</SelectItem>
+                {isAdmin && <SelectItem value="commissions">Comissões</SelectItem>}
             </SelectContent>
         </Select>
       </div>
