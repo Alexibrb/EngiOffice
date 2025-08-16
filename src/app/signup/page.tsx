@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { Button } from '@/components/ui/button';
 import {
@@ -18,7 +18,6 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
   Form,
   FormControl,
@@ -32,37 +31,46 @@ import { Rocket, Loader2 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
 
-const loginSchema = z.object({
+const signupSchema = z.object({
+  name: z.string().min(1, { message: 'Nome é obrigatório.' }),
   email: z.string().email({ message: 'Por favor, insira um email válido.' }),
-  password: z.string().min(1, { message: 'Senha é obrigatória.' }),
+  password: z.string().min(6, { message: 'A senha deve ter pelo menos 6 caracteres.' }),
 });
 
-export default function LoginPage() {
+export default function SignupPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const form = useForm<z.infer<typeof loginSchema>>({
-    resolver: zodResolver(loginSchema),
+  const form = useForm<z.infer<typeof signupSchema>>({
+    resolver: zodResolver(signupSchema),
     defaultValues: {
+      name: '',
       email: '',
       password: '',
     },
   });
 
-  const onSubmit = async (values: z.infer<typeof loginSchema>) => {
+  const onSubmit = async (values: z.infer<typeof signupSchema>) => {
     setIsLoading(true);
     setError(null);
     try {
-      await signInWithEmailAndPassword(auth, values.email, values.password);
+      const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
+      
+      if (userCredential.user) {
+        await updateProfile(userCredential.user, {
+          displayName: values.name,
+        });
+      }
+
       toast({
-        title: 'Login bem-sucedido!',
-        description: 'Redirecionando para o dashboard...',
+        title: 'Conta criada com sucesso!',
+        description: 'Você já pode fazer o login.',
       });
-      router.push('/dashboard');
+      router.push('/');
     } catch (err: any) {
-      setError(err.message || 'Ocorreu um erro desconhecido.');
+       setError(err.message || 'Ocorreu um erro desconhecido.');
     } finally {
       setIsLoading(false);
     }
@@ -73,9 +81,9 @@ export default function LoginPage() {
       <Card className="w-full max-w-sm">
         <CardHeader className="items-center text-center">
           <Rocket className="h-8 w-8 text-primary" />
-          <CardTitle className="font-headline text-3xl">EngiFlow</CardTitle>
+          <CardTitle className="font-headline text-3xl">Criar Conta</CardTitle>
           <CardDescription>
-            Entre para gerenciar seus projetos de engenharia.
+            Junte-se ao EngiFlow para começar a gerenciar.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -84,10 +92,23 @@ export default function LoginPage() {
               {error && (
                 <Alert variant="destructive">
                   <AlertCircle className="h-4 w-4" />
-                  <AlertTitle>Erro no Login</AlertTitle>
+                  <AlertTitle>Erro no Cadastro</AlertTitle>
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nome</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Seu nome" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <FormField
                 control={form.control}
                 name="email"
@@ -110,15 +131,7 @@ export default function LoginPage() {
                 name="password"
                 render={({ field }) => (
                   <FormItem>
-                    <div className="flex items-center">
-                      <FormLabel>Senha</FormLabel>
-                      <Link
-                        href="#"
-                        className="ml-auto inline-block text-sm underline"
-                      >
-                        Esqueceu sua senha?
-                      </Link>
-                    </div>
+                    <FormLabel>Senha</FormLabel>
                     <FormControl>
                       <Input type="password" {...field} />
                     </FormControl>
@@ -128,14 +141,14 @@ export default function LoginPage() {
               />
               <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" disabled={isLoading}>
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Login
+                Criar conta
               </Button>
             </form>
           </Form>
           <div className="mt-4 text-center text-sm">
-            Não tem uma conta?{' '}
-            <Link href="/signup" className="underline">
-              Cadastre-se
+            Já tem uma conta?{' '}
+            <Link href="/" className="underline">
+              Login
             </Link>
           </div>
         </CardContent>
