@@ -2,9 +2,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useForm, useWatch } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -13,7 +10,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
 import {
   Table,
@@ -24,20 +20,10 @@ import {
   TableRow,
   TableFooter,
 } from '@/components/ui/table';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
 import { useToast } from "@/hooks/use-toast"
-import { collection, addDoc, getDocs, doc, setDoc, deleteDoc, Timestamp, writeBatch } from 'firebase/firestore';
+import { collection, getDocs, doc, writeBatch, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { PlusCircle, MoreHorizontal, Loader2, Calendar as CalendarIcon, XCircle, Trash, User } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Loader2, Calendar as CalendarIcon, XCircle, Trash, User, Users } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -46,7 +32,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import type { Commission, Employee, Service, Client } from '@/lib/types';
+import type { Commission, Employee, Service, Client, Account } from '@/lib/types';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
@@ -54,199 +40,36 @@ import { format, endOfDay, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
 import { DateRange } from 'react-day-picker';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-
-const commissionSchema = z.object({
-  funcionario_id: z.string().min(1, 'Funcionário é obrigatório.'),
-  cliente_id: z.string().min(1, 'Cliente é obrigatório.'),
-  servico_id: z.string().min(1, 'Serviço é obrigatório.'),
-  valor: z.coerce.number().min(0.01, 'Valor deve ser maior que zero.'),
-  data: z.date({ required_error: 'Data é obrigatória.' }),
-  status: z.enum(['pendente', 'pago']),
-});
-
-const CommissionFormContent = ({ form, employees, clients, services }: { form: any, employees: Employee[], clients: Client[], services: Service[] }) => {
-    const selectedClientId = useWatch({
-      control: form.control,
-      name: 'cliente_id',
-    });
-    
-    const selectedServicoId = useWatch({
-        control: form.control,
-        name: 'servico_id'
-    });
-
-    const filteredServices = services.filter(service => service.cliente_id === selectedClientId);
-    
-    const commissionBasedEmployees = employees.filter(emp => emp.tipo_contratacao === 'comissao');
-    
-    const clientForService = selectedClientId ? clients.find(c => c.codigo_cliente === selectedClientId) : null;
-
-
-    useEffect(() => {
-        if (!selectedServicoId) {
-           const service = services.find(s => s.id === form.getValues('servico_id'));
-           if (service) {
-               form.setValue('cliente_id', service.cliente_id);
-           }
-        }
-    }, [selectedServicoId, form, services]);
-
-    useEffect(() => {
-        form.setValue('servico_id', '');
-    }, [selectedClientId, form]);
-
-    const workAddress = clientForService?.endereco_obra;
-    const fullAddress = workAddress ? [workAddress.street, workAddress.number, workAddress.neighborhood, workAddress.city, workAddress.state].filter(Boolean).join(', ') : 'Endereço da obra não disponível';
-
-    return (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField
-                control={form.control}
-                name="funcionario_id"
-                render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Funcionário (Comissão) *</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
-                            <FormControl><SelectTrigger><SelectValue placeholder="Selecione o Funcionário" /></SelectTrigger></FormControl>
-                            <SelectContent>
-                                {commissionBasedEmployees.map(emp => (<SelectItem key={emp.id} value={emp.id}>{emp.nome}</SelectItem>))}
-                            </SelectContent>
-                        </Select>
-                        <FormMessage />
-                    </FormItem>
-                )}
-            />
-             <FormField
-                control={form.control}
-                name="cliente_id"
-                render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Cliente *</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
-                            <FormControl><SelectTrigger><SelectValue placeholder="Selecione o Cliente" /></SelectTrigger></FormControl>
-                            <SelectContent>
-                                {clients.map(cli => (<SelectItem key={cli.codigo_cliente} value={cli.codigo_cliente}>{cli.nome_completo}</SelectItem>))}
-                            </SelectContent>
-                        </Select>
-                        <FormMessage />
-                    </FormItem>
-                )}
-            />
-            <FormField
-                control={form.control}
-                name="servico_id"
-                render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Serviço Referente *</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value} disabled={!selectedClientId}>
-                            <FormControl><SelectTrigger><SelectValue placeholder={selectedClientId ? "Selecione o Serviço" : "Selecione um cliente primeiro"} /></SelectTrigger></FormControl>
-                            <SelectContent>
-                                {filteredServices.map(srv => (<SelectItem key={srv.id} value={srv.id}>{srv.descricao}</SelectItem>))}
-                            </SelectContent>
-                        </Select>
-                        <FormMessage />
-                    </FormItem>
-                )}
-            />
-             {clientForService && (
-                <>
-                    <div className="md:col-span-2 space-y-2">
-                        <Label>Nome do Cliente</Label>
-                        <Input value={clientForService.nome_completo} readOnly disabled />
-                    </div>
-                    <div className="md:col-span-2 space-y-2">
-                        <Label>Endereço da Obra</Label>
-                        <Textarea value={fullAddress} readOnly disabled rows={2} />
-                    </div>
-                </>
-            )}
-             <FormField
-                control={form.control}
-                name="valor"
-                render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Valor (R$)</FormLabel>
-                        <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
-                        <FormMessage />
-                    </FormItem>
-                )}
-            />
-            <FormField
-                control={form.control}
-                name="data"
-                render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Data de Pagamento</FormLabel>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <FormControl>
-                            <Button
-                              variant={"outline"}
-                              className={cn("w-full pl-3 text-left font-normal",!field.value && "text-muted-foreground")}>
-                              {field.value ? (format(field.value, "PPP", { locale: ptBR })) : (<span>Escolha uma data</span>)}
-                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                            </Button>
-                          </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus/>
-                        </PopoverContent>
-                      </Popover>
-                      <FormMessage />
-                    </FormItem>
-                )}
-            />
-            <FormField
-                control={form.control}
-                name="status"
-                render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Status</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
-                            <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                            <SelectContent>
-                                <SelectItem value="pendente">Pendente</SelectItem>
-                                <SelectItem value="pago">Pago</SelectItem>
-                            </SelectContent>
-                        </Select>
-                        <FormMessage />
-                    </FormItem>
-                )}
-            />
-        </div>
-    );
-};
-
 
 export default function ComissoesPage() {
     const [commissions, setCommissions] = useState<Commission[]>([]);
     const [employees, setEmployees] = useState<Employee[]>([]);
     const [clients, setClients] = useState<Client[]>([]);
     const [services, setServices] = useState<Service[]>([]);
-    const [isDialogOpen, setIsDialogOpen] = useState(false);
-    const [editingCommission, setEditingCommission] = useState<Commission | null>(null);
+    const [isDistributionListOpen, setIsDistributionListOpen] = useState(false);
+    const [isDistributionDialogOpen, setIsDistributionDialogOpen] = useState(false);
+    const [distributingService, setDistributingService] = useState<Service | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [isDeletingAll, setIsDeletingAll] = useState(false);
     const { toast } = useToast();
     
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
     const [statusFilter, setStatusFilter] = useState<string>('');
-
-    const form = useForm<z.infer<typeof commissionSchema>>({
-        resolver: zodResolver(commissionSchema),
+    const [financials, setFinancials] = useState({
+      balance: 0,
+      commissionableEmployees: [] as Employee[],
     });
 
     const fetchData = async () => {
         setIsLoading(true);
         try {
-            const [commissionsSnapshot, employeesSnapshot, servicesSnapshot, clientsSnapshot] = await Promise.all([
+            const [commissionsSnapshot, employeesSnapshot, servicesSnapshot, clientsSnapshot, accountsPayableSnap] = await Promise.all([
                 getDocs(collection(db, "comissoes")),
                 getDocs(collection(db, "funcionarios")),
                 getDocs(collection(db, "servicos")),
                 getDocs(collection(db, "clientes")),
+                getDocs(collection(db, "contas_a_pagar")),
             ]);
 
             const commissionsData = commissionsSnapshot.docs.map(doc => {
@@ -258,11 +81,39 @@ export default function ComissoesPage() {
             const employeesData = employeesSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }) as Employee);
             setEmployees(employeesData);
 
-            const servicesData = servicesSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }) as Service);
+            const servicesData = servicesSnapshot.docs.map(doc => {
+                const data = doc.data();
+                 return {
+                  ...data,
+                  id: doc.id,
+                  data_cadastro: data.data_cadastro instanceof Timestamp ? data.data_cadastro.toDate() : new Date(data.data_cadastro),
+                } as Service
+            });
             setServices(servicesData);
             
             const clientsData = clientsSnapshot.docs.map(doc => ({ ...doc.data(), codigo_cliente: doc.id }) as Client);
             setClients(clientsData);
+
+            // Fetch financials for distribution dialog
+            const allServices = servicesData;
+            const totalRevenue = allServices
+                .reduce((sum, s) => sum + (s.valor_pago || 0), 0);
+
+            const allAccountsPayable = accountsPayableSnap.docs.map(doc => doc.data() as Account);
+            const totalExpenses = allAccountsPayable
+                .filter(acc => acc.status === 'pago')
+                .reduce((sum, currentAccount) => sum + currentAccount.valor, 0);
+            
+            const totalCommissionsPaid = commissionsData
+                .filter(c => c.status === 'pago')
+                .reduce((sum, c) => sum + c.valor, 0);
+            
+            const commissionableEmployees = employeesData.filter(e => e.tipo_contratacao === 'comissao' && e.status === 'ativo');
+
+             setFinancials({
+                balance: totalRevenue - totalExpenses - totalCommissionsPaid,
+                commissionableEmployees,
+            });
 
 
         } catch (error) {
@@ -279,34 +130,11 @@ export default function ComissoesPage() {
     
     const getEmployeeName = (id: string) => employees.find(e => e.id === id)?.nome || 'Desconhecido';
     const getServiceDescription = (id: string) => services.find(s => s.id === id)?.descricao || 'Desconhecido';
-
-    const handleSaveCommission = async (values: z.infer<typeof commissionSchema>) => {
-        setIsLoading(true);
-        try {
-            const commissionData = { ...values };
-            if (editingCommission) {
-                const docRef = doc(db, 'comissoes', editingCommission.id);
-                await setDoc(docRef, commissionData);
-                toast({ title: "Sucesso!", description: "Comissão atualizada com sucesso." });
-            } else {
-                await addDoc(collection(db, 'comissoes'), commissionData);
-                toast({ title: "Sucesso!", description: "Comissão adicionada com sucesso." });
-            }
-            form.reset();
-            setEditingCommission(null);
-            setIsDialogOpen(false);
-            await fetchData();
-        } catch (error) {
-            console.error("Erro ao salvar comissão: ", error);
-            toast({ variant: "destructive", title: "Erro", description: "Ocorreu um erro ao salvar a comissão." });
-        } finally {
-            setIsLoading(false);
-        }
-    };
+    const getClientName = (id: string) => clients.find(c => c.codigo_cliente === id)?.nome_completo || 'Desconhecido';
     
     const handleDeleteCommission = async (id: string) => {
         try {
-            await deleteDoc(doc(db, 'comissoes', id));
+            await doc(db, 'comissoes', id).delete();
             toast({ title: "Sucesso!", description: "Comissão excluída com sucesso." });
             await fetchData();
         } catch (error) {
@@ -345,30 +173,10 @@ export default function ComissoesPage() {
         }
     };
 
-    const handleAddNewClick = () => {
-        setEditingCommission(null);
-        form.reset({
-            funcionario_id: '',
-            cliente_id: '',
-            servico_id: '',
-            valor: 0,
-            status: 'pendente',
-            data: new Date()
-        });
-        setIsDialogOpen(true);
-    };
-
-    const handleEditClick = (commission: Commission) => {
-        const service = services.find(s => s.id === commission.servico_id);
-        const clientId = service ? service.cliente_id : '';
-
-        setEditingCommission(commission);
-        form.reset({
-            ...commission,
-            cliente_id: clientId,
-            data: commission.data instanceof Date ? commission.data : new Date(commission.data),
-        });
-        setIsDialogOpen(true);
+    const handleDistributeClick = (service: Service) => {
+        setDistributingService(service);
+        setIsDistributionListOpen(false); // Close the list
+        setIsDistributionDialogOpen(true); // Open the distribution dialog
     };
     
      const handleClearFilters = () => {
@@ -403,6 +211,17 @@ export default function ComissoesPage() {
             .filter(c => c.funcionario_id === employee.id)
             .reduce((sum, c) => sum + c.valor, 0);
         return { employeeName: employee.nome, total };
+    });
+    
+    const servicesWithPendingDistribution = services.filter(s => {
+      const relatedCommissions = commissions.filter(c => c.servico_id === s.id);
+      const isEligible = (s.valor_pago || 0) > 0 && s.status !== 'cancelado';
+      if (!isEligible) return false;
+      
+      const totalCommissionPaid = relatedCommissions.reduce((sum, c) => sum + c.valor, 0);
+      // Rough check: if total paid is less than potential profit, there might be something to distribute
+      // This logic can be improved, but for now it's a proxy.
+      return (s.valor_pago || 0) > totalCommissionPaid;
     });
 
     return (
@@ -456,7 +275,7 @@ export default function ComissoesPage() {
                           </AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>
-                    <Button onClick={handleAddNewClick} variant="accent">
+                    <Button onClick={() => setIsDistributionListOpen(true)} variant="accent">
                         <PlusCircle className="mr-2 h-4 w-4" />
                         Lançar Comissão
                     </Button>
@@ -544,7 +363,6 @@ export default function ComissoesPage() {
                                         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
                                             <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                                            <DropdownMenuItem onClick={() => handleEditClick(commission)}>Editar</DropdownMenuItem>
                                             <AlertDialog>
                                                 <AlertDialogTrigger asChild><DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600">Excluir</DropdownMenuItem></AlertDialogTrigger>
                                                 <AlertDialogContent>
@@ -591,33 +409,233 @@ export default function ComissoesPage() {
                 </Table>
             </div>
 
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+            <Dialog open={isDistributionListOpen} onOpenChange={setIsDistributionListOpen}>
+                <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
-                        <DialogTitle className="font-headline">{editingCommission ? 'Editar' : 'Lançar'} Comissão</DialogTitle>
+                        <DialogTitle>Distribuir Lucro de Serviços</DialogTitle>
                         <DialogDescription>
-                            Preencha os dados da comissão.
+                            Selecione um serviço para calcular e distribuir as comissões.
                         </DialogDescription>
                     </DialogHeader>
-                    <Form {...form}>
-                        <form onSubmit={form.handleSubmit(handleSaveCommission)} className="space-y-6">
-                            <CommissionFormContent
-                                form={form}
-                                employees={employees}
-                                clients={clients}
-                                services={services}
-                            />
-                            <DialogFooter>
-                                <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
-                                <Button type="submit" disabled={isLoading} variant="accent">
-                                    {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                    Salvar
-                                </Button>
-                            </DialogFooter>
-                        </form>
-                    </Form>
+                    <div className="border rounded-lg mt-4">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Serviço</TableHead>
+                                    <TableHead>Cliente</TableHead>
+                                    <TableHead className="text-right">Valor Pago</TableHead>
+                                    <TableHead className="text-right">Ações</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {servicesWithPendingDistribution.length > 0 ? servicesWithPendingDistribution.map(service => (
+                                    <TableRow key={service.id}>
+                                        <TableCell className="font-medium">{service.descricao}</TableCell>
+                                        <TableCell>{getClientName(service.cliente_id)}</TableCell>
+                                        <TableCell className="text-right text-green-500">
+                                            {service.valor_pago.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            <Button variant="accent" size="sm" onClick={() => handleDistributeClick(service)}>
+                                                <Users className="mr-2 h-4 w-4" />
+                                                Distribuir
+                                            </Button>
+                                        </TableCell>
+                                    </TableRow>
+                                )) : (
+                                    <TableRow>
+                                        <TableCell colSpan={4} className="h-24 text-center">Nenhum serviço com distribuição pendente.</TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </div>
                 </DialogContent>
             </Dialog>
+            {distributingService && (
+                <ProfitDistributionDialog
+                    isOpen={isDistributionDialogOpen}
+                    setIsOpen={setIsDistributionDialogOpen}
+                    service={distributingService}
+                    financials={financials}
+                    toast={toast}
+                    onDistributionComplete={fetchData}
+                />
+            )}
         </div>
     );
 }
+
+
+function ProfitDistributionDialog({ isOpen, setIsOpen, service, financials, toast, onDistributionComplete }: {
+    isOpen: boolean;
+    setIsOpen: (isOpen: boolean) => void;
+    service: Service;
+    financials: { balance: number; commissionableEmployees: Employee[] };
+    toast: any;
+    onDistributionComplete: () => void;
+}) {
+    const [isLoading, setIsLoading] = useState(false);
+    const [serviceCosts, setServiceCosts] = useState(0);
+    const [profitMargin, setProfitMargin] = useState(0);
+
+    const amountPaidSoFar = service.valor_pago || 0;
+
+    useEffect(() => {
+        const fetchCostsAndCalculateMargin = async () => {
+            if (!service || !isOpen) return;
+            
+            setIsLoading(true);
+            try {
+                // This is a simplified cost calculation. A real scenario might be more complex.
+                const accountsPayableSnap = await getDocs(collection(db, 'contas_a_pagar'));
+                const accountsPayable = accountsPayableSnap.docs.map(doc => doc.data() as Account);
+                const relatedExpenses = accountsPayable
+                    .filter(acc => acc.servico_id === service.id)
+                    .reduce((sum, acc) => sum + acc.valor, 0);
+                
+                const totalCosts = relatedExpenses;
+                setServiceCosts(totalCosts);
+
+                if (service.valor_total > 0) {
+                    const margin = (service.valor_total - totalCosts) / service.valor_total;
+                    setProfitMargin(margin);
+                } else {
+                    setProfitMargin(0);
+                }
+
+            } catch (error) {
+                console.error("Erro ao buscar custos do serviço:", error);
+                toast({ variant: 'destructive', title: 'Erro', description: 'Não foi possível calcular os custos do serviço.' });
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchCostsAndCalculateMargin();
+    }, [isOpen, service, toast]);
+
+    const profitFromPayment = amountPaidSoFar * profitMargin;
+    const cashBalanceBeforeThisPayment = financials.balance - amountPaidSoFar;
+
+    let amountToDistribute = profitFromPayment;
+    let deficitCoverage = 0;
+
+    if (cashBalanceBeforeThisPayment < 0) {
+        deficitCoverage = Math.min(profitFromPayment, Math.abs(cashBalanceBeforeThisPayment));
+        amountToDistribute -= deficitCoverage;
+    }
+    
+    amountToDistribute = Math.max(0, amountToDistribute);
+
+    const handleConfirmDistribution = async () => {
+        if (financials.commissionableEmployees.length === 0) {
+            toast({ variant: 'destructive', title: 'Erro', description: 'Nenhum funcionário comissionado ativo encontrado.' });
+            return;
+        }
+        
+        setIsLoading(true);
+        try {
+            const batch = writeBatch(db);
+
+            financials.commissionableEmployees.forEach(employee => {
+                const commissionRate = (employee.taxa_comissao || 0) / 100;
+                const individualCommission = amountToDistribute * commissionRate;
+
+                if (individualCommission > 0) {
+                    const commissionData = {
+                        funcionario_id: employee.id,
+                        servico_id: service.id,
+                        cliente_id: service.cliente_id,
+                        valor: individualCommission,
+                        data: Timestamp.now(),
+                        status: 'pago', // Assuming direct payment
+                    };
+                    const commissionDocRef = doc(collection(db, 'comissoes'));
+                    batch.set(commissionDocRef, commissionData);
+                }
+            });
+            
+            await batch.commit();
+
+            toast({ title: 'Sucesso!', description: 'Comissões distribuídas e lançadas com sucesso!' });
+            setIsOpen(false);
+            onDistributionComplete();
+        } catch (error) {
+            console.error('Erro ao distribuir lucro:', error);
+            toast({ variant: 'destructive', title: 'Erro', description: 'Ocorreu um erro ao salvar as comissões.' });
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    return (
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogContent className="sm:max-w-lg">
+                <DialogHeader>
+                    <DialogTitle>Distribuir Lucro do Serviço</DialogTitle>
+                    <DialogDescription>
+                       Revisão da distribuição do lucro total já pago para "{service.descricao}".
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                    <div className="p-4 border rounded-lg space-y-2 bg-muted/50">
+                        <h4 className="font-semibold text-center mb-2">Resumo da Distribuição</h4>
+                        <div className="flex justify-between items-center text-sm">
+                            <span className="text-muted-foreground">Valor Total Pago:</span>
+                            <span className="font-medium text-green-600">{amountPaidSoFar.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                        </div>
+                         <div className="flex justify-between items-center text-sm">
+                            <span className="text-muted-foreground">Margem de Lucro do Serviço:</span>
+                            <span className="font-medium">{profitMargin.toLocaleString('pt-BR', { style: 'percent', minimumFractionDigits: 2 })}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-sm">
+                            <span className="text-muted-foreground">Lucro deste Montante:</span>
+                            <span className="font-medium text-green-600">{profitFromPayment.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-sm">
+                            <span className="text-muted-foreground">Saldo de Caixa (antes do valor):</span>
+                            <span className={cn("font-medium", cashBalanceBeforeThisPayment < 0 ? 'text-red-600' : 'text-green-600')}>{cashBalanceBeforeThisPayment.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                        </div>
+                         {cashBalanceBeforeThisPayment < 0 && (
+                             <div className="flex justify-between items-center text-sm">
+                                <span className="text-muted-foreground">Cobertura de Déficit:</span>
+                                <span className="font-medium text-orange-500">-{deficitCoverage.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                            </div>
+                         )}
+                        <div className="flex justify-between items-center text-lg border-t pt-2 mt-2">
+                            <span className="font-bold">Valor Base para Comissões:</span>
+                            <span className="font-bold text-primary">{amountToDistribute.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                        </div>
+                    </div>
+                     <div className="p-4 border rounded-lg space-y-2">
+                        <h4 className="font-semibold text-center mb-2">Comissão por Funcionário</h4>
+                        {financials.commissionableEmployees.length > 0 ? (
+                            financials.commissionableEmployees.map(emp => {
+                                const commissionRate = (emp.taxa_comissao || 0) / 100;
+                                const individualCommission = amountToDistribute * commissionRate;
+                                return (
+                                    <div key={emp.id} className="flex justify-between items-center text-sm">
+                                        <span className="text-muted-foreground">{emp.nome} ({emp.taxa_comissao}%)</span>
+                                        <span className="font-medium text-green-600">{individualCommission.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                    </div>
+                                )
+                            })
+                        ) : (
+                            <p className="text-center text-sm text-red-500">Nenhum funcionário comissionado ativo encontrado.</p>
+                        )}
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button variant="ghost" onClick={() => setIsOpen(false)}>Fechar</Button>
+                    <Button variant="accent" onClick={handleConfirmDistribution} disabled={isLoading || amountToDistribute <= 0}>
+                        {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                        Confirmar e Lançar
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+    
