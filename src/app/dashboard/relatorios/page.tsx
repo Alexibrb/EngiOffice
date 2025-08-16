@@ -220,15 +220,14 @@ export default function RelatoriosPage() {
         break;
       case 'services':
         title = 'Relatório de Serviços';
-        head = [['Cliente', 'Descrição', 'Endereço da Obra', 'Valor do Serviço', 'Saldo Devedor', 'Status']];
+        head = [['Cliente', 'Descrição / Endereço', 'Valor do Serviço', 'Saldo Devedor', 'Status']];
         body = data.map((item: Service) => {
             const client = getClient(item.cliente_id);
             const address = client?.endereco_obra;
             const formattedAddress = address ? `${address.street}, ${address.number} - ${address.neighborhood}, ${address.city} - ${address.state}` : 'N/A';
             return [
                 client?.nome_completo || 'Desconhecido', 
-                item.descricao, 
-                formattedAddress,
+                `${item.descricao}\n${formattedAddress}`, 
                 `R$ ${item.valor_total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 
                 `R$ ${item.saldo_devedor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 
                 item.status
@@ -236,7 +235,7 @@ export default function RelatoriosPage() {
         });
         const totalValorServicos = data.reduce((sum, item) => sum + item.valor_total, 0);
         const totalSaldoServicos = data.reduce((sum, item) => sum + item.saldo_devedor, 0);
-        foot = [['Total', '', '', `R$ ${totalValorServicos.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, `R$ ${totalSaldoServicos.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, '']];
+        foot = [['Total', '', `R$ ${totalValorServicos.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, `R$ ${totalSaldoServicos.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, '']];
         fileName = 'relatorio_servicos.pdf';
         break;
       case 'accountsPayable':
@@ -254,12 +253,12 @@ export default function RelatoriosPage() {
             const service = getService(item.servico_id);
             const client = service ? getClient(service.cliente_id) : undefined;
             const address = client?.endereco_obra;
-            const formattedAddress = address ? `${address.street}, ${address.number}` : '';
+            const formattedAddress = address ? `${address.street}, ${address.number} - ${address.neighborhood}, ${address.city} - ${address.state}` : 'N/A';
 
             return [
                 getEmployeeName(item.funcionario_id), 
                 client?.nome_completo || 'Desconhecido',
-                `${service?.descricao || 'Desconhecido'} (${formattedAddress})`,
+                `${service?.descricao || 'Desconhecido'}\n${formattedAddress}`,
                 `R$ ${item.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 
                 item.status
             ];
@@ -429,8 +428,7 @@ export default function RelatoriosPage() {
                     <TableHeader>
                         <TableRow>
                             <TableHead>Cliente</TableHead>
-                            <TableHead>Descrição</TableHead>
-                            <TableHead>Endereço da Obra</TableHead>
+                            <TableHead>Descrição / Endereço</TableHead>
                             <TableHead>Valor do Serviço</TableHead>
                             <TableHead>Saldo Devedor</TableHead>
                             <TableHead>Status</TableHead>
@@ -445,19 +443,21 @@ export default function RelatoriosPage() {
                          return (
                             <TableRow key={s.id}>
                                 <TableCell className="font-medium">{client?.nome_completo || 'Desconhecido'}</TableCell>
-                                <TableCell>{s.descricao}</TableCell>
-                                <TableCell>{formattedAddress}</TableCell>
+                                <TableCell>
+                                  <div className="font-medium">{s.descricao}</div>
+                                  <div className="text-xs text-muted-foreground">{formattedAddress}</div>
+                                </TableCell>
                                 <TableCell>R$ {(s.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
                                 <TableCell className="text-red-500">R$ {(s.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
                                 <TableCell><Badge variant={s.status === 'concluído' ? 'secondary' : s.status === 'cancelado' ? 'destructive' : 'default'}>{s.status}</Badge></TableCell>
                                 <TableCell>{getDistributionStatus(s)}</TableCell>
                             </TableRow>
                          )
-                    }) : (<TableRow><TableCell colSpan={7} className="h-24 text-center">Nenhum serviço encontrado.</TableCell></TableRow>)}
+                    }) : (<TableRow><TableCell colSpan={6} className="h-24 text-center">Nenhum serviço encontrado.</TableCell></TableRow>)}
                   </TableBody>
                   <TableFooter>
                     <TableRow>
-                      <TableCell colSpan={3} className="font-bold">Total</TableCell>
+                      <TableCell colSpan={2} className="font-bold">Total</TableCell>
                       <TableCell className="font-bold">R$ {(totals.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
                       <TableCell className="font-bold text-red-500">R$ {(totals.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
                       <TableCell colSpan={2}></TableCell>
@@ -532,7 +532,7 @@ export default function RelatoriosPage() {
                         const service = getService(comm.servico_id);
                         const client = service ? getClient(service.cliente_id) : undefined;
                         const address = client?.endereco_obra;
-                        const formattedAddress = address ? `${address.street}, ${address.number}` : '';
+                        const formattedAddress = address ? `${address.street}, ${address.number}, ${address.neighborhood}, ${address.city} - ${address.state}` : '';
                         return (
                             <TableRow key={comm.id}>
                                 <TableCell className="font-medium">{getEmployeeName(comm.funcionario_id)}</TableCell>

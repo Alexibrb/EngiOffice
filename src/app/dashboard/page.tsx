@@ -425,7 +425,7 @@ export default function DashboardPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Cliente</TableHead>
-                  <TableHead>Endereço da Obra</TableHead>
+                  <TableHead>Descrição / Endereço</TableHead>
                   <TableHead>Saldo Devedor</TableHead>
                   <TableHead><span className="sr-only">Ações</span></TableHead>
                 </TableRow>
@@ -438,7 +438,10 @@ export default function DashboardPage() {
                   return (
                     <TableRow key={service.id}>
                       <TableCell className="font-medium">{client?.nome_completo || 'Desconhecido'}</TableCell>
-                      <TableCell>{formattedAddress}</TableCell>
+                      <TableCell>
+                        <div className="font-medium">{service.descricao}</div>
+                        <div className="text-xs text-muted-foreground">{formattedAddress}</div>
+                      </TableCell>
                       <TableCell className="text-red-500">R$ {(service.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2})}</TableCell>
                       <TableCell>
                          <DropdownMenu>

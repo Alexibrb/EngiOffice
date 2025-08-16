@@ -529,8 +529,7 @@ function ReceivableTableComponent({ services, getClient, totalValor, totalSaldo,
                 <TableHeader>
                     <TableRow>
                         <TableHead>Cliente</TableHead>
-                        <TableHead>Descrição</TableHead>
-                        <TableHead>Endereço da Obra</TableHead>
+                        <TableHead>Descrição / Endereço</TableHead>
                         <TableHead>Valor do Serviço</TableHead>
                         <TableHead>Saldo Devedor</TableHead>
                         <TableHead>Status</TableHead>
@@ -547,8 +546,10 @@ function ReceivableTableComponent({ services, getClient, totalValor, totalSaldo,
                         return (
                             <TableRow key={service.id}>
                                 <TableCell className="font-medium">{client?.nome_completo || 'Desconhecido'}</TableCell>
-                                <TableCell>{service.descricao}</TableCell>
-                                <TableCell>{formattedAddress}</TableCell>
+                                <TableCell>
+                                  <div className="font-medium">{service.descricao}</div>
+                                  <div className="text-xs text-muted-foreground">{formattedAddress}</div>
+                                </TableCell>
                                 <TableCell>R$ {(service.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
                                 <TableCell className="text-red-500">R$ {(service.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
                                 <TableCell>
@@ -600,13 +601,13 @@ function ReceivableTableComponent({ services, getClient, totalValor, totalSaldo,
                         )
                     }) : (
                         <TableRow>
-                            <TableCell colSpan={8} className="h-24 text-center">Nenhum serviço encontrado.</TableCell>
+                            <TableCell colSpan={7} className="h-24 text-center">Nenhum serviço encontrado.</TableCell>
                         </TableRow>
                     )}
                 </TableBody>
                 <TableFooter>
                     <TableRow>
-                        <TableCell colSpan={4} className="font-bold">Total</TableCell>
+                        <TableCell colSpan={3} className="font-bold">Total</TableCell>
                         <TableCell className="text-right font-bold text-red-500">
                            R$ {totalSaldo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                         </TableCell>
