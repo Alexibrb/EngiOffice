@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword }from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { Button } from '@/components/ui/button';
 import {
@@ -18,7 +18,6 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
   Form,
   FormControl,
@@ -62,7 +61,22 @@ export default function LoginPage() {
       });
       router.push('/dashboard');
     } catch (err: any) {
-      setError(err.message || 'Ocorreu um erro desconhecido.');
+      let errorMessage = "Ocorreu um erro desconhecido.";
+      switch (err.code) {
+          case 'auth/user-not-found':
+              errorMessage = 'Nenhum usuário encontrado com este e-mail.';
+              break;
+          case 'auth/wrong-password':
+              errorMessage = 'Senha incorreta. Por favor, tente novamente.';
+              break;
+          case 'auth/invalid-email':
+              errorMessage = 'O formato do e-mail é inválido.';
+              break;
+          default:
+              errorMessage = err.message;
+              break;
+      }
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }

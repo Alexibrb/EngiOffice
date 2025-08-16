@@ -4,7 +4,7 @@
 import { useEffect, useState, createContext, useContext } from 'react';
 import { useRouter } from 'next/navigation';
 import { onAuthStateChanged, User as FirebaseAuthUser } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { DashboardNav } from '@/components/dashboard-nav';
 import { Header } from '@/components/header';
@@ -45,15 +45,23 @@ export default function DashboardLayout({
         try {
           const userDocRef = doc(db, 'users', fbUser.uid);
           const userDoc = await getDoc(userDocRef);
+          
           if (userDoc.exists()) {
             setUser({ uid: fbUser.uid, ...userDoc.data() } as User);
           } else {
-             // Handle case where user exists in Auth but not Firestore
-             setUser(null);
-             router.push('/');
+             // If user exists in Auth but not in Firestore, create the doc.
+             // This handles users created before the Firestore user collection was implemented.
+             const newUser: User = {
+                uid: fbUser.uid,
+                displayName: fbUser.displayName || 'Usuário',
+                email: fbUser.email || '',
+                role: 'user', // Default role for existing users without one
+             };
+             await setDoc(userDocRef, newUser);
+             setUser(newUser);
           }
         } catch (error) {
-            console.error("Error fetching user role:", error);
+            console.error("Error fetching or creating user data:", error);
             setUser(null);
             router.push('/');
         }
