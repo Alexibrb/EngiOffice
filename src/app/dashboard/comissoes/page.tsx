@@ -54,6 +54,7 @@ import { format, endOfDay, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
 import { DateRange } from 'react-day-picker';
+import { Textarea } from '@/components/ui/textarea';
 
 const commissionSchema = z.object({
   funcionario_id: z.string().min(1, 'Funcionário é obrigatório.'),
@@ -69,14 +70,24 @@ const CommissionFormContent = ({ form, employees, clients, services }: { form: a
       control: form.control,
       name: 'cliente_id',
     });
+    
+    const selectedServicoId = useWatch({
+        control: form.control,
+        name: 'servico_id'
+    });
 
     const filteredServices = services.filter(service => service.cliente_id === selectedClientId);
     
     const commissionBasedEmployees = employees.filter(emp => emp.tipo_contratacao === 'comissao');
+    
+    const selectedClient = clients.find(c => c.codigo_cliente === selectedClientId);
 
     useEffect(() => {
         form.setValue('servico_id', '');
     }, [selectedClientId, form]);
+
+    const workAddress = selectedClient?.endereco_obra;
+    const fullAddress = workAddress ? [workAddress.street, workAddress.number, workAddress.neighborhood, workAddress.city, workAddress.state].filter(Boolean).join(', ') : 'Endereço da obra não disponível';
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -112,6 +123,18 @@ const CommissionFormContent = ({ form, employees, clients, services }: { form: a
                     </FormItem>
                 )}
             />
+            {selectedClient && (
+                <>
+                    <div className="md:col-span-2 space-y-2">
+                        <Label>Nome do Cliente</Label>
+                        <Input value={selectedClient.nome_completo} readOnly disabled />
+                    </div>
+                    <div className="md:col-span-2 space-y-2">
+                        <Label>Endereço da Obra</Label>
+                        <Textarea value={fullAddress} readOnly disabled rows={2} />
+                    </div>
+                </>
+            )}
             <FormField
                 control={form.control}
                 name="servico_id"
@@ -489,6 +512,8 @@ export default function ComissoesPage() {
         </div>
     );
 }
+
+    
 
     
 
