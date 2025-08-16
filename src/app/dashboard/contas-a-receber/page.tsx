@@ -150,8 +150,8 @@ export default function ContasAReceberPage() {
         fetchData();
     }, []);
 
-    const getClientName = (id: string) => {
-        return clients.find(c => c.codigo_cliente === id)?.nome_completo || 'Desconhecido';
+    const getClient = (id: string) => {
+        return clients.find(c => c.codigo_cliente === id);
     };
 
     const handlePaymentClick = (service: Service) => {
@@ -306,7 +306,7 @@ export default function ContasAReceberPage() {
             head: [['Descrição', 'Cliente', 'Data de Cadastro', 'Valor Total', 'Saldo Devedor', 'Status']],
             body: filteredReceivable.map((service) => [
             service.descricao,
-            getClientName(service.cliente_id),
+            getClient(service.cliente_id)?.nome_completo || 'Desconhecido',
             format(service.data_cadastro, 'dd/MM/yyyy'),
             `R$ ${(service.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
             `R$ ${(service.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
@@ -435,7 +435,7 @@ export default function ContasAReceberPage() {
                 <CardContent>
                     <ReceivableTableComponent 
                         services={filteredReceivable} 
-                        getClientName={getClientName}
+                        getClient={getClient}
                         totalValor={filteredTotal}
                         totalSaldo={filteredSaldoDevedor}
                         onPayment={handlePaymentClick}
@@ -494,9 +494,9 @@ export default function ContasAReceberPage() {
 }
 
 
-function ReceivableTableComponent({ services, getClientName, totalValor, totalSaldo, onPayment, onReceipt, onDistribute }: { 
+function ReceivableTableComponent({ services, getClient, totalValor, totalSaldo, onPayment, onReceipt, onDistribute }: { 
     services: Service[], 
-    getClientName: (id: string) => string,
+    getClient: (id: string) => Client | undefined,
     totalValor: number,
     totalSaldo: number,
     onPayment: (service: Service) => void,
@@ -530,7 +530,7 @@ function ReceivableTableComponent({ services, getClientName, totalValor, totalSa
                     <TableRow>
                         <TableHead>Serviço</TableHead>
                         <TableHead>Cliente</TableHead>
-                        <TableHead>Valor Total</TableHead>
+                        <TableHead>Endereço da Obra</TableHead>
                         <TableHead>Saldo Devedor</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Distribuição</TableHead>
@@ -538,59 +538,65 @@ function ReceivableTableComponent({ services, getClientName, totalValor, totalSa
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {services.length > 0 ? services.map((service) => (
-                        <TableRow key={service.id}>
-                            <TableCell className="font-medium">{service.descricao}</TableCell>
-                            <TableCell>{getClientName(service.cliente_id)}</TableCell>
-                            <TableCell className="text-green-500">R$ {(service.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
-                            <TableCell className="text-red-500">R$ {(service.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
-                            <TableCell>
-                                <Badge variant={
-                                    service.status === 'concluído' ? 'secondary' :
-                                    service.status === 'cancelado' ? 'destructive' :
-                                    'default'
-                                }>
-                                    {service.status}
-                                </Badge>
-                            </TableCell>
-                            <TableCell>
-                                {getDistributionStatus(service)}
-                            </TableCell>
-                            <TableCell>
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button aria-haspopup="true" size="icon" variant="ghost">
-                                        <MoreHorizontal className="h-4 w-4" />
-                                        <span className="sr-only">Toggle menu</span>
-                                        </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                        <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                                        <DropdownMenuItem onClick={() => handleEditService(service.id)}>
-                                            <ExternalLink className="mr-2 h-4 w-4" />
-                                            Ver/Editar Serviço
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => onPayment(service)} disabled={service.status === 'concluído' || service.status === 'cancelado'}>
-                                            <HandCoins className="mr-2 h-4 w-4" />
-                                            Lançar Pagamento
-                                        </DropdownMenuItem>
-                                        <DropdownMenuSeparator />
-                                         <DropdownMenuItem 
-                                            onClick={() => onDistribute(service)} 
-                                            disabled={service.status === 'cancelado' || (service.valor_pago || 0) === 0 || service.lucro_distribuido}
-                                         >
-                                            <Users className="mr-2 h-4 w-4" />
-                                            Distribuir Lucro
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => onReceipt(service)}>
-                                            <FileText className="mr-2 h-4 w-4" />
-                                            Gerar Recibo
-                                        </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                            </TableCell>
-                        </TableRow>
-                    )) : (
+                    {services.length > 0 ? services.map((service) => {
+                        const client = getClient(service.cliente_id);
+                        const address = client?.endereco_obra;
+                        const formattedAddress = address ? `${address.street}, ${address.number}` : 'N/A';
+
+                        return (
+                            <TableRow key={service.id}>
+                                <TableCell className="font-medium">{service.descricao}</TableCell>
+                                <TableCell>{client?.nome_completo || 'Desconhecido'}</TableCell>
+                                <TableCell>{formattedAddress}</TableCell>
+                                <TableCell className="text-red-500">R$ {(service.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
+                                <TableCell>
+                                    <Badge variant={
+                                        service.status === 'concluído' ? 'secondary' :
+                                        service.status === 'cancelado' ? 'destructive' :
+                                        'default'
+                                    }>
+                                        {service.status}
+                                    </Badge>
+                                </TableCell>
+                                <TableCell>
+                                    {getDistributionStatus(service)}
+                                </TableCell>
+                                <TableCell>
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button aria-haspopup="true" size="icon" variant="ghost">
+                                            <MoreHorizontal className="h-4 w-4" />
+                                            <span className="sr-only">Toggle menu</span>
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                                            <DropdownMenuItem onClick={() => handleEditService(service.id)}>
+                                                <ExternalLink className="mr-2 h-4 w-4" />
+                                                Ver/Editar Serviço
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => onPayment(service)} disabled={service.status === 'concluído' || service.status === 'cancelado'}>
+                                                <HandCoins className="mr-2 h-4 w-4" />
+                                                Lançar Pagamento
+                                            </DropdownMenuItem>
+                                            <DropdownMenuSeparator />
+                                             <DropdownMenuItem 
+                                                onClick={() => onDistribute(service)} 
+                                                disabled={service.status === 'cancelado' || (service.valor_pago || 0) === 0 || service.lucro_distribuido}
+                                             >
+                                                <Users className="mr-2 h-4 w-4" />
+                                                Distribuir Lucro
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => onReceipt(service)}>
+                                                <FileText className="mr-2 h-4 w-4" />
+                                                Gerar Recibo
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </TableCell>
+                            </TableRow>
+                        )
+                    }) : (
                         <TableRow>
                             <TableCell colSpan={7} className="h-24 text-center">Nenhum serviço encontrado.</TableCell>
                         </TableRow>
@@ -598,11 +604,8 @@ function ReceivableTableComponent({ services, getClientName, totalValor, totalSa
                 </TableBody>
                 <TableFooter>
                     <TableRow>
-                        <TableCell colSpan={2} className="font-bold">Total</TableCell>
-                        <TableCell className="text-right font-bold text-green-500">
-                           R$ {totalValor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                        </TableCell>
-                         <TableCell className="text-right font-bold text-red-500">
+                        <TableCell colSpan={3} className="font-bold">Total</TableCell>
+                        <TableCell className="text-right font-bold text-red-500">
                            R$ {totalSaldo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                         </TableCell>
                         <TableCell colSpan={3}></TableCell>

@@ -351,8 +351,8 @@ export default function ServicosPage() {
     fetchServicesAndClients();
   }, [searchParams]);
   
-  const getClientName = (clientId: string) => {
-    return clients.find(c => c.codigo_cliente === clientId)?.nome_completo || 'Desconhecido';
+  const getClient = (clientId: string) => {
+    return clients.find(c => c.codigo_cliente === clientId);
   }
 
   const handleSaveService = async (values: z.infer<typeof serviceSchema>) => {
@@ -609,7 +609,7 @@ export default function ServicosPage() {
         const searchTermLower = search.toLowerCase();
         return (
             service.descricao.toLowerCase().includes(searchTermLower) ||
-            getClientName(service.cliente_id).toLowerCase().includes(searchTermLower)
+            getClient(service.cliente_id)?.nome_completo.toLowerCase().includes(searchTermLower)
         );
     })
     .filter(service => {
@@ -994,7 +994,7 @@ export default function ServicosPage() {
                     <TableRow>
                     <TableHead>Descrição</TableHead>
                     <TableHead>Cliente</TableHead>
-                    <TableHead>Valor Total</TableHead>
+                    <TableHead>Endereço da Obra</TableHead>
                     <TableHead>Saldo Devedor</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Distribuição</TableHead>
@@ -1002,80 +1002,85 @@ export default function ServicosPage() {
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {filteredServices.length > 0 ? filteredServices.map((service) => (
-                    <TableRow key={service.id}>
-                        <TableCell className="font-medium">{service.descricao}</TableCell>
-                        <TableCell>{getClientName(service.cliente_id)}</TableCell>
-                        <TableCell className="text-green-500">R$ {(service.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2})}</TableCell>
-                        <TableCell className="text-red-500">R$ {(service.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2})}</TableCell>
-                        <TableCell>
-                        <Badge variant={
-                            service.status === 'concluído' ? 'secondary' :
-                            service.status === 'cancelado' ? 'destructive' :
-                            'default'
-                        }>
-                            {service.status}
-                        </Badge>
-                        </TableCell>
-                        <TableCell>
-                            {getDistributionStatus(service)}
-                        </TableCell>
-                        <TableCell>
-                            <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button aria-haspopup="true" size="icon" variant="ghost">
-                                <MoreHorizontal className="h-4 w-4" />
-                                <span className="sr-only">Toggle menu</span>
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                                <DropdownMenuItem onClick={() => handleEditClick(service)}>
-                                  Editar
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handlePaymentClick(service)} disabled={service.status === 'concluído' || service.status === 'cancelado'}>
-                                  <HandCoins className="mr-2 h-4 w-4" />
-                                  Lançar Pagamento
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem 
-                                    onClick={() => handleDistributionClick(service)} 
-                                    disabled={service.status === 'cancelado' || (service.valor_pago || 0) === 0 || service.lucro_distribuido}
-                                >
-                                    <Users className="mr-2 h-4 w-4" />
-                                    Distribuir Lucro
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => generateReceipt(service)}>
-                                  <FileText className="mr-2 h-4 w-4" />
-                                  Gerar Recibo
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                    <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600">
-                                        Excluir
-                                    </DropdownMenuItem>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                    <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                        Essa ação não pode ser desfeita. Isso excluirá permanentemente o serviço.
-                                    </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => handleDeleteService(service.id)} variant="destructive">
-                                        Excluir
-                                    </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                                </AlertDialog>
-                            </DropdownMenuContent>
-                            </DropdownMenu>
-                        </TableCell>
-                    </TableRow>
-                    )) : (
+                    {filteredServices.length > 0 ? filteredServices.map((service) => {
+                        const client = getClient(service.cliente_id);
+                        const address = client?.endereco_obra;
+                        const formattedAddress = address ? `${address.street}, ${address.number} - ${address.neighborhood}, ${address.city} - ${address.state}` : 'N/A';
+                        return (
+                            <TableRow key={service.id}>
+                                <TableCell className="font-medium">{service.descricao}</TableCell>
+                                <TableCell>{client?.nome_completo || 'Desconhecido'}</TableCell>
+                                <TableCell>{formattedAddress}</TableCell>
+                                <TableCell className="text-red-500">R$ {(service.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2})}</TableCell>
+                                <TableCell>
+                                <Badge variant={
+                                    service.status === 'concluído' ? 'secondary' :
+                                    service.status === 'cancelado' ? 'destructive' :
+                                    'default'
+                                }>
+                                    {service.status}
+                                </Badge>
+                                </TableCell>
+                                <TableCell>
+                                    {getDistributionStatus(service)}
+                                </TableCell>
+                                <TableCell>
+                                    <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button aria-haspopup="true" size="icon" variant="ghost">
+                                        <MoreHorizontal className="h-4 w-4" />
+                                        <span className="sr-only">Toggle menu</span>
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                                        <DropdownMenuItem onClick={() => handleEditClick(service)}>
+                                          Editar
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handlePaymentClick(service)} disabled={service.status === 'concluído' || service.status === 'cancelado'}>
+                                          <HandCoins className="mr-2 h-4 w-4" />
+                                          Lançar Pagamento
+                                        </DropdownMenuItem>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem 
+                                            onClick={() => handleDistributionClick(service)} 
+                                            disabled={service.status === 'cancelado' || (service.valor_pago || 0) === 0 || service.lucro_distribuido}
+                                        >
+                                            <Users className="mr-2 h-4 w-4" />
+                                            Distribuir Lucro
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => generateReceipt(service)}>
+                                          <FileText className="mr-2 h-4 w-4" />
+                                          Gerar Recibo
+                                        </DropdownMenuItem>
+                                        <DropdownMenuSeparator />
+                                        <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                            <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600">
+                                                Excluir
+                                            </DropdownMenuItem>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                            <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                Essa ação não pode ser desfeita. Isso excluirá permanentemente o serviço.
+                                            </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                            <AlertDialogAction onClick={() => handleDeleteService(service.id)} variant="destructive">
+                                                Excluir
+                                            </AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                        </AlertDialog>
+                                    </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </TableCell>
+                            </TableRow>
+                        )
+                    }) : (
                     <TableRow>
                         <TableCell colSpan={7} className="h-24 text-center">
                         Nenhum serviço encontrado.
@@ -1085,10 +1090,7 @@ export default function ServicosPage() {
                 </TableBody>
                 <TableFooter>
                     <TableRow>
-                        <TableCell colSpan={2} className="font-bold">Total</TableCell>
-                        <TableCell className="text-right font-bold text-green-500">
-                           R$ {filteredTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                        </TableCell>
+                        <TableCell colSpan={3} className="font-bold">Total</TableCell>
                         <TableCell className="text-right font-bold text-red-500">
                            R$ {filteredSaldoDevedor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                         </TableCell>

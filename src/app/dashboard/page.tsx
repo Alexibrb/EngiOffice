@@ -123,8 +123,8 @@ export default function DashboardPage() {
     fetchData();
   }, []);
 
-  const getClientName = (clientId: string) => {
-    return clients.find(c => c.codigo_cliente === clientId)?.nome_completo || 'Desconhecido';
+  const getClient = (clientId: string) => {
+    return clients.find(c => c.codigo_cliente === clientId);
   }
 
   const ongoingServices = services.filter(
@@ -425,76 +425,71 @@ export default function DashboardPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Cliente</TableHead>
-                  <TableHead>Valor Total</TableHead>
+                  <TableHead>Endereço da Obra</TableHead>
                   <TableHead>Saldo Devedor</TableHead>
-                  <TableHead>Status</TableHead>
-                   <TableHead><span className="sr-only">Ações</span></TableHead>
+                  <TableHead><span className="sr-only">Ações</span></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {ongoingServices.length > 0 ? ongoingServices.map((service) => (
-                  <TableRow key={service.id}>
-                    <TableCell className="font-medium">{getClientName(service.cliente_id)}</TableCell>
-                    <TableCell className="text-green-500">R$ {(service.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2})}</TableCell>
-                    <TableCell className="text-red-500">R$ {(service.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2})}</TableCell>
-                    <TableCell>
-                      <Badge variant={
-                          service.status === 'concluído' ? 'secondary' :
-                          service.status === 'cancelado' ? 'destructive' :
-                          'default'
-                      }>
-                          {service.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                       <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button aria-haspopup="true" size="icon" variant="ghost">
-                                <MoreHorizontal className="h-4 w-4" />
-                                <span className="sr-only">Toggle menu</span>
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                                <DropdownMenuItem onClick={() => handleEditService(service.id)}>
-                                  Editar
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handlePaymentClick(service)} disabled={service.forma_pagamento !== 'a_prazo' || service.status !== 'em andamento'}>
-                                  <HandCoins className="mr-2 h-4 w-4" />
-                                  Lançar Pagamento
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => generateReceipt(service)}>
-                                  <FileText className="mr-2 h-4 w-4" />
-                                  Gerar Recibo
-                                </DropdownMenuItem>
-                                <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                    <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600">
-                                        Excluir
-                                    </DropdownMenuItem>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                    <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                        Essa ação não pode ser desfeita. Isso excluirá permanentemente o serviço.
-                                    </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => handleDeleteService(service.id)} variant="destructive">
-                                        Excluir
-                                    </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                                </AlertDialog>
-                            </DropdownMenuContent>
-                            </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                )) : (
+                {ongoingServices.length > 0 ? ongoingServices.map((service) => {
+                  const client = getClient(service.cliente_id);
+                  const address = client?.endereco_obra;
+                  const formattedAddress = address ? `${address.street}, ${address.number} - ${address.neighborhood}, ${address.city} - ${address.state}` : 'N/A';
+                  return (
+                    <TableRow key={service.id}>
+                      <TableCell className="font-medium">{client?.nome_completo || 'Desconhecido'}</TableCell>
+                      <TableCell>{formattedAddress}</TableCell>
+                      <TableCell className="text-red-500">R$ {(service.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2})}</TableCell>
+                      <TableCell>
+                         <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                  <Button aria-haspopup="true" size="icon" variant="ghost">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                  <span className="sr-only">Toggle menu</span>
+                                  </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                  <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                                  <DropdownMenuItem onClick={() => handleEditService(service.id)}>
+                                    Editar
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handlePaymentClick(service)} disabled={service.forma_pagamento !== 'a_prazo' || service.status !== 'em andamento'}>
+                                    <HandCoins className="mr-2 h-4 w-4" />
+                                    Lançar Pagamento
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => generateReceipt(service)}>
+                                    <FileText className="mr-2 h-4 w-4" />
+                                    Gerar Recibo
+                                  </DropdownMenuItem>
+                                  <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                      <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600">
+                                          Excluir
+                                      </DropdownMenuItem>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                      <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                          Essa ação não pode ser desfeita. Isso excluirá permanentemente o serviço.
+                                      </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                      <AlertDialogAction onClick={() => handleDeleteService(service.id)} variant="destructive">
+                                          Excluir
+                                      </AlertDialogAction>
+                                      </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                  </AlertDialog>
+                              </DropdownMenuContent>
+                              </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  )
+                }) : (
                    <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center">
+                    <TableCell colSpan={4} className="h-24 text-center">
                       Nenhum serviço em andamento.
                     </TableCell>
                   </TableRow>
