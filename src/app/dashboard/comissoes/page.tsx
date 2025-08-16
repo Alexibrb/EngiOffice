@@ -82,7 +82,6 @@ const CommissionFormContent = ({ form, employees, clients, services }: { form: a
     
     const commissionBasedEmployees = employees.filter(emp => emp.tipo_contratacao === 'comissao');
     
-    const selectedService = services.find(s => s.id === selectedServicoId);
     const clientForService = selectedClientId ? clients.find(c => c.codigo_cliente === selectedClientId) : null;
 
 
@@ -399,6 +398,13 @@ export default function ComissoesPage() {
         return { employeeName: employee.nome, total };
     });
 
+    const filteredEmployeeTotals = commissionBasedEmployees.map(employee => {
+        const total = filteredCommissions
+            .filter(c => c.funcionario_id === employee.id)
+            .reduce((sum, c) => sum + c.valor, 0);
+        return { employeeName: employee.nome, total };
+    });
+
     return (
         <div className="flex flex-col gap-8">
             <div>
@@ -564,12 +570,23 @@ export default function ComissoesPage() {
                     </TableBody>
                     <TableFooter>
                         <TableRow>
-                            <TableCell colSpan={3} className="font-bold">Total</TableCell>
+                            <TableCell colSpan={3} className="font-bold">Total Geral</TableCell>
                             <TableCell className="text-right font-bold text-red-500">
                                R$ {filteredTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                             </TableCell>
                             <TableCell colSpan={2}></TableCell>
                         </TableRow>
+                        {filteredEmployeeTotals.map((item, index) => (
+                           item.total > 0 && (
+                            <TableRow key={index}>
+                                <TableCell colSpan={3} className="font-medium text-muted-foreground pl-6">{`Total ${item.employeeName}`}</TableCell>
+                                <TableCell className="text-right font-medium text-muted-foreground">
+                                    R$ {item.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                </TableCell>
+                                <TableCell colSpan={2}></TableCell>
+                            </TableRow>
+                           )
+                        ))}
                     </TableFooter>
                 </Table>
             </div>
