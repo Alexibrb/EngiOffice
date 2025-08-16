@@ -992,13 +992,14 @@ export default function ServicosPage() {
                 <Table>
                 <TableHeader>
                     <TableRow>
-                    <TableHead>Descrição</TableHead>
-                    <TableHead>Cliente</TableHead>
-                    <TableHead>Endereço da Obra</TableHead>
-                    <TableHead>Saldo Devedor</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Distribuição</TableHead>
-                    <TableHead><span className="sr-only">Ações</span></TableHead>
+                        <TableHead>Cliente</TableHead>
+                        <TableHead>Descrição</TableHead>
+                        <TableHead>Endereço da Obra</TableHead>
+                        <TableHead>Valor do Serviço</TableHead>
+                        <TableHead>Saldo Devedor</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Distribuição</TableHead>
+                        <TableHead><span className="sr-only">Ações</span></TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1008,9 +1009,10 @@ export default function ServicosPage() {
                         const formattedAddress = address ? `${address.street}, ${address.number} - ${address.neighborhood}, ${address.city} - ${address.state}` : 'N/A';
                         return (
                             <TableRow key={service.id}>
-                                <TableCell className="font-medium">{service.descricao}</TableCell>
-                                <TableCell>{client?.nome_completo || 'Desconhecido'}</TableCell>
+                                <TableCell className="font-medium">{client?.nome_completo || 'Desconhecido'}</TableCell>
+                                <TableCell>{service.descricao}</TableCell>
                                 <TableCell>{formattedAddress}</TableCell>
+                                <TableCell>R$ {(service.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2})}</TableCell>
                                 <TableCell className="text-red-500">R$ {(service.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2})}</TableCell>
                                 <TableCell>
                                 <Badge variant={
@@ -1082,7 +1084,7 @@ export default function ServicosPage() {
                         )
                     }) : (
                     <TableRow>
-                        <TableCell colSpan={7} className="h-24 text-center">
+                        <TableCell colSpan={8} className="h-24 text-center">
                         Nenhum serviço encontrado.
                         </TableCell>
                     </TableRow>
@@ -1090,7 +1092,7 @@ export default function ServicosPage() {
                 </TableBody>
                 <TableFooter>
                     <TableRow>
-                        <TableCell colSpan={3} className="font-bold">Total</TableCell>
+                        <TableCell colSpan={4} className="font-bold">Total</TableCell>
                         <TableCell className="text-right font-bold text-red-500">
                            R$ {filteredSaldoDevedor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                         </TableCell>

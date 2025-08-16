@@ -416,18 +416,18 @@ export default function ComissoesPage() {
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Serviço</TableHead>
                                     <TableHead>Cliente</TableHead>
-                                    <TableHead className="text-right">Valor Pago</TableHead>
+                                    <TableHead>Descrição</TableHead>
+                                    <TableHead>Valor Pago</TableHead>
                                     <TableHead className="text-right">Ações</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {servicesWithPendingDistribution.length > 0 ? servicesWithPendingDistribution.map(service => (
                                     <TableRow key={service.id}>
-                                        <TableCell className="font-medium">{service.descricao}</TableCell>
-                                        <TableCell>{getClientName(service.cliente_id)}</TableCell>
-                                        <TableCell className="text-right text-green-500">
+                                        <TableCell className="font-medium">{getClientName(service.cliente_id)}</TableCell>
+                                        <TableCell>{service.descricao}</TableCell>
+                                        <TableCell className="text-green-500">
                                             {service.valor_pago.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                         </TableCell>
                                         <TableCell className="text-right">

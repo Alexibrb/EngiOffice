@@ -528,9 +528,10 @@ function ReceivableTableComponent({ services, getClient, totalValor, totalSaldo,
             <Table>
                 <TableHeader>
                     <TableRow>
-                        <TableHead>Serviço</TableHead>
                         <TableHead>Cliente</TableHead>
+                        <TableHead>Descrição</TableHead>
                         <TableHead>Endereço da Obra</TableHead>
+                        <TableHead>Valor do Serviço</TableHead>
                         <TableHead>Saldo Devedor</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Distribuição</TableHead>
@@ -541,13 +542,14 @@ function ReceivableTableComponent({ services, getClient, totalValor, totalSaldo,
                     {services.length > 0 ? services.map((service) => {
                         const client = getClient(service.cliente_id);
                         const address = client?.endereco_obra;
-                        const formattedAddress = address ? `${address.street}, ${address.number}` : 'N/A';
+                        const formattedAddress = address ? `${address.street}, ${address.number} - ${address.neighborhood}, ${address.city} - ${address.state}` : 'N/A';
 
                         return (
                             <TableRow key={service.id}>
-                                <TableCell className="font-medium">{service.descricao}</TableCell>
-                                <TableCell>{client?.nome_completo || 'Desconhecido'}</TableCell>
+                                <TableCell className="font-medium">{client?.nome_completo || 'Desconhecido'}</TableCell>
+                                <TableCell>{service.descricao}</TableCell>
                                 <TableCell>{formattedAddress}</TableCell>
+                                <TableCell>R$ {(service.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
                                 <TableCell className="text-red-500">R$ {(service.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
                                 <TableCell>
                                     <Badge variant={
@@ -598,13 +600,13 @@ function ReceivableTableComponent({ services, getClient, totalValor, totalSaldo,
                         )
                     }) : (
                         <TableRow>
-                            <TableCell colSpan={7} className="h-24 text-center">Nenhum serviço encontrado.</TableCell>
+                            <TableCell colSpan={8} className="h-24 text-center">Nenhum serviço encontrado.</TableCell>
                         </TableRow>
                     )}
                 </TableBody>
                 <TableFooter>
                     <TableRow>
-                        <TableCell colSpan={3} className="font-bold">Total</TableCell>
+                        <TableCell colSpan={4} className="font-bold">Total</TableCell>
                         <TableCell className="text-right font-bold text-red-500">
                            R$ {totalSaldo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                         </TableCell>
