@@ -1319,7 +1319,7 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, paymentValue, fi
                     </div>
                 </div>
                 <DialogFooter>
-                    <Button variant="ghost" onClick={() => setIsOpen(false)}>Fechar</Button>
+                    <Button variant="ghost" onClick={() => setIsOpen(false)}>Cancelar</Button>
                     <Button variant="accent" onClick={handleConfirmDistribution} disabled={isLoading || amountToDistribute <= 0}>
                         {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
                         Confirmar e Lançar

@@ -21,7 +21,7 @@ import {
   TableFooter,
 } from '@/components/ui/table';
 import { useToast } from "@/hooks/use-toast"
-import { collection, getDocs, doc, writeBatch, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, doc, writeBatch, Timestamp, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { PlusCircle, MoreHorizontal, Loader2, Calendar as CalendarIcon, XCircle, Trash, User, Users } from 'lucide-react';
 import {
@@ -215,14 +215,8 @@ export default function ComissoesPage() {
     });
     
     const servicesWithPendingDistribution = services.filter(s => {
-      const relatedCommissions = commissions.filter(c => c.servico_id === s.id);
-      const isEligible = (s.valor_pago || 0) > 0 && s.status !== 'cancelado';
-      if (!isEligible) return false;
-      
-      const totalCommissionPaid = relatedCommissions.reduce((sum, c) => sum + c.valor, 0);
-      // Rough check: if total paid is less than potential profit, there might be something to distribute
-      // This logic can be improved, but for now it's a proxy.
-      return (s.valor_pago || 0) > totalCommissionPaid;
+      const isEligible = (s.valor_pago || 0) > 0 && s.status !== 'cancelado' && !s.lucro_distribuido;
+      return isEligible;
     });
 
     return (
@@ -557,6 +551,10 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, financials, toas
                 }
             });
             
+            // Marcar o serviço como tendo o lucro distribuído
+            const serviceDocRef = doc(db, 'servicos', service.id);
+            batch.update(serviceDocRef, { lucro_distribuido: true });
+
             await batch.commit();
 
             toast({ title: 'Sucesso!', description: 'Comissões distribuídas e lançadas com sucesso!' });
