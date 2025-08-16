@@ -26,7 +26,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { Employee } from '@/lib/types';
-import { PlusCircle, Search, MoreHorizontal, Loader2, XCircle } from 'lucide-react';
+import { PlusCircle, Search, MoreHorizontal, Loader2, XCircle, Trash } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,7 +34,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { collection, addDoc, getDocs, doc, setDoc, deleteDoc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, doc, setDoc, deleteDoc, writeBatch } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from "@/hooks/use-toast"
 import {
@@ -75,6 +75,7 @@ export default function FuncionariosPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
   const { toast } = useToast();
   
   const [statusFilter, setStatusFilter] = useState<string>('');
@@ -177,6 +178,36 @@ export default function FuncionariosPage() {
     }
   };
 
+  const handleDeleteAll = async () => {
+    setIsDeletingAll(true);
+    try {
+        const querySnapshot = await getDocs(collection(db, "funcionarios"));
+        if (querySnapshot.empty) {
+            toast({ title: 'Aviso', description: 'Não há funcionários para excluir.' });
+            return;
+        }
+        const batch = writeBatch(db);
+        querySnapshot.docs.forEach((doc) => {
+            batch.delete(doc.ref);
+        });
+        await batch.commit();
+        toast({
+            title: "Sucesso!",
+            description: "Todos os funcionários foram excluídos com sucesso.",
+        });
+        await fetchEmployees();
+    } catch (error) {
+        console.error("Erro ao excluir todos os funcionários: ", error);
+        toast({
+            variant: "destructive",
+            title: "Erro",
+            description: "Ocorreu um erro ao excluir todos os funcionários.",
+        });
+    } finally {
+        setIsDeletingAll(false);
+    }
+};
+
   const handleAddNewClick = () => {
     form.reset({
       nome: '',
@@ -236,6 +267,29 @@ export default function FuncionariosPage() {
                     onChange={(e) => setSearch(e.target.value)}
                 />
                 </div>
+                 <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                          <Button variant="destructive" disabled={employees.length === 0}>
+                              <Trash className="mr-2 h-4 w-4" />
+                              Excluir Tudo
+                          </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                          <AlertDialogHeader>
+                              <AlertDialogTitle>Você tem certeza absoluta?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                  Essa ação não pode ser desfeita. Isso excluirá permanentemente todos os {employees.length} funcionários.
+                              </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction onClick={handleDeleteAll} disabled={isDeletingAll}>
+                                  {isDeletingAll ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                  Sim, excluir tudo
+                              </AlertDialogAction>
+                          </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                 <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogTrigger asChild>
                     <Button onClick={handleAddNewClick} variant="accent">
@@ -483,3 +537,5 @@ export default function FuncionariosPage() {
     </div>
   );
 }
+
+    

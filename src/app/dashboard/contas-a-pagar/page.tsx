@@ -35,9 +35,9 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { useToast } from "@/hooks/use-toast"
-import { collection, addDoc, getDocs, doc, setDoc, deleteDoc, updateDoc, arrayUnion } from 'firebase/firestore';
+import { collection, addDoc, getDocs, doc, setDoc, deleteDoc, updateDoc, arrayUnion, writeBatch } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { PlusCircle, MoreHorizontal, Loader2, Calendar as CalendarIcon, Download, XCircle, ArrowDown, CreditCard } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Loader2, Calendar as CalendarIcon, Download, XCircle, ArrowDown, CreditCard, Trash } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -96,6 +96,7 @@ export default function ContasAPagarPage() {
     const [editingAccount, setEditingAccount] = useState<Account | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [isSupplierLoading, setIsSupplierLoading] = useState(false);
+    const [isDeletingAll, setIsDeletingAll] = useState(false);
     const { toast } = useToast();
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -256,6 +257,36 @@ export default function ContasAPagarPage() {
             toast({ variant: "destructive", title: "Erro", description: "Ocorreu um erro ao excluir a conta." });
         }
     };
+    
+    const handleDeleteAll = async () => {
+        setIsDeletingAll(true);
+        try {
+            const querySnapshot = await getDocs(collection(db, "contas_a_pagar"));
+            if (querySnapshot.empty) {
+                toast({ title: 'Aviso', description: 'Não há contas a pagar para excluir.' });
+                return;
+            }
+            const batch = writeBatch(db);
+            querySnapshot.docs.forEach((doc) => {
+                batch.delete(doc.ref);
+            });
+            await batch.commit();
+            toast({
+                title: "Sucesso!",
+                description: "Todas as contas a pagar foram excluídas com sucesso.",
+            });
+            await fetchData();
+        } catch (error) {
+            console.error("Erro ao excluir todas as contas: ", error);
+            toast({
+                variant: "destructive",
+                title: "Erro",
+                description: "Ocorreu um erro ao excluir todas as contas.",
+            });
+        } finally {
+            setIsDeletingAll(false);
+        }
+    };
 
     const handleAddNewClick = () => {
         setEditingAccount(null);
@@ -388,6 +419,29 @@ export default function ContasAPagarPage() {
                             <CardTitle>Lançamentos</CardTitle>
                         </div>
                         <div className="flex gap-2">
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                  <Button variant="destructive" disabled={accountsPayable.length === 0}>
+                                      <Trash className="mr-2 h-4 w-4" />
+                                      Excluir Tudo
+                                  </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                      <AlertDialogTitle>Você tem certeza absoluta?</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                          Essa ação não pode ser desfeita. Isso excluirá permanentemente todas as {accountsPayable.length} contas a pagar.
+                                      </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                      <AlertDialogAction onClick={handleDeleteAll} disabled={isDeletingAll}>
+                                          {isDeletingAll ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                          Sim, excluir tudo
+                                      </AlertDialogAction>
+                                  </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
                             <Button onClick={generatePdf} variant="outline">
                                 <Download className="mr-2 h-4 w-4" />
                                 Exportar PDF
@@ -901,3 +955,4 @@ function PayableTableComponent({ accounts, getPayeeName, onEdit, onDelete, total
     );
 }
 
+    

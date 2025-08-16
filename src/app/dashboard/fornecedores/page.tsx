@@ -26,7 +26,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import type { Supplier } from '@/lib/types';
-import { PlusCircle, Search, MoreHorizontal, Loader2 } from 'lucide-react';
+import { PlusCircle, Search, MoreHorizontal, Loader2, Trash } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,7 +34,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { collection, addDoc, getDocs, doc, setDoc, deleteDoc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, doc, setDoc, deleteDoc, writeBatch } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from "@/hooks/use-toast"
 import {
@@ -70,6 +70,7 @@ export default function FornecedoresPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof supplierSchema>>({
@@ -164,6 +165,36 @@ export default function FornecedoresPage() {
       });
     }
   };
+  
+  const handleDeleteAll = async () => {
+    setIsDeletingAll(true);
+    try {
+        const querySnapshot = await getDocs(collection(db, "fornecedores"));
+        if (querySnapshot.empty) {
+            toast({ title: 'Aviso', description: 'Não há fornecedores para excluir.' });
+            return;
+        }
+        const batch = writeBatch(db);
+        querySnapshot.docs.forEach((doc) => {
+            batch.delete(doc.ref);
+        });
+        await batch.commit();
+        toast({
+            title: "Sucesso!",
+            description: "Todos os fornecedores foram excluídos com sucesso.",
+        });
+        await fetchSuppliers();
+    } catch (error) {
+        console.error("Erro ao excluir todos os fornecedores: ", error);
+        toast({
+            variant: "destructive",
+            title: "Erro",
+            description: "Ocorreu um erro ao excluir todos os fornecedores.",
+        });
+    } finally {
+        setIsDeletingAll(false);
+    }
+};
 
   const handleAddNewClick = () => {
     form.reset();
@@ -207,6 +238,29 @@ export default function FornecedoresPage() {
                         onChange={(e) => setSearch(e.target.value)}
                     />
                     </div>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                          <Button variant="destructive" disabled={suppliers.length === 0}>
+                              <Trash className="mr-2 h-4 w-4" />
+                              Excluir Tudo
+                          </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                          <AlertDialogHeader>
+                              <AlertDialogTitle>Você tem certeza absoluta?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                  Essa ação não pode ser desfeita. Isso excluirá permanentemente todos os {suppliers.length} fornecedores.
+                              </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction onClick={handleDeleteAll} disabled={isDeletingAll}>
+                                  {isDeletingAll ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                  Sim, excluir tudo
+                              </AlertDialogAction>
+                          </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                     <DialogTrigger asChild>
                         <Button onClick={handleAddNewClick} variant="accent">
@@ -402,3 +456,5 @@ export default function FornecedoresPage() {
     </div>
   );
 }
+
+    

@@ -28,7 +28,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { Service, Client, ServiceType, Commission, Account, Employee } from '@/lib/types';
-import { PlusCircle, Search, MoreHorizontal, Loader2, Calendar as CalendarIcon, Wrench, Link as LinkIcon, ExternalLink, ClipboardCopy, XCircle, FileText, CheckCircle, ArrowUp, TrendingUp, HandCoins, Users } from 'lucide-react';
+import { PlusCircle, Search, MoreHorizontal, Loader2, Calendar as CalendarIcon, Wrench, Link as LinkIcon, ExternalLink, ClipboardCopy, XCircle, FileText, CheckCircle, ArrowUp, TrendingUp, HandCoins, Users, Trash } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -213,6 +213,7 @@ export default function ServicosPage() {
   const [lastPaymentValue, setLastPaymentValue] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [isPaymentLoading, setIsPaymentLoading] = useState(false);
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
   const [financials, setFinancials] = useState({
       balance: 0,
       commissionableEmployees: [] as Employee[],
@@ -366,7 +367,6 @@ export default function ServicosPage() {
         anexos: values.anexos?.split('\n').filter(a => a.trim() !== '') || [],
         valor_pago: valorPago,
         saldo_devedor: saldoDevedor,
-        status: status,
         lucro_distribuido: false,
       };
 
@@ -474,6 +474,36 @@ export default function ServicosPage() {
       });
     }
   };
+
+  const handleDeleteAll = async () => {
+    setIsDeletingAll(true);
+    try {
+        const querySnapshot = await getDocs(collection(db, "servicos"));
+        if (querySnapshot.empty) {
+            toast({ title: 'Aviso', description: 'Não há serviços para excluir.' });
+            return;
+        }
+        const batch = writeBatch(db);
+        querySnapshot.docs.forEach((doc) => {
+            batch.delete(doc.ref);
+        });
+        await batch.commit();
+        toast({
+            title: "Sucesso!",
+            description: "Todos os serviços foram excluídos com sucesso.",
+        });
+        await fetchServicesAndClients();
+    } catch (error) {
+        console.error("Erro ao excluir todos os serviços: ", error);
+        toast({
+            variant: "destructive",
+            title: "Erro",
+            description: "Ocorreu um erro ao excluir todos os serviços.",
+        });
+    } finally {
+        setIsDeletingAll(false);
+    }
+};
 
   const handleAddNewClick = () => {
     form.reset({
@@ -603,13 +633,13 @@ export default function ServicosPage() {
     const totalReceivablePending = services.reduce((acc, curr) => acc + (curr.saldo_devedor || 0), 0);
     
     const getDistributionStatus = (service: Service) => {
-        const isDistributable = service.status !== 'cancelado' && (service.valor_pago || 0) > 0 && !service.lucro_distribuido;
+        const isDisabled = service.status === 'cancelado' || (service.valor_pago || 0) === 0 || service.lucro_distribuido;
 
-        if (isDistributable) {
-            return <Badge variant="destructive">Pendente</Badge>;
+        if (isDisabled) {
+            return <Badge variant="secondary">Realizada</Badge>;
         }
         
-        return <Badge variant="secondary">Realizada</Badge>;
+        return <Badge variant="destructive">Pendente</Badge>;
     }
 
 
@@ -685,6 +715,29 @@ export default function ServicosPage() {
                     onChange={(e) => setSearch(e.target.value)}
                 />
                 </div>
+                 <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                          <Button variant="destructive" disabled={services.length === 0}>
+                              <Trash className="mr-2 h-4 w-4" />
+                              Excluir Tudo
+                          </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                          <AlertDialogHeader>
+                              <AlertDialogTitle>Você tem certeza absoluta?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                  Essa ação não pode ser desfeita. Isso excluirá permanentemente todos os {services.length} serviços.
+                              </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction onClick={handleDeleteAll} disabled={isDeletingAll}>
+                                  {isDeletingAll ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                  Sim, excluir tudo
+                              </AlertDialogAction>
+                          </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                 <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogTrigger asChild>
                     <Button onClick={handleAddNewClick} variant="accent">

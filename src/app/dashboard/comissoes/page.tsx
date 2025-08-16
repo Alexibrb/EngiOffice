@@ -35,9 +35,9 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { useToast } from "@/hooks/use-toast"
-import { collection, addDoc, getDocs, doc, setDoc, deleteDoc, Timestamp } from 'firebase/firestore';
+import { collection, addDoc, getDocs, doc, setDoc, deleteDoc, Timestamp, writeBatch } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { PlusCircle, MoreHorizontal, Loader2, Calendar as CalendarIcon, XCircle } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Loader2, Calendar as CalendarIcon, XCircle, Trash } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -220,6 +220,7 @@ export default function ComissoesPage() {
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingCommission, setEditingCommission] = useState<Commission | null>(null);
     const [isLoading, setIsLoading] = useState(false);
+    const [isDeletingAll, setIsDeletingAll] = useState(false);
     const { toast } = useToast();
     
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
@@ -305,6 +306,36 @@ export default function ComissoesPage() {
         }
     };
 
+    const handleDeleteAll = async () => {
+        setIsDeletingAll(true);
+        try {
+            const querySnapshot = await getDocs(collection(db, "comissoes"));
+            if (querySnapshot.empty) {
+                toast({ title: 'Aviso', description: 'Não há comissões para excluir.' });
+                return;
+            }
+            const batch = writeBatch(db);
+            querySnapshot.docs.forEach((doc) => {
+                batch.delete(doc.ref);
+            });
+            await batch.commit();
+            toast({
+                title: "Sucesso!",
+                description: "Todas as comissões foram excluídas com sucesso.",
+            });
+            await fetchData();
+        } catch (error) {
+            console.error("Erro ao excluir todas as comissões: ", error);
+            toast({
+                variant: "destructive",
+                title: "Erro",
+                description: "Ocorreu um erro ao excluir todas as comissões.",
+            });
+        } finally {
+            setIsDeletingAll(false);
+        }
+    };
+
     const handleAddNewClick = () => {
         setEditingCommission(null);
         form.reset({
@@ -360,7 +391,30 @@ export default function ComissoesPage() {
             </div>
             
             <div className="flex flex-col gap-4">
-                <div className="flex justify-end">
+                <div className="flex justify-end gap-2">
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                          <Button variant="destructive" disabled={commissions.length === 0}>
+                              <Trash className="mr-2 h-4 w-4" />
+                              Excluir Tudo
+                          </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                          <AlertDialogHeader>
+                              <AlertDialogTitle>Você tem certeza absoluta?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                  Essa ação não pode ser desfeita. Isso excluirá permanentemente todas as {commissions.length} comissões.
+                              </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction onClick={handleDeleteAll} disabled={isDeletingAll}>
+                                  {isDeletingAll ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                  Sim, excluir tudo
+                              </AlertDialogAction>
+                          </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                     <Button onClick={handleAddNewClick} variant="accent">
                         <PlusCircle className="mr-2 h-4 w-4" />
                         Lançar Comissão
