@@ -51,6 +51,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { formatCPF_CNPJ, formatTelefone, formatCEP } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { useAuth } from '@/app/dashboard/layout';
 
 const addressSchema = z.object({
   street: z.string().optional(),
@@ -163,6 +164,8 @@ function ClientTableRow({ client, onEdit, onDelete }: { client: Client, onEdit: 
   const [isOpen, setIsOpen] = useState(false);
   const residencial = client.endereco_residencial;
   const obra = client.endereco_obra;
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
 
   return (
     <Collapsible asChild>
@@ -182,19 +185,19 @@ function ClientTableRow({ client, onEdit, onDelete }: { client: Client, onEdit: 
           <TableCell>
               <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                  <Button aria-haspopup="true" size="icon" variant="ghost">
+                  <Button aria-haspopup="true" size="icon" variant="ghost" disabled={!isAdmin}>
                   <MoreHorizontal className="h-4 w-4" />
                   <span className="sr-only">Toggle menu</span>
                   </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                   <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                  <DropdownMenuItem onClick={() => onEdit(client)}>
+                  <DropdownMenuItem onClick={() => onEdit(client)} disabled={!isAdmin}>
                   Editar
                   </DropdownMenuItem>
                   <AlertDialog>
                   <AlertDialogTrigger asChild>
-                      <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600">
+                      <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600" disabled={!isAdmin}>
                           Excluir
                       </DropdownMenuItem>
                   </AlertDialogTrigger>
@@ -273,6 +276,8 @@ export default function ClientesPage() {
   const [isCityDialogOpen, setIsCityDialogOpen] = useState(false);
   const [isDeletingAll, setIsDeletingAll] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
 
   const form = useForm<z.infer<typeof clientSchema>>({
     resolver: zodResolver(clientSchema),
@@ -481,7 +486,7 @@ export default function ClientesPage() {
                     </div>
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                          <Button variant="destructive" disabled={clients.length === 0}>
+                          <Button variant="destructive" disabled={clients.length === 0 || !isAdmin}>
                               <Trash className="mr-2 h-4 w-4" />
                               Excluir Tudo
                           </Button>

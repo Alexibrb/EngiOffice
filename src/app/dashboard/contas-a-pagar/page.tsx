@@ -59,6 +59,7 @@ import autoTable from 'jspdf-autotable';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Label } from '@/components/ui/label';
 import { DateRange } from 'react-day-picker';
+import { useAuth } from '@/app/dashboard/layout';
 
 const accountSchema = z.object({
   descricao: z.string().min(1, 'Descrição é obrigatória.'),
@@ -101,6 +102,8 @@ export default function ContasAPagarPage() {
     const { toast } = useToast();
     const router = useRouter();
     const searchParams = useSearchParams();
+    const { user } = useAuth();
+    const isAdmin = user?.role === 'admin';
 
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
     const [statusFilter, setStatusFilter] = useState<string>('');
@@ -422,7 +425,7 @@ export default function ContasAPagarPage() {
                         <div className="flex gap-2">
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
-                                  <Button variant="destructive" disabled={accountsPayable.length === 0}>
+                                  <Button variant="destructive" disabled={accountsPayable.length === 0 || !isAdmin}>
                                       <Trash className="mr-2 h-4 w-4" />
                                       Excluir Tudo
                                   </Button>
@@ -919,6 +922,9 @@ function PayableTableComponent({ accounts, getPayeeName, onEdit, onDelete, total
     onDelete: (id: string) => void,
     total: number
 }) {
+    const { user } = useAuth();
+    const isAdmin = user?.role === 'admin';
+
     return (
         <div className="border rounded-lg">
             <Table>
@@ -946,12 +952,12 @@ function PayableTableComponent({ accounts, getPayeeName, onEdit, onDelete, total
                             </TableCell>
                             <TableCell>
                                 <DropdownMenu>
-                                    <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                    <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" disabled={!isAdmin}><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
                                         <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                                        <DropdownMenuItem onClick={() => onEdit(account)}>Editar</DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => onEdit(account)} disabled={!isAdmin}>Editar</DropdownMenuItem>
                                         <AlertDialog>
-                                            <AlertDialogTrigger asChild><DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600">Excluir</DropdownMenuItem></AlertDialogTrigger>
+                                            <AlertDialogTrigger asChild><DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600" disabled={!isAdmin}>Excluir</DropdownMenuItem></AlertDialogTrigger>
                                             <AlertDialogContent>
                                                 <AlertDialogHeader>
                                                     <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>

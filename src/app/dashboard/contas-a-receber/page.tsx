@@ -64,6 +64,8 @@ export default function ContasAReceberPage() {
       commissionableEmployees: [] as Employee[],
     });
     const { toast } = useToast();
+    const { user } = useAuth();
+    const isAdmin = user?.role === 'admin';
     
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
     const [statusFilter, setStatusFilter] = useState<string>('');
@@ -254,11 +256,6 @@ export default function ContasAReceberPage() {
 
             setIsPaymentDialogOpen(false);
             
-            const updatedService = { ...editingService, valor_pago: novoValorPago, saldo_devedor: novoSaldoDevedor, status: newStatus } as Service;
-            
-            setLastPaymentValue(values.valor_pago);
-            setDistributingService(updatedService);
-            setIsDistributionDialogOpen(true);
             await fetchData();
 
 
@@ -577,7 +574,7 @@ function ReceivableTableComponent({ services, getClient, totalValor, totalSaldo,
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
                                             <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                                            <DropdownMenuItem onClick={() => handleEditService(service.id)}>
+                                            <DropdownMenuItem onClick={() => handleEditService(service.id)} disabled={!isAdmin}>
                                                 <ExternalLink className="mr-2 h-4 w-4" />
                                                 Ver/Editar Serviço
                                             </DropdownMenuItem>

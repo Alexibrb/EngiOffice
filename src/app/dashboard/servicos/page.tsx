@@ -443,10 +443,6 @@ export default function ServicosPage() {
         
         setIsPaymentDialogOpen(false);
         
-        const updatedService = { ...editingService, valor_pago: novoValorPago, saldo_devedor: novoSaldoDevedor, status: newStatus };
-        setLastPaymentValue(values.valor_pago);
-        setDistributingService(updatedService);
-        setIsDistributionDialogOpen(true);
         await fetchServicesAndClients(); // Refresh data
 
 
@@ -610,9 +606,10 @@ export default function ServicosPage() {
   const filteredServices = services
     .filter(service => {
         const searchTermLower = search.toLowerCase();
+        const clientName = getClient(service.cliente_id)?.nome_completo.toLowerCase() || '';
         return (
             service.descricao.toLowerCase().includes(searchTermLower) ||
-            getClient(service.cliente_id)?.nome_completo.toLowerCase().includes(searchTermLower)
+            clientName.includes(searchTermLower)
         );
     })
     .filter(service => {
@@ -723,7 +720,7 @@ export default function ServicosPage() {
                 </div>
                  <AlertDialog>
                       <AlertDialogTrigger asChild>
-                          <Button variant="destructive" disabled={services.length === 0}>
+                          <Button variant="destructive" disabled={services.length === 0 || !isAdmin}>
                               <Trash className="mr-2 h-4 w-4" />
                               Excluir Tudo
                           </Button>
@@ -746,7 +743,7 @@ export default function ServicosPage() {
                     </AlertDialog>
                 <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogTrigger asChild>
-                    <Button onClick={handleAddNewClick} variant="accent">
+                    <Button onClick={handleAddNewClick} variant="accent" disabled={!isAdmin}>
                     <PlusCircle className="mr-2 h-4 w-4" />
                     Adicionar Serviço
                     </Button>
@@ -1040,7 +1037,7 @@ export default function ServicosPage() {
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
                                         <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                                        <DropdownMenuItem onClick={() => handleEditClick(service)}>
+                                        <DropdownMenuItem onClick={() => handleEditClick(service)} disabled={!isAdmin}>
                                           Editar
                                         </DropdownMenuItem>
                                         <DropdownMenuItem onClick={() => handlePaymentClick(service)} disabled={service.status === 'concluído' || service.status === 'cancelado'}>
@@ -1062,7 +1059,7 @@ export default function ServicosPage() {
                                         <DropdownMenuSeparator />
                                         <AlertDialog>
                                         <AlertDialogTrigger asChild>
-                                            <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600">
+                                            <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600" disabled={!isAdmin}>
                                                 Excluir
                                             </DropdownMenuItem>
                                         </AlertDialogTrigger>
