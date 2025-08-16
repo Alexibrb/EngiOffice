@@ -360,23 +360,24 @@ export default function ServicosPage() {
       const saldoDevedor = values.valor_total - valorPago;
       const status = saldoDevedor === 0 ? 'concluído' : values.status;
 
-      const serviceData = {
+      const serviceData: Omit<Service, 'id'> = {
         ...values,
         anexos: values.anexos?.split('\n').filter(a => a.trim() !== '') || [],
         valor_pago: valorPago,
         saldo_devedor: saldoDevedor,
         status: status,
+        lucro_distribuido: false,
       };
 
       if (editingService) {
         const serviceDocRef = doc(db, 'servicos', editingService.id);
-        // When editing, we need to recalculate saldo_devedor based on existing valor_pago
         const currentService = services.find(s => s.id === editingService.id);
         const valorPagoExistente = currentService?.valor_pago || 0;
         const newServiceData = {
             ...serviceData,
             valor_pago: valorPagoExistente,
-            saldo_devedor: serviceData.valor_total - valorPagoExistente
+            saldo_devedor: serviceData.valor_total - valorPagoExistente,
+            lucro_distribuido: currentService?.lucro_distribuido || false,
         };
         await setDoc(serviceDocRef, newServiceData, { merge: true });
 
@@ -965,7 +966,7 @@ export default function ServicosPage() {
                                 </DropdownMenuItem>
                                 <DropdownMenuItem 
                                     onClick={() => handleDistributionClick(service)} 
-                                    disabled={service.status === 'cancelado' || service.valor_pago === 0}
+                                    disabled={service.status === 'cancelado' || (service.valor_pago || 0) === 0 || service.lucro_distribuido}
                                 >
                                     <Users className="mr-2 h-4 w-4" />
                                     Distribuir Lucro
@@ -1148,7 +1149,12 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, paymentValue, fi
         setIsLoading(true);
         try {
             const batch = writeBatch(db);
+
+             // 1. Mark service as profit distributed
+            const serviceRef = doc(db, 'servicos', service.id);
+            batch.update(serviceRef, { lucro_distribuido: true });
             
+            // 2. Create commission documents
             financials.commissionableEmployees.forEach(employee => {
                 const commissionData = {
                     funcionario_id: employee.id,

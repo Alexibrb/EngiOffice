@@ -556,7 +556,7 @@ function ReceivableTableComponent({ services, getClientName, totalValor, totalSa
                                         </DropdownMenuItem>
                                          <DropdownMenuItem 
                                             onClick={() => onDistribute(service)} 
-                                            disabled={service.status === 'cancelado' || service.valor_pago === 0}
+                                            disabled={service.status === 'cancelado' || (service.valor_pago || 0) === 0 || service.lucro_distribuido}
                                          >
                                             <Users className="mr-2 h-4 w-4" />
                                             Distribuir Lucro
@@ -667,7 +667,12 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, paymentValue, fi
         setIsLoading(true);
         try {
             const batch = writeBatch(db);
+
+            // 1. Mark service as profit distributed
+            const serviceRef = doc(db, 'servicos', service.id);
+            batch.update(serviceRef, { lucro_distribuido: true });
             
+            // 2. Create commission documents
             financials.commissionableEmployees.forEach(employee => {
                 const commissionData = {
                     funcionario_id: employee.id,

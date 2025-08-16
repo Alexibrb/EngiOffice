@@ -63,6 +63,7 @@ export type Service = {
   forma_pagamento: 'a_vista' | 'a_prazo';
   status: 'em andamento' | 'concluído' | 'cancelado';
   anexos?: string[];
+  lucro_distribuido?: boolean;
 };
 
 export type ServiceType = {
