@@ -90,7 +90,7 @@ export default function ContasAReceberPage() {
 
             const allServices = servicesSnap.docs.map(doc => doc.data() as Service);
             const totalRevenue = allServices
-                .reduce((sum, s) => sum + (s.valor_total - s.saldo_devedor), 0);
+                .reduce((sum, s) => sum + (s.valor_pago || 0), 0);
 
             const allAccountsPayable = accountsPayableSnap.docs.map(doc => doc.data() as Account);
             const totalExpenses = allAccountsPayable
@@ -227,17 +227,22 @@ export default function ContasAReceberPage() {
 
         setIsPaymentLoading(true);
         try {
-            const newBalance = editingService.saldo_devedor - values.valor_pago;
-            if (newBalance < 0) {
+            const valorPagoAtual = editingService.valor_pago || 0;
+            const novoValorPago = valorPagoAtual + values.valor_pago;
+            const novoSaldoDevedor = editingService.valor_total - novoValorPago;
+
+            if (novoSaldoDevedor < 0) {
                 toast({ variant: 'destructive', title: 'Erro', description: 'O valor pago não pode ser maior que o saldo devedor.' });
                 setIsPaymentLoading(false);
                 return;
             }
 
             const serviceDocRef = doc(db, 'servicos', editingService.id);
+            const newStatus = novoSaldoDevedor === 0 ? 'concluído' : 'em andamento';
             await updateDoc(serviceDocRef, {
-                saldo_devedor: newBalance,
-                status: newBalance === 0 ? 'concluído' : 'em andamento'
+                valor_pago: novoValorPago,
+                saldo_devedor: novoSaldoDevedor,
+                status: newStatus
             });
 
             toast({ title: 'Sucesso!', description: 'Pagamento lançado com sucesso.' });
@@ -246,7 +251,7 @@ export default function ContasAReceberPage() {
 
             setIsPaymentDialogOpen(false);
             
-            const updatedService = { ...editingService, saldo_devedor: newBalance, status: newBalance === 0 ? 'concluído' : 'em andamento' } as Service;
+            const updatedService = { ...editingService, valor_pago: novoValorPago, saldo_devedor: novoSaldoDevedor, status: newStatus } as Service;
             
             setLastPaymentValue(values.valor_pago);
             setDistributingService(updatedService);
@@ -277,7 +282,7 @@ export default function ContasAReceberPage() {
     const totalReceivablePending = services
         .reduce((acc, curr) => acc + (curr.saldo_devedor || 0), 0);
 
-    const totalReceivablePaid = services.reduce((acc, curr) => curr.status === 'concluído' ? acc + curr.valor_total : acc, 0);
+    const totalReceivablePaid = services.reduce((acc, curr) => acc + (curr.valor_pago || 0), 0);
 
     const filteredTotal = filteredReceivable.reduce((acc, curr) => acc + curr.valor_total, 0);
     const filteredSaldoDevedor = filteredReceivable.reduce((acc, curr) => acc + (curr.saldo_devedor || 0), 0);
@@ -348,13 +353,13 @@ export default function ContasAReceberPage() {
                 </Card>
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Receita de Serviços Concluídos</CardTitle>
+                        <CardTitle className="text-sm font-medium">Total Recebido</CardTitle>
                         <TrendingUp className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold text-green-500">R$ {totalReceivablePaid.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
                          <p className="text-xs text-muted-foreground">
-                            Soma do valor de todos os serviços concluídos
+                            Soma de todos os pagamentos recebidos
                         </p>
                     </CardContent>
                 </Card>
@@ -551,7 +556,7 @@ function ReceivableTableComponent({ services, getClientName, totalValor, totalSa
                                         </DropdownMenuItem>
                                          <DropdownMenuItem 
                                             onClick={() => onDistribute(service)} 
-                                            disabled={service.status === 'cancelado' || service.saldo_devedor === service.valor_total}
+                                            disabled={service.status === 'cancelado' || service.valor_pago === 0}
                                          >
                                             <Users className="mr-2 h-4 w-4" />
                                             Distribuir Lucro
@@ -601,7 +606,7 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, paymentValue, fi
     const [profitMargin, setProfitMargin] = useState(0);
 
     const isManualTrigger = paymentValue === 0;
-    const amountPaidSoFar = service.valor_total - service.saldo_devedor;
+    const amountPaidSoFar = service.valor_pago || 0;
     const valueForCalculation = isManualTrigger ? amountPaidSoFar : paymentValue;
 
     useEffect(() => {
@@ -759,4 +764,3 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, paymentValue, fi
 }
 
     
-

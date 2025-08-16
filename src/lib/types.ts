@@ -58,6 +58,7 @@ export type Service = {
   cliente_id: string;
   data_cadastro: Date;
   valor_total: number;
+  valor_pago: number;
   saldo_devedor: number;
   forma_pagamento: 'a_vista' | 'a_prazo';
   status: 'em andamento' | 'concluído' | 'cancelado';
@@ -120,6 +121,4 @@ export type Payee = (Employee | Supplier) & {
     nome: string;
     tipo: 'funcionario' | 'fornecedor';
 };
-    
-
     

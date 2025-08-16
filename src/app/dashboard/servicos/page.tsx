@@ -255,7 +255,7 @@ export default function ServicosPage() {
 
             const allServices = servicesSnap.docs.map(doc => doc.data() as Service);
             const totalRevenue = allServices
-                .reduce((sum, s) => sum + (s.valor_total - s.saldo_devedor), 0);
+                .reduce((sum, s) => sum + (s.valor_pago || 0), 0);
 
             const allAccountsPayable = accountsPayableSnap.docs.map(doc => doc.data() as Account);
             const totalExpenses = allAccountsPayable
@@ -356,19 +356,30 @@ export default function ServicosPage() {
   const handleSaveService = async (values: z.infer<typeof serviceSchema>) => {
     setIsLoading(true);
     try {
-      const saldoDevedor = values.forma_pagamento === 'a_prazo' ? values.valor_total : 0;
+      const valorPago = values.forma_pagamento === 'a_vista' ? values.valor_total : 0;
+      const saldoDevedor = values.valor_total - valorPago;
       const status = saldoDevedor === 0 ? 'concluído' : values.status;
 
       const serviceData = {
         ...values,
         anexos: values.anexos?.split('\n').filter(a => a.trim() !== '') || [],
+        valor_pago: valorPago,
         saldo_devedor: saldoDevedor,
         status: status,
       };
 
       if (editingService) {
         const serviceDocRef = doc(db, 'servicos', editingService.id);
-        await setDoc(serviceDocRef, serviceData);
+        // When editing, we need to recalculate saldo_devedor based on existing valor_pago
+        const currentService = services.find(s => s.id === editingService.id);
+        const valorPagoExistente = currentService?.valor_pago || 0;
+        const newServiceData = {
+            ...serviceData,
+            valor_pago: valorPagoExistente,
+            saldo_devedor: serviceData.valor_total - valorPagoExistente
+        };
+        await setDoc(serviceDocRef, newServiceData, { merge: true });
+
         toast({
           title: "Sucesso!",
           description: "Serviço atualizado com sucesso.",
@@ -403,17 +414,21 @@ export default function ServicosPage() {
 
     setIsPaymentLoading(true);
     try {
-        const newBalance = editingService.saldo_devedor - values.valor_pago;
-        if (newBalance < 0) {
+        const valorPagoAtual = editingService.valor_pago || 0;
+        const novoValorPago = valorPagoAtual + values.valor_pago;
+        const novoSaldoDevedor = editingService.valor_total - novoValorPago;
+
+        if (novoSaldoDevedor < 0) {
             toast({ variant: 'destructive', title: 'Erro', description: 'O valor pago não pode ser maior que o saldo devedor.' });
             setIsPaymentLoading(false);
             return;
         }
 
         const serviceDocRef = doc(db, 'servicos', editingService.id);
-        const newStatus = newBalance === 0 ? 'concluído' : 'em andamento';
+        const newStatus = novoSaldoDevedor === 0 ? 'concluído' : 'em andamento';
         await updateDoc(serviceDocRef, {
-            saldo_devedor: newBalance,
+            valor_pago: novoValorPago,
+            saldo_devedor: novoSaldoDevedor,
             status: newStatus
         });
 
@@ -423,7 +438,7 @@ export default function ServicosPage() {
         
         setIsPaymentDialogOpen(false);
         
-        const updatedService = { ...editingService, saldo_devedor: newBalance, status: newStatus };
+        const updatedService = { ...editingService, valor_pago: novoValorPago, saldo_devedor: novoSaldoDevedor, status: newStatus };
         setLastPaymentValue(values.valor_pago);
         setDistributingService(updatedService);
         setIsDistributionDialogOpen(true);
@@ -581,7 +596,7 @@ export default function ServicosPage() {
 
     const ongoingServicesCount = services.filter((s) => s.status === 'em andamento').length;
     const completedServicesCount = services.filter((s) => s.status === 'concluído').length;
-    const totalReceivablePaid = services.reduce((acc, curr) => curr.status === 'concluído' ? acc + (curr.valor_total || 0) : acc, 0);
+    const totalReceivablePaid = services.reduce((acc, curr) => acc + (curr.valor_pago || 0), 0);
     const totalReceivablePending = services.reduce((acc, curr) => acc + (curr.saldo_devedor || 0), 0);
 
   return (
@@ -620,13 +635,13 @@ export default function ServicosPage() {
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Receita de Serviços Concluídos</CardTitle>
+                <CardTitle className="text-sm font-medium">Total Recebido</CardTitle>
                 <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
                 <div className="text-2xl font-bold text-green-500">R$ {totalReceivablePaid.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
                   <p className="text-xs text-muted-foreground">
-                    Soma do valor de todos os serviços concluídos
+                    Soma de todos os pagamentos recebidos
                 </p>
             </CardContent>
           </Card>
@@ -950,7 +965,7 @@ export default function ServicosPage() {
                                 </DropdownMenuItem>
                                 <DropdownMenuItem 
                                     onClick={() => handleDistributionClick(service)} 
-                                    disabled={service.status === 'cancelado' || service.saldo_devedor === service.valor_total}
+                                    disabled={service.status === 'cancelado' || service.valor_pago === 0}
                                 >
                                     <Users className="mr-2 h-4 w-4" />
                                     Distribuir Lucro
@@ -1072,7 +1087,7 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, paymentValue, fi
     const [profitMargin, setProfitMargin] = useState(0);
 
     const isManualTrigger = paymentValue === 0;
-    const amountPaidSoFar = service.valor_total - service.saldo_devedor;
+    const amountPaidSoFar = service.valor_pago || 0;
     const valueForCalculation = isManualTrigger ? amountPaidSoFar : paymentValue;
 
     useEffect(() => {
@@ -1218,7 +1233,7 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, paymentValue, fi
                     </div>
                 </div>
                 <DialogFooter>
-                    <Button variant="ghost" onClick={() => setIsOpen(false)}>Cancelar</Button>
+                    <Button variant="ghost" onClick={() => setIsOpen(false)}>Fechar</Button>
                     <Button variant="accent" onClick={handleConfirmDistribution} disabled={isLoading || individualCommission <= 0}>
                         {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
                         Confirmar e Lançar

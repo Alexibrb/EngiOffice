@@ -135,14 +135,13 @@ export default function DashboardPage() {
     .filter((a) => a.status === 'pendente')
     .sort((a, b) => a.vencimento.getTime() - b.vencimento.getTime());
 
-  const totalReceivablePaid = services.reduce((acc, curr) => curr.valor_total - curr.saldo_devedor, 0);
+  const totalReceivablePaid = services.reduce((acc, curr) => acc + (curr.valor_pago || 0), 0);
   const totalPayablePaid = accountsPayable.reduce((acc, curr) => curr.status === 'pago' ? acc + curr.valor : acc, 0);
   const totalCommissionsPaid = commissions.reduce((acc, curr) => curr.status === 'pago' ? acc + curr.valor : acc, 0);
   const balance = totalReceivablePaid - totalPayablePaid - totalCommissionsPaid;
   
   const totalServices = services.filter(s => s.status !== 'cancelado').length;
   const completedServices = services.filter(s => s.status === 'concluído').length;
-  const completionRate = totalServices > 0 ? (completedServices / totalServices) * 100 : 0;
   
   const totalCommissionsPending = commissions
     .filter((c) => c.status === 'pendente')
@@ -251,8 +250,11 @@ export default function DashboardPage() {
 
     setIsPaymentLoading(true);
     try {
-        const newBalance = editingService.saldo_devedor - values.valor_pago;
-        if (newBalance < 0) {
+        const valorPagoAtual = editingService.valor_pago || 0;
+        const novoValorPago = valorPagoAtual + values.valor_pago;
+        const novoSaldoDevedor = editingService.valor_total - novoValorPago;
+
+        if (novoSaldoDevedor < 0) {
             toast({ variant: 'destructive', title: 'Erro', description: 'O valor pago não pode ser maior que o saldo devedor.' });
             setIsPaymentLoading(false);
             return;
@@ -260,8 +262,9 @@ export default function DashboardPage() {
 
         const serviceDocRef = doc(db, 'servicos', editingService.id);
         await updateDoc(serviceDocRef, {
-            saldo_devedor: newBalance,
-            status: newBalance === 0 ? 'concluído' : 'em andamento'
+            valor_pago: novoValorPago,
+            saldo_devedor: novoSaldoDevedor,
+            status: novoSaldoDevedor === 0 ? 'concluído' : 'em andamento'
         });
 
         toast({ title: 'Sucesso!', description: 'Pagamento lançado com sucesso.' });
@@ -317,14 +320,14 @@ export default function DashboardPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Receita de Serviços Concluídos
+              Total Recebido
             </CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-500">R$ {services.reduce((acc, curr) => curr.status === 'concluído' ? acc + (curr.valor_total || 0) : acc, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+            <div className="text-2xl font-bold text-green-500">R$ {totalReceivablePaid.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
              <p className="text-xs text-muted-foreground">
-                Soma do valor de todos os serviços concluídos
+                Soma de todos os pagamentos recebidos
             </p>
           </CardContent>
         </Card>
@@ -590,5 +593,4 @@ export default function DashboardPage() {
     </div>
   );
 }
-
     
