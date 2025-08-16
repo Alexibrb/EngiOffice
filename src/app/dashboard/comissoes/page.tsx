@@ -21,7 +21,7 @@ import {
   TableFooter,
 } from '@/components/ui/table';
 import { useToast } from "@/hooks/use-toast"
-import { collection, getDocs, doc, writeBatch, Timestamp, updateDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, writeBatch, Timestamp, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { PlusCircle, MoreHorizontal, Loader2, Calendar as CalendarIcon, XCircle, Trash, User, Users } from 'lucide-react';
 import {
@@ -351,7 +351,7 @@ export default function ComissoesPage() {
                         <TableRow>
                             <TableHead>Funcionário</TableHead>
                             <TableHead>Cliente</TableHead>
-                            <TableHead>Serviço Referente</TableHead>
+                            <TableHead>Serviço Referente / Endereço</TableHead>
                             <TableHead className="text-right">Valor da Comissão</TableHead>
                             <TableHead>Status</TableHead>
                             <TableHead><span className="sr-only">Ações</span></TableHead>
@@ -442,8 +442,7 @@ export default function ComissoesPage() {
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Cliente</TableHead>
-                                    <TableHead>Descrição</TableHead>
-                                    <TableHead>Endereço da Obra</TableHead>
+                                    <TableHead>Descrição / Endereço</TableHead>
                                     <TableHead>Valor do Serviço</TableHead>
                                     <TableHead>Saldo Devedor</TableHead>
                                     <TableHead>Status</TableHead>
@@ -459,8 +458,10 @@ export default function ComissoesPage() {
                                     return (
                                         <TableRow key={service.id}>
                                             <TableCell className="font-medium">{client?.nome_completo || 'Desconhecido'}</TableCell>
-                                            <TableCell>{service.descricao}</TableCell>
-                                            <TableCell>{formattedAddress}</TableCell>
+                                            <TableCell>
+                                                <div className="font-medium">{service.descricao}</div>
+                                                <div className="text-xs text-muted-foreground">{formattedAddress}</div>
+                                            </TableCell>
                                             <TableCell>R$ {(service.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
                                             <TableCell className="text-red-500">R$ {(service.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
                                             <TableCell>
