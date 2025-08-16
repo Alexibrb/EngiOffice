@@ -72,7 +72,6 @@ const accountSchema = z.object({
   }),
   vencimento: z.date({ required_error: 'Data de vencimento é obrigatória.' }),
   status: z.enum(['pendente', 'pago']),
-  servico_id: z.string().optional(),
 });
 
 
@@ -266,7 +265,6 @@ export default function ContasAPagarPage() {
             valor: '0,00',
             status: 'pendente',
             vencimento: new Date(),
-            servico_id: '',
         });
         setIsDialogOpen(true);
     };
@@ -477,7 +475,6 @@ export default function ContasAPagarPage() {
                             <PayableFormComponent 
                                 form={form} 
                                 payees={payees} 
-                                services={services}
                                 onAddSupplier={() => setIsSupplierDialogOpen(true)}
                                 onAddProduct={() => setIsAddProductDialogOpen(true)}
                                 editingAccount={editingAccount}
@@ -596,10 +593,9 @@ export default function ContasAPagarPage() {
     );
 }
 
-function PayableFormComponent({ form, payees, services, onAddSupplier, onAddProduct, editingAccount }: { 
+function PayableFormComponent({ form, payees, onAddSupplier, onAddProduct, editingAccount }: { 
     form: any, 
     payees: Payee[], 
-    services: Service[],
     onAddSupplier: () => void,
     onAddProduct: () => void,
     editingAccount: Account | null
@@ -614,7 +610,6 @@ function PayableFormComponent({ form, payees, services, onAddSupplier, onAddProd
              const payee = payees.find(p => p.id === payeeId);
             if (payee) {
                 form.setValue('tipo_referencia', payee.tipo);
-                form.setValue('descricao', '');
                 if (payee.tipo === 'funcionario') {
                     form.setValue('descricao', 'Pagamento de Salário');
                     const salary = (payee as Employee).salario || 0;
@@ -732,30 +727,6 @@ function PayableFormComponent({ form, payees, services, onAddSupplier, onAddProd
                             <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus/>
                         </PopoverContent>
                         </Popover>
-                        <FormMessage />
-                    </FormItem>
-                )}
-            />
-             <FormField
-                control={form.control}
-                name="servico_id"
-                render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Vincular ao Serviço (Opcional)</FormLabel>
-                         <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
-                            <FormControl>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Selecione um serviço" />
-                                </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                                {services.map(s => (
-                                    <SelectItem key={s.id} value={s.id}>
-                                        {s.descricao}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
                         <FormMessage />
                     </FormItem>
                 )}
@@ -929,3 +900,4 @@ function PayableTableComponent({ accounts, getPayeeName, onEdit, onDelete, total
         </div>
     );
 }
+
