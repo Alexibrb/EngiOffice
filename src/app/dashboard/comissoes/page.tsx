@@ -37,7 +37,7 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import { collection, addDoc, getDocs, doc, setDoc, deleteDoc, Timestamp, writeBatch } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { PlusCircle, MoreHorizontal, Loader2, Calendar as CalendarIcon, XCircle, Trash } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Loader2, Calendar as CalendarIcon, XCircle, Trash, User } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -56,6 +56,7 @@ import { Badge } from '@/components/ui/badge';
 import { DateRange } from 'react-day-picker';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 const commissionSchema = z.object({
   funcionario_id: z.string().min(1, 'Funcionário é obrigatório.'),
@@ -82,14 +83,23 @@ const CommissionFormContent = ({ form, employees, clients, services }: { form: a
     const commissionBasedEmployees = employees.filter(emp => emp.tipo_contratacao === 'comissao');
     
     const selectedService = services.find(s => s.id === selectedServicoId);
-    const selectedClient = clients.find(c => c.codigo_cliente === selectedService?.cliente_id);
+    const clientForService = selectedClientId ? clients.find(c => c.codigo_cliente === selectedClientId) : null;
 
+
+    useEffect(() => {
+        if (!selectedServicoId) {
+           const service = services.find(s => s.id === form.getValues('servico_id'));
+           if (service) {
+               form.setValue('cliente_id', service.cliente_id);
+           }
+        }
+    }, [selectedServicoId, form, services]);
 
     useEffect(() => {
         form.setValue('servico_id', '');
     }, [selectedClientId, form]);
 
-    const workAddress = selectedClient?.endereco_obra;
+    const workAddress = clientForService?.endereco_obra;
     const fullAddress = workAddress ? [workAddress.street, workAddress.number, workAddress.neighborhood, workAddress.city, workAddress.state].filter(Boolean).join(', ') : 'Endereço da obra não disponível';
 
     return (
@@ -142,11 +152,11 @@ const CommissionFormContent = ({ form, employees, clients, services }: { form: a
                     </FormItem>
                 )}
             />
-             {selectedClient && (
+             {clientForService && (
                 <>
                     <div className="md:col-span-2 space-y-2">
                         <Label>Nome do Cliente</Label>
-                        <Input value={selectedClient.nome_completo} readOnly disabled />
+                        <Input value={clientForService.nome_completo} readOnly disabled />
                     </div>
                     <div className="md:col-span-2 space-y-2">
                         <Label>Endereço da Obra</Label>
@@ -380,6 +390,14 @@ export default function ComissoesPage() {
         });
     
     const filteredTotal = filteredCommissions.reduce((acc, curr) => acc + curr.valor, 0);
+    
+    const commissionBasedEmployees = employees.filter(emp => emp.tipo_contratacao === 'comissao');
+    const employeeCommissionTotals = commissionBasedEmployees.map(employee => {
+        const total = commissions
+            .filter(c => c.funcionario_id === employee.id && c.status === 'pago')
+            .reduce((sum, c) => sum + c.valor, 0);
+        return { employeeName: employee.nome, total };
+    });
 
     return (
         <div className="flex flex-col gap-8">
@@ -390,6 +408,23 @@ export default function ComissoesPage() {
                 </p>
             </div>
             
+             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                {employeeCommissionTotals.map(({ employeeName, total }) => (
+                    <Card key={employeeName}>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">{employeeName}</CardTitle>
+                            <User className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold text-green-500">R$ {total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                            <p className="text-xs text-muted-foreground">
+                                Saldo de comissão recebido
+                            </p>
+                        </CardContent>
+                    </Card>
+                ))}
+            </div>
+
             <div className="flex flex-col gap-4">
                 <div className="flex justify-end gap-2">
                     <AlertDialog>
@@ -569,5 +604,3 @@ export default function ComissoesPage() {
         </div>
     );
 }
-
-    
