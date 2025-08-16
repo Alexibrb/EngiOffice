@@ -36,6 +36,7 @@ import { useAuth } from '@/app/dashboard/layout';
 const mainLinks = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/dashboard/servicos', label: 'Serviços', icon: Wrench },
+  { href: '/dashboard/clientes', label: 'Clientes', icon: Users },
   {
     href: '/dashboard/contas-a-pagar',
     label: 'Contas a Pagar',
@@ -56,7 +57,6 @@ const mainLinks = [
 ];
 
 const secondaryLinks = [
-    { href: '/dashboard/clientes', label: 'Clientes', icon: Users },
     {
       href: '/dashboard/fornecedores',
       label: 'Fornecedores',
