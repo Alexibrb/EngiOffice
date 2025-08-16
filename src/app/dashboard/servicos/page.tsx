@@ -1109,7 +1109,7 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, paymentValue, fi
     }, [isOpen, service, toast]);
 
     const profitFromPayment = valueForCalculation * profitMargin;
-    const cashBalanceBeforeThisPayment = financials.balance;
+    const cashBalanceBeforeThisPayment = financials.balance - valueForCalculation;
 
     let amountToDistribute = profitFromPayment;
     let deficitCoverage = 0;
@@ -1218,7 +1218,7 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, paymentValue, fi
                     </div>
                 </div>
                 <DialogFooter>
-                    <Button variant="ghost" onClick={() => setIsOpen(false)}>Fechar</Button>
+                    <Button variant="ghost" onClick={() => setIsOpen(false)}>Cancelar</Button>
                     <Button variant="accent" onClick={handleConfirmDistribution} disabled={isLoading || individualCommission <= 0}>
                         {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
                         Confirmar e Lançar
