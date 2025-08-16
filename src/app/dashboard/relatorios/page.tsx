@@ -17,6 +17,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TableFooter,
 } from '@/components/ui/table';
 import type { Client, Supplier, Service, Account, Employee, Commission } from '@/lib/types';
 import jsPDF from 'jspdf';
@@ -150,13 +151,13 @@ export default function RelatoriosPage() {
             break;
     }
     return data;
-  }, [selectedReport, clients, suppliers, services, accountsPayable, commissions, searchFilter, statusFilter, dateRange]);
-
+  }, [selectedReport, clients, suppliers, services, accountsPayable, commissions, searchFilter, statusFilter, dateRange, getClientName, getPayeeName, getEmployeeName, getServiceDescription]);
 
   const generatePdf = () => {
     let data = filteredData;
     let head: string[][];
     let body: any[][];
+    let foot: any[][] | undefined = undefined;
     let fileName = '';
     let title = '';
 
@@ -175,20 +176,27 @@ export default function RelatoriosPage() {
         break;
       case 'services':
         title = 'Relatório de Serviços';
-        head = [['Descrição', 'Cliente', 'Data de Cadastro', 'Valor', 'Status']];
-        body = data.map((item) => [item.descricao, getClientName(item.cliente_id), item.data_cadastro ? format(item.data_cadastro, "dd/MM/yyyy") : '-', `R$ ${item.valor_total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, item.status]);
+        head = [['Descrição', 'Cliente', 'Data', 'Valor Total', 'Saldo Devedor', 'Status']];
+        body = data.map((item: Service) => [item.descricao, getClientName(item.cliente_id), item.data_cadastro ? format(item.data_cadastro, "dd/MM/yyyy") : '-', `R$ ${item.valor_total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, `R$ ${item.saldo_devedor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, item.status]);
+        const totalValorServicos = data.reduce((sum, item) => sum + item.valor_total, 0);
+        const totalSaldoServicos = data.reduce((sum, item) => sum + item.saldo_devedor, 0);
+        foot = [['Total', '', '', `R$ ${totalValorServicos.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, `R$ ${totalSaldoServicos.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, '']];
         fileName = 'relatorio_servicos.pdf';
         break;
       case 'accountsPayable':
         title = 'Relatório de Contas a Pagar';
         head = [['Descrição', 'Favorecido', 'Vencimento', 'Valor', 'Status']];
-        body = data.map((item) => [item.descricao, getPayeeName(item), item.vencimento ? format(item.vencimento, "dd/MM/yyyy") : '-', `R$ ${item.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, item.status]);
+        body = data.map((item: Account) => [item.descricao, getPayeeName(item), item.vencimento ? format(item.vencimento, "dd/MM/yyyy") : '-', `R$ ${item.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, item.status]);
+        const totalContasPagar = data.reduce((sum, item) => sum + item.valor, 0);
+        foot = [['Total', '', '', `R$ ${totalContasPagar.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, '']];
         fileName = 'relatorio_contas_a_pagar.pdf';
         break;
        case 'commissions':
         title = 'Relatório de Comissões';
-        head = [['Funcionário', 'Serviço Referente', 'Data', 'Valor', 'Status']];
-        body = data.map((item) => [getEmployeeName(item.funcionario_id), getServiceDescription(item.servico_id), item.data ? format(item.data, "dd/MM/yyyy") : '-', `R$ ${item.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, item.status]);
+        head = [['Funcionário', 'Serviço', 'Data', 'Valor', 'Status']];
+        body = data.map((item: Commission) => [getEmployeeName(item.funcionario_id), getServiceDescription(item.servico_id), item.data ? format(item.data, "dd/MM/yyyy") : '-', `R$ ${item.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, item.status]);
+        const totalComissoes = data.reduce((sum, item) => sum + item.valor, 0);
+        foot = [['Total', '', '', `R$ ${totalComissoes.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, '']];
         fileName = 'relatorio_comissoes.pdf';
         break;
       default: return;
@@ -210,8 +218,10 @@ export default function RelatoriosPage() {
       startY: 35,
       head: head,
       body: body,
+      foot: foot,
       theme: 'striped',
       headStyles: { fillColor: [34, 139, 34] },
+      footStyles: { fillColor: [220, 220, 220], textColor: [0, 0, 0], fontStyle: 'bold' }
     });
     doc.save(fileName);
   };
@@ -276,6 +286,28 @@ export default function RelatoriosPage() {
   };
   
   const renderReportCard = () => {
+    
+    const totals = useMemo(() => {
+        if (!filteredData) return {};
+        switch(selectedReport) {
+            case 'services':
+                return {
+                    valor_total: filteredData.reduce((sum, item) => sum + item.valor_total, 0),
+                    saldo_devedor: filteredData.reduce((sum, item) => sum + item.saldo_devedor, 0)
+                };
+            case 'accountsPayable':
+                return {
+                    valor: filteredData.reduce((sum, item) => sum + item.valor, 0)
+                };
+            case 'commissions':
+                return {
+                    valor: filteredData.reduce((sum, item) => sum + item.valor, 0)
+                };
+            default:
+                return {};
+        }
+    }, [filteredData, selectedReport]);
+
     switch (selectedReport) {
       case 'clients':
         return (
@@ -347,12 +379,20 @@ export default function RelatoriosPage() {
             <CardContent>
               <div className="border rounded-lg">
                 <Table>
-                  <TableHeader><TableRow><TableHead>Descrição</TableHead><TableHead>Cliente</TableHead><TableHead>Data de Cadastro</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
+                  <TableHeader><TableRow><TableHead>Descrição</TableHead><TableHead>Cliente</TableHead><TableHead>Data</TableHead><TableHead>Valor Total</TableHead><TableHead>Saldo Devedor</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
                   <TableBody>
                     {filteredData.length > 0 ? filteredData.slice(0, 10).map((s) => (
-                      <TableRow key={s.id}><TableCell className="font-medium">{s.descricao}</TableCell><TableCell>{getClientName(s.cliente_id)}</TableCell><TableCell>{s.data_cadastro ? format(s.data_cadastro, "dd/MM/yyyy") : '-'}</TableCell><TableCell><Badge variant={s.status === 'concluído' ? 'secondary' : s.status === 'cancelado' ? 'destructive' : 'default'}>{s.status}</Badge></TableCell></TableRow>
-                    )) : (<TableRow><TableCell colSpan={4} className="h-24 text-center">Nenhum serviço encontrado.</TableCell></TableRow>)}
+                      <TableRow key={s.id}><TableCell className="font-medium">{s.descricao}</TableCell><TableCell>{getClientName(s.cliente_id)}</TableCell><TableCell>{s.data_cadastro ? format(s.data_cadastro, "dd/MM/yyyy") : '-'}</TableCell><TableCell className="text-green-500">R$ {s.valor_total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell><TableCell className="text-red-500">R$ {s.saldo_devedor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell><TableCell><Badge variant={s.status === 'concluído' ? 'secondary' : s.status === 'cancelado' ? 'destructive' : 'default'}>{s.status}</Badge></TableCell></TableRow>
+                    )) : (<TableRow><TableCell colSpan={6} className="h-24 text-center">Nenhum serviço encontrado.</TableCell></TableRow>)}
                   </TableBody>
+                  <TableFooter>
+                    <TableRow>
+                      <TableCell colSpan={3} className="font-bold">Total</TableCell>
+                      <TableCell className="text-right font-bold text-green-500">R$ {(totals.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
+                      <TableCell className="text-right font-bold text-red-500">R$ {(totals.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
+                      <TableCell></TableCell>
+                    </TableRow>
+                  </TableFooter>
                 </Table>
               </div>
             </CardContent>
@@ -374,12 +414,19 @@ export default function RelatoriosPage() {
             <CardContent>
               <div className="border rounded-lg">
                 <Table>
-                  <TableHeader><TableRow><TableHead>Descrição</TableHead><TableHead>Favorecido</TableHead><TableHead>Vencimento</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
+                  <TableHeader><TableRow><TableHead>Descrição</TableHead><TableHead>Favorecido</TableHead><TableHead>Vencimento</TableHead><TableHead className="text-right">Valor</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
                   <TableBody>
                     {filteredData.length > 0 ? filteredData.slice(0, 10).map((acc) => (
-                      <TableRow key={acc.id}><TableCell className="font-medium">{acc.descricao}</TableCell><TableCell>{getPayeeName(acc)}</TableCell><TableCell>{acc.vencimento ? format(acc.vencimento, "dd/MM/yyyy") : '-'}</TableCell><TableCell><Badge variant={acc.status === 'pago' ? 'secondary' : 'destructive'}>{acc.status}</Badge></TableCell></TableRow>
-                    )) : (<TableRow><TableCell colSpan={4} className="h-24 text-center">Nenhuma conta a pagar encontrada.</TableCell></TableRow>)}
+                      <TableRow key={acc.id}><TableCell className="font-medium">{acc.descricao}</TableCell><TableCell>{getPayeeName(acc)}</TableCell><TableCell>{acc.vencimento ? format(acc.vencimento, "dd/MM/yyyy") : '-'}</TableCell><TableCell className="text-right text-red-500">R$ {acc.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell><TableCell><Badge variant={acc.status === 'pago' ? 'secondary' : 'destructive'}>{acc.status}</Badge></TableCell></TableRow>
+                    )) : (<TableRow><TableCell colSpan={5} className="h-24 text-center">Nenhuma conta a pagar encontrada.</TableCell></TableRow>)}
                   </TableBody>
+                   <TableFooter>
+                    <TableRow>
+                      <TableCell colSpan={3} className="font-bold">Total</TableCell>
+                      <TableCell className="text-right font-bold text-red-500">R$ {(totals.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
+                      <TableCell></TableCell>
+                    </TableRow>
+                  </TableFooter>
                 </Table>
               </div>
             </CardContent>
@@ -401,12 +448,19 @@ export default function RelatoriosPage() {
             <CardContent>
               <div className="border rounded-lg">
                 <Table>
-                  <TableHeader><TableRow><TableHead>Funcionário</TableHead><TableHead>Serviço Referente</TableHead><TableHead>Data</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
+                  <TableHeader><TableRow><TableHead>Funcionário</TableHead><TableHead>Serviço</TableHead><TableHead>Data</TableHead><TableHead className="text-right">Valor</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
                   <TableBody>
                     {filteredData.length > 0 ? filteredData.slice(0, 10).map((comm) => (
-                      <TableRow key={comm.id}><TableCell className="font-medium">{getEmployeeName(comm.funcionario_id)}</TableCell><TableCell>{getServiceDescription(comm.servico_id)}</TableCell><TableCell>{comm.data ? format(comm.data, "dd/MM/yyyy") : '-'}</TableCell><TableCell><Badge variant={comm.status === 'pago' ? 'secondary' : 'destructive'}>{comm.status}</Badge></TableCell></TableRow>
-                    )) : (<TableRow><TableCell colSpan={4} className="h-24 text-center">Nenhuma comissão encontrada.</TableCell></TableRow>)}
+                      <TableRow key={comm.id}><TableCell className="font-medium">{getEmployeeName(comm.funcionario_id)}</TableCell><TableCell>{getServiceDescription(comm.servico_id)}</TableCell><TableCell>{comm.data ? format(comm.data, "dd/MM/yyyy") : '-'}</TableCell><TableCell className="text-right text-green-500">R$ {comm.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell><TableCell><Badge variant={comm.status === 'pago' ? 'secondary' : 'destructive'}>{comm.status}</Badge></TableCell></TableRow>
+                    )) : (<TableRow><TableCell colSpan={5} className="h-24 text-center">Nenhuma comissão encontrada.</TableCell></TableRow>)}
                   </TableBody>
+                   <TableFooter>
+                    <TableRow>
+                      <TableCell colSpan={3} className="font-bold">Total</TableCell>
+                      <TableCell className="text-right font-bold text-green-500">R$ {(totals.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
+                      <TableCell></TableCell>
+                    </TableRow>
+                  </TableFooter>
                 </Table>
               </div>
             </CardContent>
