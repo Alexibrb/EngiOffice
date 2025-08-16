@@ -58,6 +58,7 @@ const employeeSchema = z.object({
   status: z.enum(['ativo', 'inativo']),
   tipo_contratacao: z.enum(['salario_fixo', 'comissao'], { required_error: 'Tipo de contratação é obrigatório.'}),
   salario: z.coerce.number().optional(),
+  taxa_comissao: z.coerce.number().optional(),
 }).refine(data => {
     if (data.tipo_contratacao === 'salario_fixo') {
         return data.salario !== undefined && data.salario > 0;
@@ -66,6 +67,14 @@ const employeeSchema = z.object({
 }, {
     message: 'Salário é obrigatório para contratação de tipo salário fixo.',
     path: ['salario'],
+}).refine(data => {
+    if (data.tipo_contratacao === 'comissao') {
+        return data.taxa_comissao !== undefined && data.taxa_comissao > 0;
+    }
+    return true;
+}, {
+    message: 'Taxa de comissão é obrigatória para este tipo de contratação.',
+    path: ['taxa_comissao'],
 });
 
 
@@ -127,6 +136,7 @@ export default function FuncionariosPage() {
       const employeeData = {
           ...values,
           salario: values.tipo_contratacao === 'salario_fixo' ? values.salario : 0,
+          taxa_comissao: values.tipo_contratacao === 'comissao' ? values.taxa_comissao : 0,
       }
       if (editingEmployee) {
         const employeeDocRef = doc(db, 'funcionarios', editingEmployee.id);
@@ -218,6 +228,7 @@ export default function FuncionariosPage() {
       status: 'ativo',
       tipo_contratacao: 'comissao',
       salario: 0,
+      taxa_comissao: 0,
     });
     setEditingEmployee(null);
     setIsDialogOpen(true);
@@ -430,6 +441,21 @@ export default function FuncionariosPage() {
                                 )}
                                 />
                             )}
+                            {tipoContratacao === 'comissao' && (
+                                <FormField
+                                control={form.control}
+                                name="taxa_comissao"
+                                render={({ field }) => (
+                                    <FormItem>
+                                    <FormLabel>Taxa de Comissão (%) *</FormLabel>
+                                    <FormControl>
+                                        <Input type="number" step="0.01" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                    </FormItem>
+                                )}
+                                />
+                            )}
                         </div>
                         <DialogFooter>
                         <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
@@ -478,7 +504,7 @@ export default function FuncionariosPage() {
                     <TableRow key={employee.id}>
                         <TableCell className="font-medium">{employee.nome}</TableCell>
                         <TableCell>{employee.cargo}</TableCell>
-                        <TableCell>{employee.tipo_contratacao === 'salario_fixo' ? 'Salário Fixo' : 'Comissão'}</TableCell>
+                        <TableCell>{employee.tipo_contratacao === 'salario_fixo' ? 'Salário Fixo' : `Comissão (${employee.taxa_comissao || 0}%)`}</TableCell>
                         <TableCell>
                         <Badge variant={employee.status === 'ativo' ? 'secondary' : 'destructive'}>
                             {employee.status}

@@ -257,7 +257,7 @@ export default function ServicosPage() {
 
             const allServices = servicesSnap.docs.map(doc => doc.data() as Service);
             const totalRevenue = allServices
-                .reduce((sum, s) => sum + (s.valor_total - (s.saldo_devedor || 0)), 0);
+                .reduce((sum, s) => sum + (s.valor_pago || 0), 0);
 
             const allAccountsPayable = accountsPayableSnap.docs.map(doc => doc.data() as Account);
             const totalExpenses = allAccountsPayable
@@ -432,7 +432,6 @@ export default function ServicosPage() {
             valor_pago: novoValorPago,
             saldo_devedor: novoSaldoDevedor,
             status: newStatus,
-            lucro_distribuido: false, // Resetar ao receber novo pagamento
         });
 
         toast({ title: 'Sucesso!', description: 'Pagamento lançado com sucesso.' });
@@ -441,7 +440,7 @@ export default function ServicosPage() {
         
         setIsPaymentDialogOpen(false);
         
-        const updatedService = { ...editingService, valor_pago: novoValorPago, saldo_devedor: novoSaldoDevedor, status: newStatus, lucro_distribuido: false };
+        const updatedService = { ...editingService, valor_pago: novoValorPago, saldo_devedor: novoSaldoDevedor, status: newStatus };
         setLastPaymentValue(values.valor_pago);
         setDistributingService(updatedService);
         setIsDistributionDialogOpen(true);
@@ -633,10 +632,10 @@ export default function ServicosPage() {
     const totalReceivablePending = services.reduce((acc, curr) => acc + (curr.saldo_devedor || 0), 0);
     
     const getDistributionStatus = (service: Service) => {
-        const isDisabled = service.status === 'cancelado' || (service.valor_pago || 0) === 0 || service.lucro_distribuido;
-
-        if (isDisabled) {
-            return <Badge variant="secondary">Realizada</Badge>;
+        const isDistributable = service.status !== 'cancelado' && (service.valor_pago || 0) > 0;
+        
+        if (!isDistributable) {
+            return <Badge variant="outline">Aguardando</Badge>
         }
         
         return <Badge variant="destructive">Pendente</Badge>;
@@ -1037,7 +1036,7 @@ export default function ServicosPage() {
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem 
                                     onClick={() => handleDistributionClick(service)} 
-                                    disabled={service.status === 'cancelado' || (service.valor_pago || 0) === 0 || service.lucro_distribuido}
+                                    disabled={service.status === 'cancelado' || (service.valor_pago || 0) === 0}
                                 >
                                     <Users className="mr-2 h-4 w-4" />
                                     Distribuir Lucro
@@ -1209,12 +1208,9 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, paymentValue, fi
     
     amountToDistribute = Math.max(0, amountToDistribute);
 
-    const numEmployees = financials.commissionableEmployees.length;
-    const individualCommission = numEmployees > 0 ? amountToDistribute / numEmployees : 0;
-    
     const handleConfirmDistribution = async () => {
-        if(numEmployees === 0) {
-            toast({ variant: 'destructive', title: 'Erro', description: 'Nenhum funcionário comissionado ativo encontrado para distribuir o lucro.' });
+        if (financials.commissionableEmployees.length === 0) {
+            toast({ variant: 'destructive', title: 'Erro', description: 'Nenhum funcionário comissionado ativo encontrado.' });
             return;
         }
         
@@ -1222,27 +1218,27 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, paymentValue, fi
         try {
             const batch = writeBatch(db);
 
-             // 1. Mark service as profit distributed
-            const serviceRef = doc(db, 'servicos', service.id);
-            batch.update(serviceRef, { lucro_distribuido: true });
-            
-            // 2. Create commission documents
             financials.commissionableEmployees.forEach(employee => {
-                const commissionData = {
-                    funcionario_id: employee.id,
-                    servico_id: service.id,
-                    cliente_id: service.cliente_id,
-                    valor: individualCommission,
-                    data: Timestamp.now(),
-                    status: 'pago', 
-                };
-                const commissionDocRef = doc(collection(db, 'comissoes'));
-                batch.set(commissionDocRef, commissionData);
+                const commissionRate = (employee.taxa_comissao || 0) / 100;
+                const individualCommission = amountToDistribute * commissionRate;
+
+                if (individualCommission > 0) {
+                    const commissionData = {
+                        funcionario_id: employee.id,
+                        servico_id: service.id,
+                        cliente_id: service.cliente_id,
+                        valor: individualCommission,
+                        data: Timestamp.now(),
+                        status: 'pago', 
+                    };
+                    const commissionDocRef = doc(collection(db, 'comissoes'));
+                    batch.set(commissionDocRef, commissionData);
+                }
             });
             
             await batch.commit();
 
-            toast({ title: 'Sucesso!', description: 'Lucro distribuído e comissões lançadas com sucesso!' });
+            toast({ title: 'Sucesso!', description: 'Comissões distribuídas e lançadas com sucesso!' });
             setIsOpen(false);
             onDistributionComplete();
         } catch (error) {
@@ -1292,19 +1288,23 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, paymentValue, fi
                             </div>
                          )}
                         <div className="flex justify-between items-center text-lg border-t pt-2 mt-2">
-                            <span className="font-bold">Valor a ser Distribuído:</span>
+                            <span className="font-bold">Valor Base para Comissões:</span>
                             <span className="font-bold text-primary">{amountToDistribute.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
                         </div>
                     </div>
                      <div className="p-4 border rounded-lg space-y-2">
                         <h4 className="font-semibold text-center mb-2">Comissão por Funcionário</h4>
-                        {numEmployees > 0 ? (
-                            financials.commissionableEmployees.map(emp => (
-                                <div key={emp.id} className="flex justify-between items-center text-sm">
-                                    <span className="text-muted-foreground">{emp.nome}:</span>
-                                    <span className="font-medium text-green-600">{individualCommission.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-                                </div>
-                            ))
+                        {financials.commissionableEmployees.length > 0 ? (
+                            financials.commissionableEmployees.map(emp => {
+                                const commissionRate = (emp.taxa_comissao || 0) / 100;
+                                const individualCommission = amountToDistribute * commissionRate;
+                                return (
+                                    <div key={emp.id} className="flex justify-between items-center text-sm">
+                                        <span className="text-muted-foreground">{emp.nome} ({emp.taxa_comissao}%)</span>
+                                        <span className="font-medium text-green-600">{individualCommission.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                    </div>
+                                )
+                            })
                         ) : (
                             <p className="text-center text-sm text-red-500">Nenhum funcionário comissionado ativo encontrado.</p>
                         )}
@@ -1312,7 +1312,7 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, paymentValue, fi
                 </div>
                 <DialogFooter>
                     <Button variant="ghost" onClick={() => setIsOpen(false)}>Fechar</Button>
-                    <Button variant="accent" onClick={handleConfirmDistribution} disabled={isLoading || individualCommission <= 0}>
+                    <Button variant="accent" onClick={handleConfirmDistribution} disabled={isLoading || amountToDistribute <= 0}>
                         {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
                         Confirmar e Lançar
                     </Button>

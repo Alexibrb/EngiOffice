@@ -50,6 +50,7 @@ export type Employee = {
   status: 'ativo' | 'inativo';
   tipo_contratacao: 'salario_fixo' | 'comissao';
   salario?: number;
+  taxa_comissao?: number;
 };
 
 export type Service = {
