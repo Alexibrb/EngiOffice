@@ -93,7 +93,8 @@ export default function RelatoriosPage() {
   
   const getClient = (clientId: string) => clients.find(c => c.codigo_cliente === clientId);
   const getEmployeeName = (employeeId: string) => employees.find(e => e.id === employeeId)?.nome || 'Desconhecido';
-  const getServiceDescription = (serviceId: string) => services.find(s => s.id === serviceId)?.descricao || 'Desconhecido';
+  const getService = (serviceId: string) => services.find(s => s.id === serviceId);
+
   const getPayeeName = (account: Account) => {
       if (account.tipo_referencia === 'funcionario') return employees.find(e => e.id === account.referencia_id)?.nome || 'Funcionário não encontrado';
       return suppliers.find(s => s.id === account.referencia_id)?.razao_social || 'Fornecedor não encontrado';
@@ -141,7 +142,14 @@ export default function RelatoriosPage() {
         case 'commissions':
              data = commissions
                 .filter(c => statusFilter ? c.status === statusFilter : true)
-                .filter(c => getEmployeeName(c.funcionario_id).toLowerCase().includes(searchLower) || getServiceDescription(c.servico_id).toLowerCase().includes(searchLower))
+                .filter(c => {
+                    const service = getService(c.servico_id);
+                    if (!service) return false;
+                    const client = getClient(service.cliente_id);
+                    return getEmployeeName(c.funcionario_id).toLowerCase().includes(searchLower) || 
+                           service.descricao.toLowerCase().includes(searchLower) ||
+                           (client && client.nome_completo.toLowerCase().includes(searchLower));
+                })
                 .filter(c => {
                     if (!dateRange?.from) return true;
                     const from = startOfDay(dateRange.from);
@@ -151,9 +159,9 @@ export default function RelatoriosPage() {
             break;
     }
     return data;
-  }, [selectedReport, clients, suppliers, services, accountsPayable, commissions, searchFilter, statusFilter, dateRange, getClient, getPayeeName, getEmployeeName, getServiceDescription]);
+  }, [selectedReport, clients, suppliers, services, accountsPayable, commissions, searchFilter, statusFilter, dateRange, getClient, getPayeeName, getEmployeeName, getService]);
 
-  const totals = useMemo(() => {
+ const totals = useMemo(() => {
     if (!filteredData) return {};
     switch(selectedReport) {
         case 'services':
@@ -241,8 +249,21 @@ export default function RelatoriosPage() {
         break;
        case 'commissions':
         title = 'Relatório de Comissões';
-        head = [['Funcionário', 'Serviço', 'Data', 'Valor', 'Status']];
-        body = data.map((item: Commission) => [getEmployeeName(item.funcionario_id), getServiceDescription(item.servico_id), item.data ? format(item.data, "dd/MM/yyyy") : '-', `R$ ${item.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, item.status]);
+        head = [['Funcionário', 'Cliente', 'Serviço Referente', 'Valor da Comissão', 'Status']];
+        body = data.map((item: Commission) => {
+            const service = getService(item.servico_id);
+            const client = service ? getClient(service.cliente_id) : undefined;
+            const address = client?.endereco_obra;
+            const formattedAddress = address ? `${address.street}, ${address.number}` : '';
+
+            return [
+                getEmployeeName(item.funcionario_id), 
+                client?.nome_completo || 'Desconhecido',
+                `${service?.descricao || 'Desconhecido'} (${formattedAddress})`,
+                `R$ ${item.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 
+                item.status
+            ];
+        });
         const totalComissoes = data.reduce((sum, item) => sum + item.valor, 0);
         foot = [['Total', '', '', `R$ ${totalComissoes.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, '']];
         fileName = 'relatorio_comissoes.pdf';
@@ -282,7 +303,7 @@ export default function RelatoriosPage() {
         suppliers: "Buscar por razão social ou CNPJ...",
         services: "Buscar por descrição ou cliente...",
         accountsPayable: "Buscar por descrição ou favorecido...",
-        commissions: "Buscar por funcionário ou serviço...",
+        commissions: "Buscar por funcionário, serviço ou cliente...",
     }[selectedReport];
 
     const statusOptions = {
@@ -497,11 +518,34 @@ export default function RelatoriosPage() {
             <CardContent>
               <div className="border rounded-lg">
                 <Table>
-                  <TableHeader><TableRow><TableHead>Funcionário</TableHead><TableHead>Serviço</TableHead><TableHead>Data</TableHead><TableHead className="text-right">Valor</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
+                  <TableHeader>
+                    <TableRow>
+                        <TableHead>Funcionário</TableHead>
+                        <TableHead>Cliente</TableHead>
+                        <TableHead>Serviço Referente</TableHead>
+                        <TableHead className="text-right">Valor da Comissão</TableHead>
+                        <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
                   <TableBody>
-                    {filteredData.length > 0 ? filteredData.slice(0, 10).map((comm) => (
-                      <TableRow key={comm.id}><TableCell className="font-medium">{getEmployeeName(comm.funcionario_id)}</TableCell><TableCell>{getServiceDescription(comm.servico_id)}</TableCell><TableCell>{comm.data ? format(comm.data, "dd/MM/yyyy") : '-'}</TableCell><TableCell className="text-right text-green-500">R$ {comm.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell><TableCell><Badge variant={comm.status === 'pago' ? 'secondary' : 'destructive'}>{comm.status}</Badge></TableCell></TableRow>
-                    )) : (<TableRow><TableCell colSpan={5} className="h-24 text-center">Nenhuma comissão encontrada.</TableCell></TableRow>)}
+                    {filteredData.length > 0 ? filteredData.slice(0, 10).map((comm: Commission) => {
+                        const service = getService(comm.servico_id);
+                        const client = service ? getClient(service.cliente_id) : undefined;
+                        const address = client?.endereco_obra;
+                        const formattedAddress = address ? `${address.street}, ${address.number}` : '';
+                        return (
+                            <TableRow key={comm.id}>
+                                <TableCell className="font-medium">{getEmployeeName(comm.funcionario_id)}</TableCell>
+                                <TableCell>{client?.nome_completo || 'Desconhecido'}</TableCell>
+                                <TableCell>
+                                    <div className="font-medium">{service?.descricao || 'Desconhecido'}</div>
+                                    <div className="text-xs text-muted-foreground">{formattedAddress}</div>
+                                </TableCell>
+                                <TableCell className="text-right text-green-500">R$ {comm.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
+                                <TableCell><Badge variant={comm.status === 'pago' ? 'secondary' : 'destructive'}>{comm.status}</Badge></TableCell>
+                            </TableRow>
+                        )
+                    }) : (<TableRow><TableCell colSpan={5} className="h-24 text-center">Nenhuma comissão encontrada.</TableCell></TableRow>)}
                   </TableBody>
                    <TableFooter>
                     <TableRow>

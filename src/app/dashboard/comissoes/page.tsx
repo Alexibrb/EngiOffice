@@ -130,14 +130,13 @@ export default function ComissoesPage() {
     }, []);
     
     const getEmployeeName = (id: string) => employees.find(e => e.id === id)?.nome || 'Desconhecido';
-    const getServiceDescription = (id: string) => services.find(s => s.id === id)?.descricao || 'Desconhecido';
-    const getClient = (id: string) => {
-        return clients.find(c => c.codigo_cliente === id);
-    };
+    const getService = (id: string) => services.find(s => s.id === id);
+    const getClient = (id: string) => clients.find(c => c.codigo_cliente === id);
     
     const handleDeleteCommission = async (id: string) => {
         try {
-            await doc(db, 'comissoes', id).delete();
+            const commissionDocRef = doc(db, 'comissoes', id);
+            await deleteDoc(commissionDocRef);
             toast({ title: "Sucesso!", description: "Comissão excluída com sucesso." });
             await fetchData();
         } catch (error) {
@@ -351,20 +350,29 @@ export default function ComissoesPage() {
                     <TableHeader>
                         <TableRow>
                             <TableHead>Funcionário</TableHead>
+                            <TableHead>Cliente</TableHead>
                             <TableHead>Serviço Referente</TableHead>
-                            <TableHead>Data</TableHead>
-                            <TableHead className="text-right">Valor</TableHead>
+                            <TableHead className="text-right">Valor da Comissão</TableHead>
                             <TableHead>Status</TableHead>
                             <TableHead><span className="sr-only">Ações</span></TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {filteredCommissions.length > 0 ? filteredCommissions.map((commission) => (
+                        {filteredCommissions.length > 0 ? filteredCommissions.map((commission) => {
+                            const service = getService(commission.servico_id);
+                            const client = service ? getClient(service.cliente_id) : null;
+                            const address = client?.endereco_obra;
+                            const formattedAddress = address ? `${address.street}, ${address.number} - ${address.neighborhood}, ${address.city} - ${address.state}` : '';
+
+                            return (
                             <TableRow key={commission.id}>
                                 <TableCell className="font-medium">{getEmployeeName(commission.funcionario_id)}</TableCell>
-                                <TableCell>{getServiceDescription(commission.servico_id)}</TableCell>
-                                <TableCell>{format(commission.data, 'dd/MM/yyyy')}</TableCell>
-                                <TableCell className="text-right text-red-500">R$ {commission.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
+                                <TableCell>{client?.nome_completo || 'Desconhecido'}</TableCell>
+                                <TableCell>
+                                    <div className="font-medium">{service?.descricao || 'Desconhecido'}</div>
+                                    <div className="text-xs text-muted-foreground">{formattedAddress}</div>
+                                </TableCell>
+                                <TableCell className="text-right text-green-500">R$ {commission.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
                                 <TableCell>
                                     <Badge variant={commission.status === 'pendente' ? 'destructive' : 'secondary'}>
                                         {commission.status}
@@ -392,7 +400,7 @@ export default function ComissoesPage() {
                                     </DropdownMenu>
                                 </TableCell>
                             </TableRow>
-                        )) : (
+                        )}) : (
                             <TableRow>
                                 <TableCell colSpan={6} className="h-24 text-center">Nenhuma comissão encontrada.</TableCell>
                             </TableRow>
@@ -401,7 +409,7 @@ export default function ComissoesPage() {
                     <TableFooter>
                         <TableRow>
                             <TableCell colSpan={3} className="font-bold">Total Geral</TableCell>
-                            <TableCell className="text-right font-bold text-red-500">
+                            <TableCell className="text-right font-bold text-green-500">
                                R$ {filteredTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                             </TableCell>
                             <TableCell colSpan={2}></TableCell>
