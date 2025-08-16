@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { collection, getDocs, deleteDoc, doc, updateDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { db, auth } from '@/lib/firebase';
 import type { Service, Account, Client, Commission } from '@/lib/types';
 import { format, isPast } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -58,6 +58,8 @@ import { useToast } from "@/hooks/use-toast"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { onAuthStateChanged, User } from 'firebase/auth';
+
 
 const paymentSchema = z.object({
   valor_pago: z.coerce.number().min(0.01, "O valor deve ser maior que zero.")
@@ -69,6 +71,7 @@ export default function DashboardPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [commissions, setCommissions] = useState<Commission[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [user, setUser] = useState<User | null>(null);
   const router = useRouter();
   const { toast } = useToast();
 
@@ -80,6 +83,15 @@ export default function DashboardPage() {
     resolver: zodResolver(paymentSchema),
     defaultValues: { valor_pago: 0 },
   });
+  
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      if (currentUser) {
+        setUser(currentUser);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
 
   const fetchData = async () => {
       try {
@@ -296,7 +308,7 @@ export default function DashboardPage() {
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <h1 className="text-3xl font-bold font-headline text-primary">Dashboard</h1>
+        <h1 className="text-3xl font-bold font-headline text-primary">Olá, {user?.displayName?.split(' ')[0] || 'Usuário'}!</h1>
         <p className="text-muted-foreground">
           Uma visão geral do seu escritório.
         </p>
@@ -591,4 +603,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-    

@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { onAuthStateChanged, User, signOut } from 'firebase/auth';
+import { onAuthStateChanged, User, signOut, sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -16,10 +16,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { useToast } from '@/hooks/use-toast';
 
 export function UserNav() {
   const [user, setUser] = useState<User | null>(null);
   const router = useRouter();
+  const { toast } = useToast();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -32,6 +34,25 @@ export function UserNav() {
     await signOut(auth);
     router.push('/');
   };
+  
+  const handleChangePassword = async () => {
+    if (user?.email) {
+      try {
+        await sendPasswordResetEmail(auth, user.email);
+        toast({
+          title: "E-mail enviado!",
+          description: "Verifique sua caixa de entrada para redefinir sua senha.",
+        });
+      } catch (error: any) {
+        toast({
+          variant: "destructive",
+          title: "Erro",
+          description: "Não foi possível enviar o e-mail de redefinição de senha.",
+        });
+      }
+    }
+  };
+
 
   if (!user) {
     return null;
@@ -72,7 +93,9 @@ export function UserNav() {
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
           <DropdownMenuItem disabled>Perfil</DropdownMenuItem>
-          <DropdownMenuItem disabled>Faturamento</DropdownMenuItem>
+          <DropdownMenuItem onClick={handleChangePassword}>
+            Trocar Senha
+          </DropdownMenuItem>
           <DropdownMenuItem disabled>Configurações</DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
