@@ -153,6 +153,27 @@ export default function RelatoriosPage() {
     return data;
   }, [selectedReport, clients, suppliers, services, accountsPayable, commissions, searchFilter, statusFilter, dateRange, getClientName, getPayeeName, getEmployeeName, getServiceDescription]);
 
+  const totals = useMemo(() => {
+    if (!filteredData) return {};
+    switch(selectedReport) {
+        case 'services':
+            return {
+                valor_total: filteredData.reduce((sum, item) => sum + item.valor_total, 0),
+                saldo_devedor: filteredData.reduce((sum, item) => sum + item.saldo_devedor, 0)
+            };
+        case 'accountsPayable':
+            return {
+                valor: filteredData.reduce((sum, item) => sum + item.valor, 0)
+            };
+        case 'commissions':
+            return {
+                valor: filteredData.reduce((sum, item) => sum + item.valor, 0)
+            };
+        default:
+            return {};
+    }
+  }, [filteredData, selectedReport]);
+
   const generatePdf = () => {
     let data = filteredData;
     let head: string[][];
@@ -285,29 +306,7 @@ export default function RelatoriosPage() {
     );
   };
   
-  const renderReportCard = () => {
-    
-    const totals = useMemo(() => {
-        if (!filteredData) return {};
-        switch(selectedReport) {
-            case 'services':
-                return {
-                    valor_total: filteredData.reduce((sum, item) => sum + item.valor_total, 0),
-                    saldo_devedor: filteredData.reduce((sum, item) => sum + item.saldo_devedor, 0)
-                };
-            case 'accountsPayable':
-                return {
-                    valor: filteredData.reduce((sum, item) => sum + item.valor, 0)
-                };
-            case 'commissions':
-                return {
-                    valor: filteredData.reduce((sum, item) => sum + item.valor, 0)
-                };
-            default:
-                return {};
-        }
-    }, [filteredData, selectedReport]);
-
+  const renderReportCard = (totals: any) => {
     switch (selectedReport) {
       case 'clients':
         return (
@@ -505,7 +504,7 @@ export default function RelatoriosPage() {
       </div>
 
       <div className="mt-4">
-        {renderReportCard()}
+        {renderReportCard(totals)}
       </div>
 
     </div>
