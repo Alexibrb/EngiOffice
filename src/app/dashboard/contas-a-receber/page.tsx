@@ -516,6 +516,10 @@ function ReceivableTableComponent({ services, getClientName, totalValor, totalSa
             return <Badge variant="outline">Aguardando</Badge>
         }
         
+        if (service.lucro_distribuido) {
+            return <Badge variant="secondary">Realizada</Badge>;
+        }
+        
         return <Badge variant="destructive">Pendente</Badge>;
     }
 
@@ -573,7 +577,7 @@ function ReceivableTableComponent({ services, getClientName, totalValor, totalSa
                                         <DropdownMenuSeparator />
                                          <DropdownMenuItem 
                                             onClick={() => onDistribute(service)} 
-                                            disabled={service.status === 'cancelado' || (service.valor_pago || 0) === 0}
+                                            disabled={service.status === 'cancelado' || (service.valor_pago || 0) === 0 || service.lucro_distribuido}
                                          >
                                             <Users className="mr-2 h-4 w-4" />
                                             Distribuir Lucro
@@ -700,6 +704,10 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, paymentValue, fi
                 }
             });
             
+             // Marcar o serviço como tendo o lucro distribuído
+            const serviceDocRef = doc(db, 'servicos', service.id);
+            batch.update(serviceDocRef, { lucro_distribuido: true });
+
             await batch.commit();
 
             toast({ title: 'Sucesso!', description: 'Comissões distribuídas e lançadas com sucesso!' });
@@ -787,3 +795,6 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, paymentValue, fi
 
     
 
+
+
+    
