@@ -35,6 +35,7 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
 import { collection, addDoc, getDocs, doc, setDoc, deleteDoc, Timestamp, updateDoc, writeBatch } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -255,7 +256,7 @@ export default function ServicosPage() {
 
             const allServices = servicesSnap.docs.map(doc => doc.data() as Service);
             const totalRevenue = allServices
-                .reduce((sum, s) => sum + (s.valor_pago || 0), 0);
+                .reduce((sum, s) => sum + (s.valor_total - (s.saldo_devedor || 0)), 0);
 
             const allAccountsPayable = accountsPayableSnap.docs.map(doc => doc.data() as Account);
             const totalExpenses = allAccountsPayable
@@ -372,11 +373,11 @@ export default function ServicosPage() {
       if (editingService) {
         const serviceDocRef = doc(db, 'servicos', editingService.id);
         const currentService = services.find(s => s.id === editingService.id);
-        const valorPagoExistente = currentService?.valor_pago || 0;
+        
         const newServiceData = {
             ...serviceData,
-            valor_pago: valorPagoExistente,
-            saldo_devedor: serviceData.valor_total - valorPagoExistente,
+            valor_pago: currentService?.valor_pago || valorPago, // Manter valor pago se já existir
+            saldo_devedor: values.valor_total - (currentService?.valor_pago || valorPago),
             lucro_distribuido: currentService?.lucro_distribuido || false,
         };
         await setDoc(serviceDocRef, newServiceData, { merge: true });
@@ -430,7 +431,8 @@ export default function ServicosPage() {
         await updateDoc(serviceDocRef, {
             valor_pago: novoValorPago,
             saldo_devedor: novoSaldoDevedor,
-            status: newStatus
+            status: newStatus,
+            lucro_distribuido: false, // Resetar ao receber novo pagamento
         });
 
         toast({ title: 'Sucesso!', description: 'Pagamento lançado com sucesso.' });
@@ -439,7 +441,7 @@ export default function ServicosPage() {
         
         setIsPaymentDialogOpen(false);
         
-        const updatedService = { ...editingService, valor_pago: novoValorPago, saldo_devedor: novoSaldoDevedor, status: newStatus };
+        const updatedService = { ...editingService, valor_pago: novoValorPago, saldo_devedor: novoSaldoDevedor, status: newStatus, lucro_distribuido: false };
         setLastPaymentValue(values.valor_pago);
         setDistributingService(updatedService);
         setIsDistributionDialogOpen(true);
@@ -520,7 +522,7 @@ export default function ServicosPage() {
     const pageWidth = doc.internal.pageSize.getWidth();
     
     const isPartialPayment = paymentValue !== undefined && paymentValue < service.valor_total;
-    const valueToDisplay = isPartialPayment ? paymentValue : service.valor_total;
+    const valueToDisplay = isPartialPayment ? paymentValue : service.valor_pago;
     const title = isPartialPayment ? 'RECIBO DE PAGAMENTO PARCIAL' : 'RECIBO DE PAGAMENTO';
 
 
@@ -599,6 +601,17 @@ export default function ServicosPage() {
     const completedServicesCount = services.filter((s) => s.status === 'concluído').length;
     const totalReceivablePaid = services.reduce((acc, curr) => acc + (curr.valor_pago || 0), 0);
     const totalReceivablePending = services.reduce((acc, curr) => acc + (curr.saldo_devedor || 0), 0);
+    
+    const getDistributionStatus = (service: Service) => {
+        const isDistributable = service.status !== 'cancelado' && (service.valor_pago || 0) > 0 && !service.lucro_distribuido;
+
+        if (isDistributable) {
+            return <Badge variant="destructive">Pendente</Badge>;
+        }
+        
+        return <Badge variant="secondary">Realizada</Badge>;
+    }
+
 
   return (
     <div className="flex flex-col gap-8">
@@ -928,6 +941,7 @@ export default function ServicosPage() {
                     <TableHead>Valor Total</TableHead>
                     <TableHead>Saldo Devedor</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Distribuição</TableHead>
                     <TableHead><span className="sr-only">Ações</span></TableHead>
                     </TableRow>
                 </TableHeader>
@@ -948,6 +962,9 @@ export default function ServicosPage() {
                         </Badge>
                         </TableCell>
                         <TableCell>
+                            {getDistributionStatus(service)}
+                        </TableCell>
+                        <TableCell>
                             <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <Button aria-haspopup="true" size="icon" variant="ghost">
@@ -964,6 +981,7 @@ export default function ServicosPage() {
                                   <HandCoins className="mr-2 h-4 w-4" />
                                   Lançar Pagamento
                                 </DropdownMenuItem>
+                                <DropdownMenuSeparator />
                                 <DropdownMenuItem 
                                     onClick={() => handleDistributionClick(service)} 
                                     disabled={service.status === 'cancelado' || (service.valor_pago || 0) === 0 || service.lucro_distribuido}
@@ -975,6 +993,7 @@ export default function ServicosPage() {
                                   <FileText className="mr-2 h-4 w-4" />
                                   Gerar Recibo
                                 </DropdownMenuItem>
+                                <DropdownMenuSeparator />
                                 <AlertDialog>
                                 <AlertDialogTrigger asChild>
                                     <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600">
@@ -1002,7 +1021,7 @@ export default function ServicosPage() {
                     </TableRow>
                     )) : (
                     <TableRow>
-                        <TableCell colSpan={6} className="h-24 text-center">
+                        <TableCell colSpan={7} className="h-24 text-center">
                         Nenhum serviço encontrado.
                         </TableCell>
                     </TableRow>
@@ -1017,7 +1036,7 @@ export default function ServicosPage() {
                         <TableCell className="text-right font-bold text-red-500">
                            R$ {filteredSaldoDevedor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                         </TableCell>
-                        <TableCell colSpan={2}></TableCell>
+                        <TableCell colSpan={3}></TableCell>
                     </TableRow>
                 </TableFooter>
                 </Table>

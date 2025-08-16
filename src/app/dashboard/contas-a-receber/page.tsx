@@ -23,7 +23,7 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import { collection, getDocs, doc, updateDoc, Timestamp, writeBatch } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Calendar as CalendarIcon, Download, ExternalLink, XCircle, ArrowUp, TrendingUp, MoreHorizontal, HandCoins, FileText, Loader2, User, Users } from 'lucide-react';
+import { Calendar as CalendarIcon, Download, ExternalLink, XCircle, ArrowUp, TrendingUp, MoreHorizontal, HandCoins, FileText, Loader2, User, Users, CheckCircle } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -42,6 +42,7 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -90,7 +91,8 @@ export default function ContasAReceberPage() {
 
             const allServices = servicesSnap.docs.map(doc => doc.data() as Service);
             const totalRevenue = allServices
-                .reduce((sum, s) => sum + (s.valor_pago || 0), 0);
+                .reduce((sum, s) => sum + (s.valor_total - (s.saldo_devedor || 0)), 0);
+
 
             const allAccountsPayable = accountsPayableSnap.docs.map(doc => doc.data() as Account);
             const totalExpenses = allAccountsPayable
@@ -175,7 +177,7 @@ export default function ContasAReceberPage() {
         const pageWidth = doc.internal.pageSize.getWidth();
         
         const isPartialPayment = paymentValue !== undefined && paymentValue < service.valor_total;
-        const valueToDisplay = isPartialPayment ? paymentValue : service.valor_total;
+        const valueToDisplay = isPartialPayment ? paymentValue : service.valor_pago;
         const title = isPartialPayment ? 'RECIBO DE PAGAMENTO PARCIAL' : 'RECIBO DE PAGAMENTO';
 
 
@@ -242,7 +244,8 @@ export default function ContasAReceberPage() {
             await updateDoc(serviceDocRef, {
                 valor_pago: novoValorPago,
                 saldo_devedor: novoSaldoDevedor,
-                status: newStatus
+                status: newStatus,
+                lucro_distribuido: false, // Resetar ao receber novo pagamento
             });
 
             toast({ title: 'Sucesso!', description: 'Pagamento lançado com sucesso.' });
@@ -251,7 +254,7 @@ export default function ContasAReceberPage() {
 
             setIsPaymentDialogOpen(false);
             
-            const updatedService = { ...editingService, valor_pago: novoValorPago, saldo_devedor: novoSaldoDevedor, status: newStatus } as Service;
+            const updatedService = { ...editingService, valor_pago: novoValorPago, saldo_devedor: novoSaldoDevedor, status: newStatus, lucro_distribuido: false } as Service;
             
             setLastPaymentValue(values.valor_pago);
             setDistributingService(updatedService);
@@ -506,6 +509,18 @@ function ReceivableTableComponent({ services, getClientName, totalValor, totalSa
     const handleEditService = (serviceId: string) => {
         router.push(`/dashboard/servicos?edit=${serviceId}`);
     };
+    
+    const getDistributionStatus = (service: Service) => {
+        const isDistributable = service.status !== 'cancelado' && (service.valor_pago || 0) > 0;
+        
+        if (service.lucro_distribuido) {
+            return <Badge variant="secondary">Realizada</Badge>;
+        }
+        if (isDistributable) {
+            return <Badge variant="destructive">Pendente</Badge>;
+        }
+        return <Badge variant="outline">Aguardando</Badge>
+    }
 
     return (
         <div className="border rounded-lg">
@@ -517,6 +532,7 @@ function ReceivableTableComponent({ services, getClientName, totalValor, totalSa
                         <TableHead>Valor Total</TableHead>
                         <TableHead>Saldo Devedor</TableHead>
                         <TableHead>Status</TableHead>
+                        <TableHead>Distribuição</TableHead>
                          <TableHead><span className="sr-only">Ações</span></TableHead>
                     </TableRow>
                 </TableHeader>
@@ -537,6 +553,9 @@ function ReceivableTableComponent({ services, getClientName, totalValor, totalSa
                                 </Badge>
                             </TableCell>
                             <TableCell>
+                                {getDistributionStatus(service)}
+                            </TableCell>
+                            <TableCell>
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
                                         <Button aria-haspopup="true" size="icon" variant="ghost">
@@ -554,6 +573,7 @@ function ReceivableTableComponent({ services, getClientName, totalValor, totalSa
                                             <HandCoins className="mr-2 h-4 w-4" />
                                             Lançar Pagamento
                                         </DropdownMenuItem>
+                                        <DropdownMenuSeparator />
                                          <DropdownMenuItem 
                                             onClick={() => onDistribute(service)} 
                                             disabled={service.status === 'cancelado' || (service.valor_pago || 0) === 0 || service.lucro_distribuido}
@@ -571,7 +591,7 @@ function ReceivableTableComponent({ services, getClientName, totalValor, totalSa
                         </TableRow>
                     )) : (
                         <TableRow>
-                            <TableCell colSpan={6} className="h-24 text-center">Nenhum serviço encontrado.</TableCell>
+                            <TableCell colSpan={7} className="h-24 text-center">Nenhum serviço encontrado.</TableCell>
                         </TableRow>
                     )}
                 </TableBody>
@@ -584,7 +604,7 @@ function ReceivableTableComponent({ services, getClientName, totalValor, totalSa
                          <TableCell className="text-right font-bold text-red-500">
                            R$ {totalSaldo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                         </TableCell>
-                        <TableCell colSpan={2}></TableCell>
+                        <TableCell colSpan={3}></TableCell>
                     </TableRow>
                 </TableFooter>
             </Table>
