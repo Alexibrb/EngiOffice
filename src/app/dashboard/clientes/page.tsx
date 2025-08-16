@@ -733,59 +733,65 @@ export default function ClientesPage() {
                     <Table>
                     <TableHeader>
                         <TableRow>
-                        <TableHead>Nome</TableHead>
-                        <TableHead>CPF/CNPJ</TableHead>
-                        <TableHead>Telefone</TableHead>
-                        <TableHead><span className="sr-only">Ações</span></TableHead>
+                            <TableHead>Nome</TableHead>
+                            <TableHead>CPF/CNPJ</TableHead>
+                            <TableHead>Telefone</TableHead>
+                            <TableHead>Endereço da Obra</TableHead>
+                            <TableHead><span className="sr-only">Ações</span></TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {filteredClients.length > 0 ? filteredClients.map((client) => (
-                        <TableRow key={client.codigo_cliente}>
-                            <TableCell className="font-medium">{client.nome_completo}</TableCell>
-                            <TableCell>{client.cpf_cnpj}</TableCell>
-                            <TableCell>{client.telefone}</TableCell>
-                            <TableCell>
-                                <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button aria-haspopup="true" size="icon" variant="ghost">
-                                    <MoreHorizontal className="h-4 w-4" />
-                                    <span className="sr-only">Toggle menu</span>
-                                    </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                    <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                                    <DropdownMenuItem onClick={() => handleEditClick(client)}>
-                                    Editar
-                                    </DropdownMenuItem>
-                                    <AlertDialog>
-                                    <AlertDialogTrigger asChild>
-                                        <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600">
-                                            Excluir
-                                        </DropdownMenuItem>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent>
-                                        <AlertDialogHeader>
-                                        <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                            Essa ação não pode ser desfeita. Isso excluirá permanentemente o cliente.
-                                        </AlertDialogDescription>
-                                        </AlertDialogHeader>
-                                        <AlertDialogFooter>
-                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                        <AlertDialogAction onClick={() => handleDeleteClient(client.codigo_cliente)} variant="destructive">
-                                            Excluir
-                                        </AlertDialogAction>
-                                        </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                    </AlertDialog>
-                                </DropdownMenuContent>
-                                </DropdownMenu>
-                            </TableCell>
-                        </TableRow>
-                        )) : (
+                        {filteredClients.length > 0 ? filteredClients.map((client) => {
+                            const address = client.endereco_obra;
+                            const formattedAddress = address ? `${address.street || ''}, ${address.number || ''} - ${address.neighborhood || ''}, ${address.city || ''} - ${address.state || ''}` : 'N/A';
+                            return (
+                                <TableRow key={client.codigo_cliente}>
+                                    <TableCell className="font-medium">{client.nome_completo}</TableCell>
+                                    <TableCell>{client.cpf_cnpj}</TableCell>
+                                    <TableCell>{client.telefone}</TableCell>
+                                    <TableCell>{formattedAddress}</TableCell>
+                                    <TableCell>
+                                        <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button aria-haspopup="true" size="icon" variant="ghost">
+                                            <MoreHorizontal className="h-4 w-4" />
+                                            <span className="sr-only">Toggle menu</span>
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                                            <DropdownMenuItem onClick={() => handleEditClick(client)}>
+                                            Editar
+                                            </DropdownMenuItem>
+                                            <AlertDialog>
+                                            <AlertDialogTrigger asChild>
+                                                <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600">
+                                                    Excluir
+                                                </DropdownMenuItem>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent>
+                                                <AlertDialogHeader>
+                                                <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                    Essa ação não pode ser desfeita. Isso excluirá permanentemente o cliente.
+                                                </AlertDialogDescription>
+                                                </AlertDialogHeader>
+                                                <AlertDialogFooter>
+                                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                <AlertDialogAction onClick={() => handleDeleteClient(client.codigo_cliente)} variant="destructive">
+                                                    Excluir
+                                                </AlertDialogAction>
+                                                </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                            </AlertDialog>
+                                        </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </TableCell>
+                                </TableRow>
+                            )
+                        }) : (
                         <TableRow>
-                            <TableCell colSpan={4} className="h-24 text-center">
+                            <TableCell colSpan={5} className="h-24 text-center">
                             Nenhum cliente encontrado.
                             </TableCell>
                         </TableRow>
@@ -799,5 +805,3 @@ export default function ClientesPage() {
     </div>
   );
 }
-
-    
