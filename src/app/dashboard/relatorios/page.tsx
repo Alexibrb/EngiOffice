@@ -22,7 +22,7 @@ import {
 import type { Client, Supplier, Service, Account, Employee, Commission } from '@/lib/types';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { Download, Search, XCircle, Calendar as CalendarIcon } from 'lucide-react';
+import { Download, Search, XCircle, Calendar as CalendarIcon, ChevronDown, ChevronRight } from 'lucide-react';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from "@/hooks/use-toast"
@@ -36,8 +36,123 @@ import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { DateRange } from 'react-day-picker';
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 
 type ReportType = 'clients' | 'suppliers' | 'services' | 'accountsPayable' | 'commissions';
+
+function ClientReportRow({ client }: { client: Client }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const residencial = client.endereco_residencial;
+  const obra = client.endereco_obra;
+
+  return (
+    <Collapsible asChild>
+        <>
+            <TableRow>
+                 <TableCell>
+                    <CollapsibleTrigger asChild>
+                    <Button variant="ghost" size="sm" className="w-9 p-0">
+                        {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                        <span className="sr-only">{isOpen ? 'Fechar' : 'Abrir'}</span>
+                    </Button>
+                    </CollapsibleTrigger>
+                </TableCell>
+                <TableCell className="font-medium">{client.nome_completo}</TableCell>
+                <TableCell>{client.cpf_cnpj || '-'}</TableCell>
+                <TableCell>{client.telefone || '-'}</TableCell>
+            </TableRow>
+            <CollapsibleContent asChild>
+                <TableRow>
+                    <TableCell colSpan={4} className="p-0">
+                        <div className="p-6 bg-muted/50">
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div>
+                              <h4 className="font-semibold mb-2">Dados Pessoais</h4>
+                              <div className="text-sm space-y-1">
+                                  <p><span className="font-medium text-muted-foreground">RG:</span> {client.rg || 'N/A'}</p>
+                              </div>
+                            </div>
+                            <div>
+                              <h4 className="font-semibold mb-2">Endereço Residencial</h4>
+                              {residencial ? (
+                                <div className="text-sm space-y-1">
+                                  <p>{residencial.street}, {residencial.number}</p>
+                                  <p>{residencial.neighborhood}, {residencial.city} - {residencial.state}</p>
+                                  <p>CEP: {residencial.zip}</p>
+                                </div>
+                              ) : <p className="text-sm text-muted-foreground">N/A</p>}
+                            </div>
+                            <div>
+                              <h4 className="font-semibold mb-2">Endereço da Obra e Coordenadas</h4>
+                              {obra ? (
+                                <div className="text-sm space-y-1">
+                                  <p>{obra.street}, {obra.number}</p>
+                                  <p>{obra.neighborhood}, {obra.city} - {obra.state}</p>
+                                  <p>CEP: {obra.zip}</p>
+                                  <p className="pt-2"><span className="font-medium text-muted-foreground">Lat:</span> {client.coordenadas?.lat || 'N/A'}, <span className="font-medium text-muted-foreground">Lng:</span> {client.coordenadas?.lng || 'N/A'}</p>
+                                </div>
+                              ) : <p className="text-sm text-muted-foreground">N/A</p>}
+                            </div>
+                          </div>
+                        </div>
+                    </TableCell>
+                </TableRow>
+            </CollapsibleContent>
+        </>
+    </Collapsible>
+  );
+}
+
+function SupplierReportRow({ supplier }: { supplier: Supplier }) {
+    const [isOpen, setIsOpen] = useState(false);
+
+    return (
+        <Collapsible asChild>
+            <>
+                <TableRow>
+                    <TableCell>
+                        <CollapsibleTrigger asChild>
+                            <Button variant="ghost" size="sm" className="w-9 p-0">
+                                {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                                <span className="sr-only">{isOpen ? 'Fechar' : 'Abrir'}</span>
+                            </Button>
+                        </CollapsibleTrigger>
+                    </TableCell>
+                    <TableCell className="font-medium">{supplier.razao_social}</TableCell>
+                    <TableCell>{supplier.cnpj || '-'}</TableCell>
+                    <TableCell>{supplier.telefone || '-'}</TableCell>
+                    <TableCell>{supplier.email || '-'}</TableCell>
+                </TableRow>
+                <CollapsibleContent asChild>
+                    <TableRow>
+                        <TableCell colSpan={5} className="p-0">
+                            <div className="p-6 bg-muted/50">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div>
+                                        <h4 className="font-semibold mb-2">Endereço</h4>
+                                        <p className="text-sm">{supplier.endereco || 'N/A'}</p>
+                                    </div>
+                                    <div>
+                                        <h4 className="font-semibold mb-2">Produtos/Serviços</h4>
+                                        {supplier.produtos_servicos && supplier.produtos_servicos.length > 0 ? (
+                                            <ul className="list-disc list-inside text-sm">
+                                                {supplier.produtos_servicos.map((item, index) => (
+                                                    <li key={index}>{item}</li>
+                                                ))}
+                                            </ul>
+                                        ) : (
+                                            <p className="text-sm text-muted-foreground">N/A</p>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </TableCell>
+                    </TableRow>
+                </CollapsibleContent>
+            </>
+        </Collapsible>
+    );
+}
 
 
 export default function RelatoriosPage() {
@@ -372,10 +487,10 @@ export default function RelatoriosPage() {
             <CardContent>
               <div className="border rounded-lg">
                 <Table>
-                  <TableHeader><TableRow><TableHead>Nome</TableHead><TableHead>CPF/CNPJ</TableHead><TableHead>Telefone</TableHead><TableHead>Cidade</TableHead></TableRow></TableHeader>
+                  <TableHeader><TableRow><TableHead className="w-[50px]"></TableHead><TableHead>Nome</TableHead><TableHead>CPF/CNPJ</TableHead><TableHead>Telefone</TableHead></TableRow></TableHeader>
                   <TableBody>
-                    {filteredData.length > 0 ? filteredData.slice(0, 10).map((client) => (
-                      <TableRow key={client.codigo_cliente}><TableCell className="font-medium">{client.nome_completo}</TableCell><TableCell>{client.cpf_cnpj || '-'}</TableCell><TableCell>{client.telefone || '-'}</TableCell><TableCell>{client.endereco_residencial?.city || '-'}</TableCell></TableRow>
+                    {filteredData.length > 0 ? filteredData.slice(0, 10).map((client: Client) => (
+                      <ClientReportRow key={client.codigo_cliente} client={client} />
                     )) : (<TableRow><TableCell colSpan={4} className="h-24 text-center">Nenhum cliente encontrado.</TableCell></TableRow>)}
                   </TableBody>
                 </Table>
@@ -399,11 +514,11 @@ export default function RelatoriosPage() {
             <CardContent>
               <div className="border rounded-lg">
                 <Table>
-                  <TableHeader><TableRow><TableHead>Razão Social</TableHead><TableHead>CNPJ</TableHead><TableHead>Telefone</TableHead><TableHead>Email</TableHead></TableRow></TableHeader>
+                  <TableHeader><TableRow><TableHead className="w-[50px]"></TableHead><TableHead>Razão Social</TableHead><TableHead>CNPJ</TableHead><TableHead>Telefone</TableHead><TableHead>Email</TableHead></TableRow></TableHeader>
                   <TableBody>
-                    {filteredData.length > 0 ? filteredData.slice(0, 10).map((s) => (
-                      <TableRow key={s.id}><TableCell className="font-medium">{s.razao_social}</TableCell><TableCell>{s.cnpj || '-'}</TableCell><TableCell>{s.telefone || '-'}</TableCell><TableCell>{s.email || '-'}</TableCell></TableRow>
-                    )) : (<TableRow><TableCell colSpan={4} className="h-24 text-center">Nenhum fornecedor encontrado.</TableCell></TableRow>)}
+                    {filteredData.length > 0 ? filteredData.slice(0, 10).map((supplier: Supplier) => (
+                      <SupplierReportRow key={supplier.id} supplier={supplier} />
+                    )) : (<TableRow><TableCell colSpan={5} className="h-24 text-center">Nenhum fornecedor encontrado.</TableCell></TableRow>)}
                   </TableBody>
                 </Table>
               </div>
