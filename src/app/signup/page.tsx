@@ -8,8 +8,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
-import { auth, db } from '@/lib/firebase';
+import { auth } from '@/lib/firebase';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -63,13 +62,6 @@ export default function SignupPage() {
       if (user) {
         await updateProfile(user, {
           displayName: values.name,
-        });
-
-        // Create user document in Firestore
-        await setDoc(doc(db, 'users', user.uid), {
-          displayName: values.name,
-          email: values.email,
-          role: 'user', // Default role for new users
         });
       }
 

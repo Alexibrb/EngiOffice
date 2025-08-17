@@ -123,11 +123,3 @@ export type Payee = (Employee | Supplier) & {
     nome: string;
     tipo: 'funcionario' | 'fornecedor';
 };
-
-export type User = {
-  uid: string;
-  displayName: string;
-  email: string;
-  role: 'admin' | 'user';
-}
-    

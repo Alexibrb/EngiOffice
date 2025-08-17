@@ -31,7 +31,6 @@ import {
   SidebarGroup,
   SidebarGroupLabel,
 } from '@/components/ui/sidebar';
-import { useAuth } from '@/app/dashboard/layout';
 
 const mainLinks = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -51,7 +50,6 @@ const mainLinks = [
     href: '/dashboard/comissoes',
     label: 'Comissões',
     icon: HandCoins,
-    adminOnly: true,
   },
   { href: '/dashboard/relatorios', label: 'Relatórios', icon: FileText },
 ];
@@ -79,8 +77,6 @@ const aiLinks = [
 
 export function DashboardNav() {
   const pathname = usePathname();
-  const { user } = useAuth();
-  const isAdmin = user?.role === 'admin';
 
   return (
     <Sidebar>
@@ -92,7 +88,7 @@ export function DashboardNav() {
       </SidebarHeader>
       <SidebarContent>
         <SidebarMenu>
-          {mainLinks.filter(link => !link.adminOnly || isAdmin).map((link) => (
+          {mainLinks.map((link) => (
             <SidebarMenuItem key={link.href}>
               <Link href={link.href} passHref>
                 <SidebarMenuButton
@@ -112,7 +108,6 @@ export function DashboardNav() {
 
         <SidebarSeparator />
         
-        {isAdmin && (
          <SidebarGroup>
             <SidebarGroupLabel className="flex items-center">
                 <Building2 className="mr-2"/>
@@ -137,9 +132,8 @@ export function DashboardNav() {
                 ))}
             </SidebarMenu>
         </SidebarGroup>
-        )}
 
-        {isAdmin && <SidebarSeparator />}
+        <SidebarSeparator />
 
          <SidebarMenu>
           {aiLinks.map((link) => (
