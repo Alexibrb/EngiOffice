@@ -37,6 +37,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { DateRange } from 'react-day-picker';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
+import { PageHeader } from '@/components/page-header';
 
 type ReportType = 'clients' | 'suppliers' | 'services' | 'accountsPayable' | 'commissions';
 
@@ -687,12 +688,10 @@ export default function RelatoriosPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <div>
-        <h1 className="text-3xl font-bold font-headline text-primary">Relatórios</h1>
-        <p className="text-muted-foreground">
-          Gere relatórios e documentos importantes do seu negócio.
-        </p>
-      </div>
+      <PageHeader 
+        title="Relatórios"
+        description="Gere relatórios e documentos importantes do seu negócio."
+      />
 
       <div className="w-full max-w-sm">
         <Label htmlFor="report-type">Selecione o tipo de relatório</Label>

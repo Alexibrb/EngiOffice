@@ -50,6 +50,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { ptBR } from 'date-fns/locale';
+import { PageHeader } from '@/components/page-header';
 
 const paymentSchema = z.object({
   valor_pago: z.coerce.number().min(0.01, "O valor deve ser maior que zero.")
@@ -330,12 +331,10 @@ export default function ContasAReceberPage() {
 
     return (
         <div className="flex flex-col gap-8">
-            <div>
-                <h1 className="text-3xl font-bold font-headline text-primary">Contas a Receber</h1>
-                <p className="text-muted-foreground">
-                    Gerencie os serviços prestados a serem recebidos dos clientes.
-                </p>
-            </div>
+            <PageHeader 
+              title="Contas a Receber"
+              description="Gerencie os serviços prestados a serem recebidos dos clientes."
+            />
             
              <div className="grid gap-4 md:grid-cols-2">
                 <Card>

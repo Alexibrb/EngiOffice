@@ -51,6 +51,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { formatCPF_CNPJ, formatTelefone, formatCEP } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { PageHeader } from '@/components/page-header';
 
 const addressSchema = z.object({
   street: z.string().optional(),
@@ -460,12 +461,10 @@ export default function ClientesPage() {
 
   return (
     <div className="flex flex-col gap-8">
-        <div>
-            <h1 className="text-3xl font-bold font-headline text-primary">Clientes</h1>
-            <p className="text-muted-foreground">
-            Gerencie os clientes do seu escritório.
-            </p>
-        </div>
+        <PageHeader 
+          title="Clientes"
+          description="Gerencie os clientes do seu escritório."
+        />
 
         <Card>
             <CardHeader>

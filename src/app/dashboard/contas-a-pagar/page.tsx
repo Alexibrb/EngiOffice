@@ -59,6 +59,7 @@ import autoTable from 'jspdf-autotable';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Label } from '@/components/ui/label';
 import { DateRange } from 'react-day-picker';
+import { PageHeader } from '@/components/page-header';
 
 
 const accountSchema = z.object({
@@ -382,12 +383,10 @@ export default function ContasAPagarPage() {
 
     return (
         <div className="flex flex-col gap-8">
-            <div>
-                <h1 className="text-3xl font-bold font-headline text-primary">Contas a Pagar</h1>
-                <p className="text-muted-foreground">
-                    Gerencie as faturas, salários e despesas a serem pagas.
-                </p>
-            </div>
+            <PageHeader
+                title="Contas a Pagar"
+                description="Gerencie as faturas, salários e despesas a serem pagas."
+            />
             
              <div className="grid gap-4 md:grid-cols-2">
                 <Card>

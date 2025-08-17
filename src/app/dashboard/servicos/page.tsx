@@ -60,6 +60,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { DateRange } from 'react-day-picker';
 import jsPDF from 'jspdf';
 import { Label } from '@/components/ui/label';
+import { PageHeader } from '@/components/page-header';
 
 const serviceSchema = z.object({
   descricao: z.string().min(1, { message: 'Descrição é obrigatória.' }),
@@ -647,12 +648,10 @@ export default function ServicosPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <div>
-        <h1 className="text-3xl font-bold font-headline text-primary">Serviços</h1>
-        <p className="text-muted-foreground">
-          Gerencie os serviços e projetos do seu escritório.
-        </p>
-      </div>
+      <PageHeader
+        title="Serviços"
+        description="Gerencie os serviços e projetos do seu escritório."
+      />
 
        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>

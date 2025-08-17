@@ -49,6 +49,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { formatCPF_CNPJ, formatTelefone } from '@/lib/utils';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { PageHeader } from '@/components/page-header';
 
 
 const supplierSchema = z.object({
@@ -308,12 +309,10 @@ export default function FornecedoresPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <div>
-        <h1 className="text-3xl font-bold font-headline text-primary">Fornecedores</h1>
-        <p className="text-muted-foreground">
-          Gerencie os fornecedores do seu escritório.
-        </p>
-      </div>
+      <PageHeader
+        title="Fornecedores"
+        description="Gerencie os fornecedores do seu escritório."
+      />
 
        <Card>
             <CardHeader>

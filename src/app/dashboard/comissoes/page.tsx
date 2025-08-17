@@ -42,6 +42,7 @@ import { Badge } from '@/components/ui/badge';
 import { DateRange } from 'react-day-picker';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { PageHeader } from '@/components/page-header';
 
 export default function ComissoesPage() {
     const [commissions, setCommissions] = useState<Commission[]>([]);
@@ -237,12 +238,10 @@ export default function ComissoesPage() {
 
     return (
         <div className="flex flex-col gap-8">
-            <div>
-                <h1 className="text-3xl font-bold font-headline text-primary">Comissões</h1>
-                <p className="text-muted-foreground">
-                    Gerencie as comissões dos funcionários por serviço.
-                </p>
-            </div>
+            <PageHeader 
+              title="Comissões"
+              description="Gerencie as comissões dos funcionários por serviço."
+            />
             
              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 {employeeCommissionTotals.map(({ employeeName, total }) => (

@@ -48,6 +48,7 @@ import {
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
+import { PageHeader } from '@/components/page-header';
 
 const employeeSchema = z.object({
   nome: z.string().min(1, { message: 'Nome é obrigatório.' }),
@@ -260,12 +261,10 @@ export default function FuncionariosPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <div>
-        <h1 className="text-3xl font-bold font-headline text-primary">Funcionários</h1>
-        <p className="text-muted-foreground">
-          Gerencie os funcionários e colaboradores do seu escritório.
-        </p>
-      </div>
+      <PageHeader
+        title="Funcionários"
+        description="Gerencie os funcionários e colaboradores do seu escritório."
+      />
       <Card>
         <CardHeader>
             <div className="flex items-center justify-between gap-4">

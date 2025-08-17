@@ -123,3 +123,12 @@ export type Payee = (Employee | Supplier) & {
     nome: string;
     tipo: 'funcionario' | 'fornecedor';
 };
+
+export type CompanyData = {
+  logoUrl?: string;
+  companyName?: string;
+  slogan?: string;
+  cnpj?: string;
+  address?: string;
+  phone?: string;
+};

@@ -15,6 +15,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Sparkles, Loader2, AlertCircle } from 'lucide-react';
+import { PageHeader } from '@/components/page-header';
 
 export default function TimelineSugestoesPage() {
   const [description, setDescription] = useState('');
@@ -41,15 +42,10 @@ export default function TimelineSugestoesPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <div>
-        <h1 className="text-3xl font-bold font-headline text-primary">
-          Sugestões de Timeline com IA
-        </h1>
-        <p className="text-muted-foreground">
-          Descreva um serviço e deixe a inteligência artificial criar uma
-          proposta de cronograma.
-        </p>
-      </div>
+      <PageHeader 
+        title="Sugestões de Timeline com IA"
+        description="Descreva um serviço e deixe a inteligência artificial criar uma proposta de cronograma."
+      />
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
         <Card>

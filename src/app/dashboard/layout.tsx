@@ -4,11 +4,21 @@
 import { useEffect, useState, createContext, useContext } from 'react';
 import { useRouter } from 'next/navigation';
 import { onAuthStateChanged, User as FirebaseAuthUser } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
 import { DashboardNav } from '@/components/dashboard-nav';
 import { Header } from '@/components/header';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { Loader2 } from 'lucide-react';
+import { doc, getDoc } from 'firebase/firestore';
+import type { CompanyData } from '@/lib/types';
+
+
+const CompanyDataContext = createContext<CompanyData | null>(null);
+
+export const useCompanyData = () => {
+    return useContext(CompanyDataContext);
+}
+
 
 export default function DashboardLayout({
   children,
@@ -16,6 +26,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const [firebaseUser, setFirebaseUser] = useState<FirebaseAuthUser | null>(null);
+  const [companyData, setCompanyData] = useState<CompanyData | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
@@ -23,6 +34,11 @@ export default function DashboardLayout({
     const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
       if (fbUser) {
         setFirebaseUser(fbUser);
+        const companyDocRef = doc(db, 'empresa', 'dados');
+        const docSnap = await getDoc(companyDocRef);
+        if (docSnap.exists()) {
+          setCompanyData(docSnap.data() as CompanyData);
+        }
       } else {
         setFirebaseUser(null);
         router.push('/');
@@ -47,16 +63,18 @@ export default function DashboardLayout({
   }
 
   return (
-    <SidebarProvider>
-      <div className="flex min-h-screen w-full">
-        <div className="hidden md:block">
-          <DashboardNav />
+    <CompanyDataContext.Provider value={companyData}>
+      <SidebarProvider>
+        <div className="flex min-h-screen w-full">
+          <div className="hidden md:block">
+            <DashboardNav />
+          </div>
+          <div className="flex flex-1 flex-col">
+            <Header />
+            <main className="flex-1 p-4 md:p-6 lg:p-8">{children}</main>
+          </div>
         </div>
-        <div className="flex flex-1 flex-col">
-          <Header />
-          <main className="flex-1 p-4 md:p-6 lg:p-8">{children}</main>
-        </div>
-      </div>
-    </SidebarProvider>
+      </SidebarProvider>
+    </CompanyDataContext.Provider>
   );
 }
