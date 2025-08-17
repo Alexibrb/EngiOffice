@@ -23,7 +23,7 @@ import type { Client, Supplier, Service, Account, Employee, Commission, CompanyD
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Download, Search, XCircle, Calendar as CalendarIcon, ChevronDown, ChevronRight } from 'lucide-react';
-import { collection, getDocs, doc } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from "@/hooks/use-toast"
 import { format, startOfDay, endOfDay } from 'date-fns';
@@ -38,6 +38,7 @@ import { cn } from '@/lib/utils';
 import { DateRange } from 'react-day-picker';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { PageHeader } from '@/components/page-header';
+import { useCompanyData } from '../layout';
 
 type ReportType = 'clients' | 'suppliers' | 'services' | 'accountsPayable' | 'commissions';
 
@@ -163,7 +164,7 @@ export default function RelatoriosPage() {
   const [services, setServices] = useState<Service[]>([]);
   const [accountsPayable, setAccountsPayable] = useState<Account[]>([]);
   const [commissions, setCommissions] = useState<Commission[]>([]);
-  const [companyData, setCompanyData] = useState<CompanyData | null>(null);
+  const companyData = useCompanyData();
   const [isLoading, setIsLoading] = useState(true);
   
   const [selectedReport, setSelectedReport] = useState<ReportType>('clients');
@@ -177,14 +178,13 @@ export default function RelatoriosPage() {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const [clientsSnapshot, suppliersSnapshot, servicesSnapshot, accountsPayableSnapshot, employeesSnapshot, commissionsSnapshot, companyDocSnap] = await Promise.all([
+      const [clientsSnapshot, suppliersSnapshot, servicesSnapshot, accountsPayableSnapshot, employeesSnapshot, commissionsSnapshot] = await Promise.all([
         getDocs(collection(db, "clientes")),
         getDocs(collection(db, "fornecedores")),
         getDocs(collection(db, "servicos")),
         getDocs(collection(db, "contas_a_pagar")),
         getDocs(collection(db, "funcionarios")),
         getDocs(collection(db, "comissoes")),
-        getDoc(doc(db, 'empresa', 'dados')),
       ]);
 
       setClients(clientsSnapshot.docs.map(doc => ({ ...doc.data(), codigo_cliente: doc.id })) as Client[]);
@@ -193,9 +193,6 @@ export default function RelatoriosPage() {
       setAccountsPayable(accountsPayableSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, vencimento: doc.data().vencimento.toDate() })) as Account[]);
       setEmployees(employeesSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Employee[]);
       setCommissions(commissionsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, data: doc.data().data.toDate() })) as Commission[]);
-      if (companyDocSnap.exists()) {
-        setCompanyData(companyDocSnap.data() as CompanyData);
-      }
 
     } catch (error) {
       console.error("Erro ao buscar dados: ", error);
@@ -242,7 +239,7 @@ export default function RelatoriosPage() {
         case 'services':
             data = services
                 .filter(s => statusFilter ? s.status === statusFilter : true)
-                .filter(s => s.descricao.toLowerCase().includes(searchLower) || getClient(s.cliente_id)?.nome_completo.toLowerCase().includes(searchLower))
+                .filter(s => s.descricao.toLowerCase().includes(searchLower) || (getClient(s.cliente_id)?.nome_completo.toLowerCase() || '').includes(searchLower))
                 .filter(s => {
                     if (!dateRange?.from) return true;
                     const from = startOfDay(dateRange.from);
@@ -281,23 +278,23 @@ export default function RelatoriosPage() {
             break;
     }
     return data;
-  }, [selectedReport, clients, suppliers, services, accountsPayable, commissions, searchFilter, statusFilter, dateRange, getClient, getPayeeName, getEmployeeName, getService]);
+  }, [selectedReport, clients, suppliers, services, accountsPayable, commissions, searchFilter, statusFilter, dateRange]);
 
  const totals = useMemo(() => {
     if (!filteredData) return {};
     switch(selectedReport) {
         case 'services':
             return {
-                valor_total: filteredData.reduce((sum, item) => sum + item.valor_total, 0),
-                saldo_devedor: filteredData.reduce((sum, item) => sum + item.saldo_devedor, 0)
+                valor_total: filteredData.reduce((sum, item) => sum + (item.valor_total || 0), 0),
+                saldo_devedor: filteredData.reduce((sum, item) => sum + (item.saldo_devedor || 0), 0)
             };
         case 'accountsPayable':
             return {
-                valor: filteredData.reduce((sum, item) => sum + item.valor, 0)
+                valor: filteredData.reduce((sum, item) => sum + (item.valor || 0), 0)
             };
         case 'commissions':
             return {
-                valor: filteredData.reduce((sum, item) => sum + item.valor, 0)
+                valor: filteredData.reduce((sum, item) => sum + (item.valor || 0), 0)
             };
         default:
             return {};
@@ -320,24 +317,29 @@ export default function RelatoriosPage() {
 
 
   const generatePdf = () => {
-    let data = filteredData;
+    const data = filteredData;
     let head: string[][];
     let body: any[][];
     let foot: any[][] | undefined = undefined;
     let fileName = '';
     let title = '';
 
+    if (data.length === 0) {
+      toast({ variant: "destructive", title: "Nenhum dado", description: `Não há dados para gerar o relatório com os filtros atuais.` });
+      return;
+    }
+
     switch (selectedReport) {
       case 'clients':
         title = 'Relatório de Clientes';
         head = [['Nome', 'CPF/CNPJ', 'Telefone', 'Cidade']];
-        body = data.map((item) => [item.nome_completo, item.cpf_cnpj || '-', item.telefone || '-', item.endereco_residencial?.city || '-']);
+        body = data.map((item: Client) => [item.nome_completo, item.cpf_cnpj || '-', item.telefone || '-', item.endereco_residencial?.city || '-']);
         fileName = 'relatorio_clientes.pdf';
         break;
       case 'suppliers':
         title = 'Relatório de Fornecedores';
         head = [['Razão Social', 'CNPJ', 'Telefone', 'Email']];
-        body = data.map((item) => [item.razao_social, item.cnpj || '-', item.telefone || '-', item.email || '-']);
+        body = data.map((item: Supplier) => [item.razao_social, item.cnpj || '-', item.telefone || '-', item.email || '-']);
         fileName = 'relatorio_fornecedores.pdf';
         break;
       case 'services':
@@ -355,17 +357,14 @@ export default function RelatoriosPage() {
                 item.status
             ];
         });
-        const totalValorServicos = data.reduce((sum, item) => sum + item.valor_total, 0);
-        const totalSaldoServicos = data.reduce((sum, item) => sum + item.saldo_devedor, 0);
-        foot = [['Total', '', `R$ ${totalValorServicos.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, `R$ ${totalSaldoServicos.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, '']];
+        foot = [['Total', '', `R$ ${(totals.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, `R$ ${(totals.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, '']];
         fileName = 'relatorio_servicos.pdf';
         break;
       case 'accountsPayable':
         title = 'Relatório de Contas a Pagar';
         head = [['Descrição', 'Favorecido', 'Vencimento', 'Valor', 'Status']];
         body = data.map((item: Account) => [item.descricao, getPayeeName(item), item.vencimento ? format(item.vencimento, "dd/MM/yyyy") : '-', `R$ ${item.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, item.status]);
-        const totalContasPagar = data.reduce((sum, item) => sum + item.valor, 0);
-        foot = [['Total', '', '', `R$ ${totalContasPagar.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, '']];
+        foot = [['Total', '', '', `R$ ${(totals.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, '']];
         fileName = 'relatorio_contas_a_pagar.pdf';
         break;
        case 'commissions':
@@ -385,16 +384,10 @@ export default function RelatoriosPage() {
                 item.status
             ];
         });
-        const totalComissoes = data.reduce((sum, item) => sum + item.valor, 0);
-        foot = [['Total', '', '', `R$ ${totalComissoes.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, '']];
+        foot = [['Total', '', '', `R$ ${(totals.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, '']];
         fileName = 'relatorio_comissoes.pdf';
         break;
       default: return;
-    }
-
-    if (data.length === 0) {
-      toast({ variant: "destructive", title: "Nenhum dado", description: `Não há dados para gerar o relatório com os filtros atuais.` });
-      return;
     }
 
     const doc = new jsPDF();
@@ -475,7 +468,7 @@ export default function RelatoriosPage() {
     );
   };
   
-  const renderReportCard = (totals: any) => {
+  const renderReportCard = () => {
     switch (selectedReport) {
       case 'clients':
         return (
@@ -558,7 +551,7 @@ export default function RelatoriosPage() {
                         </TableRow>
                     </TableHeader>
                   <TableBody>
-                    {filteredData.length > 0 ? filteredData.slice(0, 10).map((s) => {
+                    {filteredData.length > 0 ? filteredData.slice(0, 10).map((s: Service) => {
                          const client = getClient(s.cliente_id);
                          const address = client?.endereco_obra;
                          const formattedAddress = address ? `${address.street}, ${address.number} - ${address.neighborhood}, ${address.city} - ${address.state}` : 'N/A';
@@ -608,7 +601,7 @@ export default function RelatoriosPage() {
                 <Table>
                   <TableHeader><TableRow><TableHead>Descrição</TableHead><TableHead>Favorecido</TableHead><TableHead>Vencimento</TableHead><TableHead className="text-right">Valor</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
                   <TableBody>
-                    {filteredData.length > 0 ? filteredData.slice(0, 10).map((acc) => (
+                    {filteredData.length > 0 ? filteredData.slice(0, 10).map((acc: Account) => (
                       <TableRow key={acc.id}><TableCell className="font-medium">{acc.descricao}</TableCell><TableCell>{getPayeeName(acc)}</TableCell><TableCell>{acc.vencimento ? format(acc.vencimento, "dd/MM/yyyy") : '-'}</TableCell><TableCell className="text-right text-red-500">R$ {acc.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell><TableCell><Badge variant={acc.status === 'pago' ? 'secondary' : 'destructive'}>{acc.status}</Badge></TableCell></TableRow>
                     )) : (<TableRow><TableCell colSpan={5} className="h-24 text-center">Nenhuma conta a pagar encontrada.</TableCell></TableRow>)}
                   </TableBody>
@@ -718,7 +711,7 @@ export default function RelatoriosPage() {
       </div>
 
       <div className="mt-4">
-        {renderReportCard(totals)}
+        {renderReportCard()}
       </div>
 
     </div>
