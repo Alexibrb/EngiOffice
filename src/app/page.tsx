@@ -87,7 +87,7 @@ export default function LoginPage() {
       <Card className="w-full max-w-sm">
         <CardHeader className="items-center text-center">
           <Rocket className="h-8 w-8 text-primary" />
-          <CardTitle className="font-headline text-3xl">EngiFlow</CardTitle>
+          <CardTitle className="font-headline text-3xl">EngiOffice</CardTitle>
           <CardDescription>
             Entre para gerenciar seus projetos de engenharia.
           </CardDescription>

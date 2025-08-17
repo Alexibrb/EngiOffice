@@ -19,11 +19,11 @@ import {
   TableRow,
   TableFooter,
 } from '@/components/ui/table';
-import type { Client, Supplier, Service, Account, Employee, Commission } from '@/lib/types';
+import type { Client, Supplier, Service, Account, Employee, Commission, CompanyData } from '@/lib/types';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Download, Search, XCircle, Calendar as CalendarIcon, ChevronDown, ChevronRight } from 'lucide-react';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from "@/hooks/use-toast"
 import { format, startOfDay, endOfDay } from 'date-fns';
@@ -163,6 +163,7 @@ export default function RelatoriosPage() {
   const [services, setServices] = useState<Service[]>([]);
   const [accountsPayable, setAccountsPayable] = useState<Account[]>([]);
   const [commissions, setCommissions] = useState<Commission[]>([]);
+  const [companyData, setCompanyData] = useState<CompanyData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   
   const [selectedReport, setSelectedReport] = useState<ReportType>('clients');
@@ -176,13 +177,14 @@ export default function RelatoriosPage() {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const [clientsSnapshot, suppliersSnapshot, servicesSnapshot, accountsPayableSnapshot, employeesSnapshot, commissionsSnapshot] = await Promise.all([
+      const [clientsSnapshot, suppliersSnapshot, servicesSnapshot, accountsPayableSnapshot, employeesSnapshot, commissionsSnapshot, companyDocSnap] = await Promise.all([
         getDocs(collection(db, "clientes")),
         getDocs(collection(db, "fornecedores")),
         getDocs(collection(db, "servicos")),
         getDocs(collection(db, "contas_a_pagar")),
         getDocs(collection(db, "funcionarios")),
         getDocs(collection(db, "comissoes")),
+        getDoc(doc(db, 'empresa', 'dados')),
       ]);
 
       setClients(clientsSnapshot.docs.map(doc => ({ ...doc.data(), codigo_cliente: doc.id })) as Client[]);
@@ -191,6 +193,9 @@ export default function RelatoriosPage() {
       setAccountsPayable(accountsPayableSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, vencimento: doc.data().vencimento.toDate() })) as Account[]);
       setEmployees(employeesSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Employee[]);
       setCommissions(commissionsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, data: doc.data().data.toDate() })) as Commission[]);
+      if (companyDocSnap.exists()) {
+        setCompanyData(companyDocSnap.data() as CompanyData);
+      }
 
     } catch (error) {
       console.error("Erro ao buscar dados: ", error);
@@ -395,7 +400,7 @@ export default function RelatoriosPage() {
     const doc = new jsPDF();
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(16);
-    doc.text(`${title} - EngiFlow`, 14, 22);
+    doc.text(`${title} - ${companyData?.companyName || 'EngiOffice'}`, 14, 22);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
     doc.text(`Data de Emissão: ${new Date().toLocaleDateString('pt-BR')}`, 14, 28);

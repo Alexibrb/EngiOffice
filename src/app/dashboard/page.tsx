@@ -225,9 +225,10 @@ export default function DashboardPage() {
     // Informações da Empresa
     doc.setFontSize(12);
     doc.setFont('helvetica', 'normal');
-    doc.text('EngiFlow - Soluções em Engenharia', 20, 40);
-    doc.text('CNPJ: 00.000.000/0001-00', 20, 46);
-    doc.text('contato@engiflow.com', 20, 52);
+    doc.text(companyData?.companyName || 'EngiOffice', 20, 40);
+    doc.text(`CNPJ: ${companyData?.cnpj || 'Não informado'}`, 20, 46);
+    doc.text(companyData?.address || 'Endereço não informado', 20, 52);
+
 
     doc.setLineWidth(0.5);
     doc.line(20, 60, pageWidth - 20, 60);
@@ -254,7 +255,7 @@ export default function DashboardPage() {
     doc.text(`${(client.endereco_residencial && client.endereco_residencial.city) ? client.endereco_residencial.city : 'Localidade não informada'}, ${today}.`, 20, 160);
     
     doc.line(pageWidth / 2 - 40, 190, pageWidth / 2 + 40, 190);
-    doc.text('EngiFlow', pageWidth / 2, 195, { align: 'center' });
+    doc.text(companyData?.companyName || 'EngiOffice', pageWidth / 2, 195, { align: 'center' });
 
 
     doc.save(`recibo_${client.nome_completo.replace(/\s/g, '_')}_${service.id}.pdf`);

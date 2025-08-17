@@ -27,7 +27,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import type { Service, Client, ServiceType, Commission, Account, Employee } from '@/lib/types';
+import type { Service, Client, ServiceType, Commission, Account, Employee, CompanyData } from '@/lib/types';
 import { PlusCircle, Search, MoreHorizontal, Loader2, Calendar as CalendarIcon, Wrench, Link as LinkIcon, ExternalLink, ClipboardCopy, XCircle, FileText, CheckCircle, ArrowUp, TrendingUp, HandCoins, Users, Trash } from 'lucide-react';
 import {
   DropdownMenu,
@@ -61,6 +61,7 @@ import { DateRange } from 'react-day-picker';
 import jsPDF from 'jspdf';
 import { Label } from '@/components/ui/label';
 import { PageHeader } from '@/components/page-header';
+import { useCompanyData } from '../layout';
 
 const serviceSchema = z.object({
   descricao: z.string().min(1, { message: 'Descrição é obrigatória.' }),
@@ -224,6 +225,7 @@ export default function ServicosPage() {
   const router = useRouter();
   const user = auth.currentUser;
   const isAdmin = !!user;
+  const companyData = useCompanyData();
   
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [statusFilter, setStatusFilter] = useState<string>('');
@@ -562,9 +564,10 @@ export default function ServicosPage() {
     // Informações da Empresa
     doc.setFontSize(12);
     doc.setFont('helvetica', 'normal');
-    doc.text('EngiFlow - Soluções em Engenharia', 20, 40);
-    doc.text('CNPJ: 00.000.000/0001-00', 20, 46);
-    doc.text('contato@engiflow.com', 20, 52);
+    doc.text(companyData?.companyName || 'EngiOffice', 20, 40);
+    doc.text(`CNPJ: ${companyData?.cnpj || 'Não informado'}`, 20, 46);
+    doc.text(companyData?.address || 'Endereço não informado', 20, 52);
+
 
     doc.setLineWidth(0.5);
     doc.line(20, 60, pageWidth - 20, 60);
@@ -591,7 +594,7 @@ export default function ServicosPage() {
     doc.text(`${(client.endereco_residencial && client.endereco_residencial.city) ? client.endereco_residencial.city : 'Localidade não informada'}, ${today}.`, 20, 160);
     
     doc.line(pageWidth / 2 - 40, 190, pageWidth / 2 + 40, 190);
-    doc.text('EngiFlow', pageWidth / 2, 195, { align: 'center' });
+    doc.text(companyData?.companyName || 'EngiOffice', pageWidth / 2, 195, { align: 'center' });
 
 
     doc.save(`recibo_${client.nome_completo.replace(/\s/g, '_')}_${service.id}.pdf`);

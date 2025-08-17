@@ -52,7 +52,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { format, endOfDay, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import type { Account, Supplier, Employee, Payee, Service } from '@/lib/types';
+import type { Account, Supplier, Employee, Payee, Service, CompanyData } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -93,6 +93,7 @@ export default function ContasAPagarPage() {
     const [suppliers, setSuppliers] = useState<Supplier[]>([]);
     const [employees, setEmployees] = useState<Employee[]>([]);
     const [services, setServices] = useState<Service[]>([]);
+    const [companyData, setCompanyData] = useState<CompanyData | null>(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isSupplierDialogOpen, setIsSupplierDialogOpen] = useState(false);
     const [isAddProductDialogOpen, setIsAddProductDialogOpen] = useState(false);
@@ -148,6 +149,12 @@ export default function ContasAPagarPage() {
 
     const fetchData = async () => {
         try {
+            const companyDocRef = doc(db, 'empresa', 'dados');
+            const companyDocSnap = await getDoc(companyDocRef);
+            if (companyDocSnap.exists()) {
+              setCompanyData(companyDocSnap.data() as CompanyData);
+            }
+
             const payableSnapshot = await getDocs(collection(db, "contas_a_pagar"));
             
             await fetchSuppliers();
@@ -341,7 +348,7 @@ export default function ContasAPagarPage() {
         
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(16);
-        doc.text(`${title} - EngiFlow`, 14, 22);
+        doc.text(`${title} - ${companyData?.companyName || 'EngiOffice'}`, 14, 22);
         
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(10);

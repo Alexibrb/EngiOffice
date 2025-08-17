@@ -84,7 +84,7 @@ export default function SignupPage() {
           <Rocket className="h-8 w-8 text-primary" />
           <CardTitle className="font-headline text-3xl">Criar Conta</CardTitle>
           <CardDescription>
-            Junte-se ao EngiFlow para começar a gerenciar.
+            Junte-se ao EngiOffice para começar a gerenciar.
           </CardDescription>
         </CardHeader>
         <CardContent>

@@ -29,7 +29,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { format, endOfDay, startOfDay } from 'date-fns';
-import type { Client, Service, Employee, Account, Commission } from '@/lib/types';
+import type { Client, Service, Employee, Account, Commission, CompanyData } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -51,6 +51,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { ptBR } from 'date-fns/locale';
 import { PageHeader } from '@/components/page-header';
+import { useCompanyData } from '../layout';
 
 const paymentSchema = z.object({
   valor_pago: z.coerce.number().min(0.01, "O valor deve ser maior que zero.")
@@ -66,6 +67,7 @@ export default function ContasAReceberPage() {
     const { toast } = useToast();
     const user = auth.currentUser;
     const isAdmin = !!user;
+    const companyData = useCompanyData();
     
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
     const [statusFilter, setStatusFilter] = useState<string>('');
@@ -192,9 +194,10 @@ export default function ContasAReceberPage() {
         // Informações da Empresa
         doc.setFontSize(12);
         doc.setFont('helvetica', 'normal');
-        doc.text('EngiFlow - Soluções em Engenharia', 20, 40);
-        doc.text('CNPJ: 00.000.000/0001-00', 20, 46);
-        doc.text('contato@engiflow.com', 20, 52);
+        doc.text(companyData?.companyName || 'EngiOffice', 20, 40);
+        doc.text(`CNPJ: ${companyData?.cnpj || 'Não informado'}`, 20, 46);
+        doc.text(companyData?.address || 'Endereço não informado', 20, 52);
+
 
         doc.setLineWidth(0.5);
         doc.line(20, 60, pageWidth - 20, 60);
@@ -221,7 +224,7 @@ export default function ContasAReceberPage() {
         doc.text(`${(client.endereco_residencial && client.endereco_residencial.city) ? client.endereco_residencial.city : 'Localidade não informada'}, ${today}.`, 20, 160);
         
         doc.line(pageWidth / 2 - 40, 190, pageWidth / 2 + 40, 190);
-        doc.text('EngiFlow', pageWidth / 2, 195, { align: 'center' });
+        doc.text(companyData?.companyName || 'EngiOffice', pageWidth / 2, 195, { align: 'center' });
 
 
         doc.save(`recibo_${client.nome_completo.replace(/\s/g, '_')}_${service.id}.pdf`);
@@ -293,7 +296,7 @@ export default function ContasAReceberPage() {
         
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(16);
-        doc.text(`${title} - EngiFlow`, 14, 22);
+        doc.text(`${title} - ${companyData?.companyName || 'EngiOffice'}`, 14, 22);
         
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(10);

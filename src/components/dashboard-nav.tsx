@@ -83,7 +83,7 @@ export function DashboardNav() {
       <SidebarHeader>
         <Link href="/dashboard" className="flex items-center gap-2">
           <Rocket className="h-6 w-6 text-primary" />
-          <span className="text-lg font-semibold font-headline">EngiFlow</span>
+          <span className="text-lg font-semibold font-headline">EngiOffice</span>
         </Link>
       </SidebarHeader>
       <SidebarContent>

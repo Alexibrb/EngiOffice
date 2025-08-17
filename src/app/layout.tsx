@@ -14,7 +14,7 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: 'EngiFlow',
+  title: 'EngiOffice',
   description: 'Sistema de Gestão para Escritórios de Engenharia',
 };
 
