@@ -13,7 +13,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
 import {
   Table,
@@ -26,7 +25,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import type { Supplier } from '@/lib/types';
-import { PlusCircle, Search, MoreHorizontal, Loader2, Trash } from 'lucide-react';
+import { PlusCircle, Search, MoreHorizontal, Loader2, Trash, ChevronDown, ChevronRight } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -48,6 +47,7 @@ import {
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { formatCPF_CNPJ, formatTelefone } from '@/lib/utils';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 
 const supplierSchema = z.object({
@@ -62,6 +62,94 @@ const supplierSchema = z.object({
   endereco: z.string().optional(),
   produtos_servicos: z.string().optional(),
 });
+
+function SupplierTableRow({ supplier, onEdit, onDelete }: { supplier: Supplier, onEdit: (supplier: Supplier) => void, onDelete: (id: string) => void }) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <Collapsible asChild>
+      <>
+        <TableRow>
+          <TableCell>
+            <CollapsibleTrigger asChild>
+              <Button variant="ghost" size="sm" className="w-9 p-0" onClick={() => setIsOpen(!isOpen)}>
+                {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                <span className="sr-only">{isOpen ? 'Fechar' : 'Abrir'}</span>
+              </Button>
+            </CollapsibleTrigger>
+          </TableCell>
+          <TableCell className="font-medium">{supplier.razao_social}</TableCell>
+          <TableCell>{supplier.cnpj}</TableCell>
+          <TableCell>{supplier.telefone}</TableCell>
+          <TableCell>{supplier.email}</TableCell>
+          <TableCell>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button aria-haspopup="true" size="icon" variant="ghost">
+                  <MoreHorizontal className="h-4 w-4" />
+                  <span className="sr-only">Toggle menu</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                <DropdownMenuItem onClick={() => onEdit(supplier)}>
+                  Editar
+                </DropdownMenuItem>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600">
+                      Excluir
+                    </DropdownMenuItem>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Essa ação não pode ser desfeita. Isso excluirá permanentemente o fornecedor.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => onDelete(supplier.id)} variant="destructive">
+                        Excluir
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </TableCell>
+        </TableRow>
+        <CollapsibleContent asChild>
+          <TableRow>
+            <TableCell colSpan={6} className="p-0">
+              <div className="p-6 bg-muted/50">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <h4 className="font-semibold mb-2">Endereço</h4>
+                    <p className="text-sm">{supplier.endereco || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold mb-2">Produtos/Serviços</h4>
+                    {supplier.produtos_servicos && supplier.produtos_servicos.length > 0 ? (
+                      <ul className="list-disc list-inside text-sm space-y-1">
+                        {supplier.produtos_servicos.map((item, index) => (
+                          <li key={index}>{item}</li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">N/A</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </TableCell>
+          </TableRow>
+        </CollapsibleContent>
+      </>
+    </Collapsible>
+  );
+}
 
 
 export default function FornecedoresPage() {
@@ -389,61 +477,20 @@ export default function FornecedoresPage() {
                 <Table>
                 <TableHeader>
                     <TableRow>
+                    <TableHead className="w-[50px]"></TableHead>
                     <TableHead>Razão Social</TableHead>
                     <TableHead>CNPJ</TableHead>
                     <TableHead>Telefone</TableHead>
                     <TableHead>Email</TableHead>
-                    <TableHead><span className="sr-only">Ações</span></TableHead>
+                    <TableHead className="w-[100px] text-right">Ações</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
                     {filteredSuppliers.length > 0 ? filteredSuppliers.map((supplier) => (
-                    <TableRow key={supplier.id}>
-                        <TableCell className="font-medium">{supplier.razao_social}</TableCell>
-                        <TableCell>{supplier.cnpj}</TableCell>
-                        <TableCell>{supplier.telefone}</TableCell>
-                        <TableCell>{supplier.email}</TableCell>
-                        <TableCell>
-                            <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button aria-haspopup="true" size="icon" variant="ghost">
-                                <MoreHorizontal className="h-4 w-4" />
-                                <span className="sr-only">Toggle menu</span>
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                                <DropdownMenuItem onClick={() => handleEditClick(supplier)}>
-                                Editar
-                                </DropdownMenuItem>
-                                <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                    <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600">
-                                        Excluir
-                                    </DropdownMenuItem>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                    <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                        Essa ação não pode ser desfeita. Isso excluirá permanentemente o fornecedor.
-                                    </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => handleDeleteSupplier(supplier.id)} variant="destructive">
-                                        Excluir
-                                    </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                                </AlertDialog>
-                            </DropdownMenuContent>
-                            </DropdownMenu>
-                        </TableCell>
-                    </TableRow>
+                        <SupplierTableRow key={supplier.id} supplier={supplier} onEdit={handleEditClick} onDelete={handleDeleteSupplier} />
                     )) : (
                     <TableRow>
-                        <TableCell colSpan={5} className="h-24 text-center">
+                        <TableCell colSpan={6} className="h-24 text-center">
                         Nenhum fornecedor encontrado.
                         </TableCell>
                     </TableRow>
