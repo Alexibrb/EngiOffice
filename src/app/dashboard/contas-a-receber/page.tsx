@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/form';
 import { useToast } from "@/hooks/use-toast"
 import { collection, getDocs, doc, updateDoc, Timestamp, writeBatch } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { db, auth } from '@/lib/firebase';
 import { Calendar as CalendarIcon, Download, ExternalLink, XCircle, ArrowUp, TrendingUp, MoreHorizontal, HandCoins, FileText, Loader2, User, Users, CheckCircle } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -50,7 +50,6 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { ptBR } from 'date-fns/locale';
-import { useAuth } from '@/app/dashboard/layout';
 
 const paymentSchema = z.object({
   valor_pago: z.coerce.number().min(0.01, "O valor deve ser maior que zero.")
@@ -64,8 +63,8 @@ export default function ContasAReceberPage() {
       commissionableEmployees: [] as Employee[],
     });
     const { toast } = useToast();
-    const { user } = useAuth();
-    const isAdmin = user?.role === 'admin';
+    const user = auth.currentUser;
+    const isAdmin = !!user;
     
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
     const [statusFilter, setStatusFilter] = useState<string>('');
@@ -502,8 +501,8 @@ function ReceivableTableComponent({ services, getClient, totalValor, totalSaldo,
     onDistribute: (service: Service) => void,
 }) {
     const router = useRouter();
-    const { user } = useAuth();
-    const isAdmin = user?.role === 'admin';
+    const user = auth.currentUser;
+    const isAdmin = !!user;
 
     const handleEditService = (serviceId: string) => {
         router.push(`/dashboard/servicos?edit=${serviceId}`);
@@ -804,5 +803,9 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, paymentValue, fi
 
 
     
+
+    
+
+
 
     

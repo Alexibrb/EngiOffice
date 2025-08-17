@@ -36,7 +36,7 @@ import {
 } from '@/components/ui/form';
 import { useToast } from "@/hooks/use-toast"
 import { collection, addDoc, getDocs, doc, setDoc, deleteDoc, updateDoc, arrayUnion, writeBatch } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { db, auth } from '@/lib/firebase';
 import { PlusCircle, MoreHorizontal, Loader2, Calendar as CalendarIcon, Download, XCircle, ArrowDown, CreditCard, Trash } from 'lucide-react';
 import {
   DropdownMenu,
@@ -59,7 +59,7 @@ import autoTable from 'jspdf-autotable';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Label } from '@/components/ui/label';
 import { DateRange } from 'react-day-picker';
-import { useAuth } from '@/app/dashboard/layout';
+
 
 const accountSchema = z.object({
   descricao: z.string().min(1, 'Descrição é obrigatória.'),
@@ -102,8 +102,8 @@ export default function ContasAPagarPage() {
     const { toast } = useToast();
     const router = useRouter();
     const searchParams = useSearchParams();
-    const { user } = useAuth();
-    const isAdmin = user?.role === 'admin';
+    const user = auth.currentUser;
+    const isAdmin = !!user;
 
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
     const [statusFilter, setStatusFilter] = useState<string>('');
@@ -922,8 +922,8 @@ function PayableTableComponent({ accounts, getPayeeName, onEdit, onDelete, total
     onDelete: (id: string) => void,
     total: number
 }) {
-    const { user } = useAuth();
-    const isAdmin = user?.role === 'admin';
+    const user = auth.currentUser;
+    const isAdmin = !!user;
 
     return (
         <div className="border rounded-lg">
@@ -998,5 +998,7 @@ function PayableTableComponent({ accounts, getPayeeName, onEdit, onDelete, total
         </div>
     );
 }
+
+    
 
     

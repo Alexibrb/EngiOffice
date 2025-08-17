@@ -38,7 +38,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
 import { collection, addDoc, getDocs, doc, setDoc, deleteDoc, Timestamp, updateDoc, writeBatch } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { db, auth } from '@/lib/firebase';
 import { useToast } from "@/hooks/use-toast"
 import {
   Form,
@@ -60,7 +60,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { DateRange } from 'react-day-picker';
 import jsPDF from 'jspdf';
 import { Label } from '@/components/ui/label';
-import { useAuth } from '@/app/dashboard/layout';
 
 const serviceSchema = z.object({
   descricao: z.string().min(1, { message: 'Descrição é obrigatória.' }),
@@ -222,8 +221,8 @@ export default function ServicosPage() {
   const { toast } = useToast();
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { user } = useAuth();
-  const isAdmin = user?.role === 'admin';
+  const user = auth.currentUser;
+  const isAdmin = !!user;
   
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [statusFilter, setStatusFilter] = useState<string>('');
@@ -1342,3 +1341,7 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, paymentValue, fi
 
     
 
+
+
+
+    
