@@ -68,87 +68,92 @@ function SupplierTableRow({ supplier, onEdit, onDelete }: { supplier: Supplier, 
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <Collapsible asChild>
-      <>
-        <TableRow>
-          <TableCell>
-            <CollapsibleTrigger asChild>
-              <Button variant="ghost" size="sm" className="w-9 p-0" onClick={() => setIsOpen(!isOpen)}>
-                {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                <span className="sr-only">{isOpen ? 'Fechar' : 'Abrir'}</span>
-              </Button>
-            </CollapsibleTrigger>
-          </TableCell>
-          <TableCell className="font-medium">{supplier.razao_social}</TableCell>
-          <TableCell>{supplier.cnpj}</TableCell>
-          <TableCell>{supplier.telefone}</TableCell>
-          <TableCell>{supplier.email}</TableCell>
-          <TableCell>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button aria-haspopup="true" size="icon" variant="ghost">
-                  <MoreHorizontal className="h-4 w-4" />
-                  <span className="sr-only">Toggle menu</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                <DropdownMenuItem onClick={() => onEdit(supplier)}>
-                  Editar
-                </DropdownMenuItem>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600">
-                      Excluir
-                    </DropdownMenuItem>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Essa ação não pode ser desfeita. Isso excluirá permanentemente o fornecedor.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                      <AlertDialogAction onClick={() => onDelete(supplier.id)} variant="destructive">
-                        Excluir
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </TableCell>
-        </TableRow>
-        <CollapsibleContent asChild>
+    <>
+      <Collapsible asChild>
+        <>
           <TableRow>
-            <TableCell colSpan={6} className="p-0">
-              <div className="p-6 bg-muted/50">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <h4 className="font-semibold mb-2">Endereço</h4>
-                    <p className="text-sm">{supplier.endereco || 'N/A'}</p>
-                  </div>
-                  <div>
-                    <h4 className="font-semibold mb-2">Produtos/Serviços</h4>
-                    {supplier.produtos_servicos && supplier.produtos_servicos.length > 0 ? (
-                      <ul className="list-disc list-inside text-sm space-y-1">
-                        {supplier.produtos_servicos.map((item, index) => (
-                          <li key={index}>{item}</li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">N/A</p>
-                    )}
-                  </div>
-                </div>
-              </div>
+            <TableCell>
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" size="sm" className="w-9 p-0" onClick={() => setIsOpen(!isOpen)}>
+                  {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                  <span className="sr-only">{isOpen ? 'Fechar' : 'Abrir'}</span>
+                </Button>
+              </CollapsibleTrigger>
+            </TableCell>
+            <TableCell className="font-medium">{supplier.razao_social}</TableCell>
+            <TableCell>{supplier.cnpj}</TableCell>
+            <TableCell>{supplier.telefone}</TableCell>
+            <TableCell>{supplier.email}</TableCell>
+            <TableCell>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button aria-haspopup="true" size="icon" variant="ghost">
+                    <MoreHorizontal className="h-4 w-4" />
+                    <span className="sr-only">Toggle menu</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                  <DropdownMenuItem onClick={() => onEdit(supplier)}>
+                    Editar
+                  </DropdownMenuItem>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600">
+                        Excluir
+                      </DropdownMenuItem>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Essa ação não pode ser desfeita. Isso excluirá permanentemente o fornecedor.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => onDelete(supplier.id)} variant="destructive">
+                          Excluir
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </TableCell>
           </TableRow>
-        </CollapsibleContent>
-      </>
-    </Collapsible>
+          <CollapsibleContent asChild>
+            <TableRow>
+              <TableCell colSpan={6} className="p-0">
+                <div className="p-6 bg-muted/50">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <h4 className="font-semibold mb-2">Endereço</h4>
+                      <p className="text-sm">{supplier.endereco || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <h4 className="font-semibold mb-2">Produtos/Serviços</h4>
+                      {supplier.produtos_servicos && supplier.produtos_servicos.length > 0 ? (
+                        <ul className="list-disc list-inside text-sm space-y-1">
+                          {supplier.produtos_servicos.map((item, index) => (
+                            <li key={index}>{item}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">N/A</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </TableCell>
+            </TableRow>
+          </CollapsibleContent>
+        </>
+      </Collapsible>
+       <TableRow className="border-b">
+            <TableCell colSpan={6} className="p-0 h-0"></TableCell>
+        </TableRow>
+    </>
   );
 }
 
