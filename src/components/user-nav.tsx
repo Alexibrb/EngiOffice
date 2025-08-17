@@ -4,7 +4,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { onAuthStateChanged, User, signOut, sendPasswordResetEmail } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -16,10 +17,187 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { Input } from './ui/input';
+import { Loader2 } from 'lucide-react';
+
+const companySchema = z.object({
+  logoUrl: z.string().url({ message: "Por favor, insira uma URL válida para o logo." }).optional().or(z.literal('')),
+  companyName: z.string().min(1, { message: "Nome da empresa é obrigatório." }),
+  slogan: z.string().optional(),
+  cnpj: z.string().optional(),
+  address: z.string().optional(),
+  phone: z.string().optional(),
+});
+
+function CompanyDataDialog({ isOpen, onOpenChange }: { isOpen: boolean, onOpenChange: (open: boolean) => void }) {
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
+
+  const form = useForm<z.infer<typeof companySchema>>({
+    resolver: zodResolver(companySchema),
+    defaultValues: {
+      logoUrl: '',
+      companyName: '',
+      slogan: '',
+      cnpj: '',
+      address: '',
+      phone: '',
+    },
+  });
+
+  useEffect(() => {
+    if (isOpen) {
+      const fetchCompanyData = async () => {
+        const companyDocRef = doc(db, 'empresa', 'dados');
+        const docSnap = await getDoc(companyDocRef);
+        if (docSnap.exists()) {
+          form.reset(docSnap.data() as z.infer<typeof companySchema>);
+        }
+      };
+      fetchCompanyData();
+    }
+  }, [isOpen, form]);
+
+  const onSubmit = async (values: z.infer<typeof companySchema>) => {
+    setIsLoading(true);
+    try {
+      const companyDocRef = doc(db, 'empresa', 'dados');
+      await setDoc(companyDocRef, values, { merge: true });
+      toast({
+        title: "Sucesso!",
+        description: "Dados da empresa atualizados.",
+      });
+      onOpenChange(false);
+    } catch (error) {
+      console.error("Erro ao salvar dados da empresa:", error);
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Não foi possível salvar os dados da empresa.",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Dados da Empresa</DialogTitle>
+          <DialogDescription>
+            Gerencie as informações da sua empresa que aparecerão em relatórios e documentos.
+          </DialogDescription>
+        </DialogHeader>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+               <FormField
+                control={form.control}
+                name="companyName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nome da Empresa *</FormLabel>
+                    <FormControl><Input {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+               <FormField
+                control={form.control}
+                name="slogan"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Slogan</FormLabel>
+                    <FormControl><Input {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+               <FormField
+                control={form.control}
+                name="logoUrl"
+                render={({ field }) => (
+                  <FormItem className="md:col-span-2">
+                    <FormLabel>URL do Logo</FormLabel>
+                    <FormControl><Input placeholder="https://exemplo.com/logo.png" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="cnpj"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>CNPJ</FormLabel>
+                    <FormControl><Input {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Telefone</FormLabel>
+                    <FormControl><Input type="tel" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="address"
+                render={({ field }) => (
+                  <FormItem className="md:col-span-2">
+                    <FormLabel>Endereço</FormLabel>
+                    <FormControl><Input {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Cancelar</Button>
+              <Button type="submit" variant="accent" disabled={isLoading}>
+                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Salvar Alterações
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 
 export function UserNav() {
   const [user, setUser] = useState<User | null>(null);
+  const [isCompanyDataOpen, setIsCompanyDataOpen] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
 
@@ -68,41 +246,46 @@ export function UserNav() {
   };
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-          <Avatar className="h-8 w-8">
-            <AvatarImage
-              src={user.photoURL || `https://placehold.co/40x40.png`}
-              alt={user.displayName || 'User Avatar'}
-              data-ai-hint="user avatar"
-            />
-            <AvatarFallback>{getInitials(user.displayName)}</AvatarFallback>
-          </Avatar>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-56" align="end" forceMount>
-        <DropdownMenuLabel className="font-normal">
-          <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">{user.displayName || 'Usuário'}</p>
-            <p className="text-xs leading-none text-muted-foreground">
-              {user.email}
-            </p>
-          </div>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuGroup>
-          <DropdownMenuItem disabled>Perfil</DropdownMenuItem>
-          <DropdownMenuItem onClick={handleChangePassword}>
-            Trocar Senha
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+            <Avatar className="h-8 w-8">
+              <AvatarImage
+                src={user.photoURL || `https://placehold.co/40x40.png`}
+                alt={user.displayName || 'User Avatar'}
+                data-ai-hint="user avatar"
+              />
+              <AvatarFallback>{getInitials(user.displayName)}</AvatarFallback>
+            </Avatar>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="w-56" align="end" forceMount>
+          <DropdownMenuLabel className="font-normal">
+            <div className="flex flex-col space-y-1">
+              <p className="text-sm font-medium leading-none">{user.displayName || 'Usuário'}</p>
+              <p className="text-xs leading-none text-muted-foreground">
+                {user.email}
+              </p>
+            </div>
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuGroup>
+             <DropdownMenuItem onSelect={() => setIsCompanyDataOpen(true)}>
+              Dados da Empresa
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleChangePassword}>
+              Trocar Senha
+            </DropdownMenuItem>
+            <DropdownMenuItem disabled>Configurações</DropdownMenuItem>
+          </DropdownMenuGroup>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={handleLogout}>
+            Sair
           </DropdownMenuItem>
-          <DropdownMenuItem disabled>Configurações</DropdownMenuItem>
-        </DropdownMenuGroup>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleLogout}>
-          Sair
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <CompanyDataDialog isOpen={isCompanyDataOpen} onOpenChange={setIsCompanyDataOpen} />
+    </>
   );
 }
