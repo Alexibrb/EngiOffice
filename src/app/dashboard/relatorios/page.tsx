@@ -19,7 +19,7 @@ import {
   TableRow,
   TableFooter,
 } from '@/components/ui/table';
-import type { Client, Supplier, Service, Account, Employee, Commission, CompanyData } from '@/lib/types';
+import type { Client, Supplier, Service, Account, Employee, CompanyData } from '@/lib/types';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Download, Search, XCircle, Calendar as CalendarIcon, ChevronDown, ChevronRight } from 'lucide-react';
@@ -318,7 +318,7 @@ export default function RelatoriosPage() {
 
   const generatePdf = () => {
     const data = filteredData;
-    let head: string[][];
+    let head: any[];
     let body: any[][];
     let foot: any[][] | undefined = undefined;
     let fileName = '';
@@ -332,14 +332,32 @@ export default function RelatoriosPage() {
     switch (selectedReport) {
       case 'clients':
         title = 'Relatório de Clientes';
-        head = [['Nome', 'CPF/CNPJ', 'Telefone', 'Cidade']];
-        body = data.map((item: Client) => [item.nome_completo, item.cpf_cnpj || '-', item.telefone || '-', item.endereco_residencial?.city || '-']);
+        head = [['Cliente', 'Contato', 'Endereço Residencial', 'Endereço da Obra']];
+        body = data.flatMap((item: Client) => {
+            const residencial = item.endereco_residencial;
+            const obra = item.endereco_obra;
+            const row = [
+                { content: `${item.nome_completo}\nCPF/CNPJ: ${item.cpf_cnpj || '-'}`, styles: { fontStyle: 'bold' } },
+                `${item.telefone || '-'}\n${item.email || ''}`,
+                residencial ? `${residencial.street}, ${residencial.number}\n${residencial.neighborhood}, ${residencial.city} - ${residencial.state}\nCEP: ${residencial.zip}` : 'N/A',
+                obra ? `${obra.street}, ${obra.number}\n${obra.neighborhood}, ${obra.city} - ${obra.state}\nCEP: ${obra.zip}` : 'N/A'
+            ];
+            return [row];
+        });
         fileName = 'relatorio_clientes.pdf';
         break;
       case 'suppliers':
         title = 'Relatório de Fornecedores';
-        head = [['Razão Social', 'CNPJ', 'Telefone', 'Email']];
-        body = data.map((item: Supplier) => [item.razao_social, item.cnpj || '-', item.telefone || '-', item.email || '-']);
+        head = [['Fornecedor', 'Contato', 'Endereço', 'Produtos/Serviços']];
+        body = data.flatMap((item: Supplier) => {
+            const row = [
+                { content: `${item.razao_social}\nCNPJ: ${item.cnpj || '-'}`, styles: { fontStyle: 'bold' } },
+                `${item.telefone || '-'}\n${item.email || ''}`,
+                item.endereco || 'N/A',
+                item.produtos_servicos?.join(', ') || 'N/A'
+            ];
+            return [row];
+        });
         fileName = 'relatorio_fornecedores.pdf';
         break;
       case 'services':
