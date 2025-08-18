@@ -350,7 +350,7 @@ function AddClientDialog({ isOpen, setIsOpen, onClientAdded, cities, onCityAdded
                         <FormItem>
                           <FormLabel>Cidade</FormLabel>
                           <div className="flex items-center gap-2">
-                            <Select
+                             <Select
                               onValueChange={(value) => {
                                 const selectedCity = cities.find(
                                   (c) => c.nome_cidade === value
@@ -1583,3 +1583,4 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, paymentValue, fi
 
 
     
+
