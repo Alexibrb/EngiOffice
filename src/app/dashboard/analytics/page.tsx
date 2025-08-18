@@ -245,8 +245,8 @@ export default function AnalyticsPage() {
                                 <YAxis tickFormatter={(value) => `R$${value/1000}k`}/>
                                 <ChartTooltip content={<ChartTooltipContent formatter={(value) => `R$ ${Number(value).toLocaleString('pt-BR')}`}/>} />
                                 <ChartLegend content={<ChartLegendContent />} />
-                                <Bar dataKey="recebido" fill="var(--color-chart-2)" radius={4} name="Recebido" />
-                                <Bar dataKey="pago" fill="var(--color-chart-5)" radius={4} name="Pago"/>
+                                <Bar dataKey="recebido" fill="#16a34a" radius={4} name="Recebido" />
+                                <Bar dataKey="pago" fill="#dc2626" radius={4} name="Pago"/>
                             </BarChart>
                         </ChartContainer>
                     </CardContent>
@@ -284,7 +284,7 @@ export default function AnalyticsPage() {
                                 <XAxis type="number" hide />
                                 <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} tickMargin={8} width={150} />
                                 <ChartTooltip content={<ChartTooltipContent formatter={(value) => `R$ ${Number(value).toLocaleString('pt-BR')}`}/>} />
-                                <Bar dataKey="receita" fill="var(--color-chart-1)" radius={4} name="Receita" />
+                                <Bar dataKey="receita" fill="#16a34a" radius={4} name="Receita" />
                             </BarChart>
                         </ChartContainer>
                     </CardContent>
@@ -302,7 +302,7 @@ export default function AnalyticsPage() {
                                 <XAxis dataKey="name" tickLine={false} axisLine={false} tickMargin={8} />
                                 <YAxis tickFormatter={(value) => `R$${value/1000}k`}/>
                                 <ChartTooltip content={<ChartTooltipContent formatter={(value) => `R$ ${Number(value).toLocaleString('pt-BR')}`}/>} />
-                                <Bar dataKey="comissao" fill="var(--color-chart-3)" radius={4} name="Comissão" />
+                                <Bar dataKey="comissao" fill="#dc2626" radius={4} name="Comissão" />
                             </BarChart>
                         </ChartContainer>
                     </CardContent>
@@ -311,4 +311,3 @@ export default function AnalyticsPage() {
         </div>
     );
 }
-
