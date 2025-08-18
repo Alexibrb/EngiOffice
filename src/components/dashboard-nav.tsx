@@ -158,6 +158,7 @@ export function DashboardNav() {
 
       </SidebarContent>
        <SidebarFooter>
+        <SidebarSeparator />
         <UserNav />
       </SidebarFooter>
     </Sidebar>
