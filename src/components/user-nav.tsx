@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { onAuthStateChanged, User, signOut, sendPasswordResetEmail } from 'firebase/auth';
+import { onAuthStateChanged, User, signOut, sendPasswordResetEmail, updateProfile } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -41,6 +41,7 @@ import { Input } from './ui/input';
 import { Loader2 } from 'lucide-react';
 import { useSidebar } from './ui/sidebar';
 import { cn } from '@/lib/utils';
+import { Separator } from './ui/separator';
 
 const companySchema = z.object({
   logoUrl: z.string().url({ message: "Por favor, insira uma URL válida para o logo." }).optional().or(z.literal('')),
@@ -50,6 +51,12 @@ const companySchema = z.object({
   address: z.string().optional(),
   phone: z.string().optional(),
 });
+
+const profileSchema = z.object({
+  displayName: z.string().min(1, "Nome é obrigatório."),
+  photoURL: z.string().url("Por favor, insira uma URL válida para a foto.").optional().or(z.literal('')),
+});
+
 
 function CompanyDataDialog({ isOpen, onOpenChange }: { isOpen: boolean, onOpenChange: (open: boolean) => void }) {
   const { toast } = useToast();
@@ -197,10 +204,109 @@ function CompanyDataDialog({ isOpen, onOpenChange }: { isOpen: boolean, onOpenCh
   );
 }
 
+function ProfileDataDialog({ user, isOpen, onOpenChange }: { user: User | null, isOpen: boolean, onOpenChange: (open: boolean) => void }) {
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
+
+  const form = useForm<z.infer<typeof profileSchema>>({
+    resolver: zodResolver(profileSchema),
+    defaultValues: {
+      displayName: user?.displayName || '',
+      photoURL: user?.photoURL || '',
+    },
+  });
+  
+  useEffect(() => {
+    if(user){
+      form.reset({
+        displayName: user.displayName || '',
+        photoURL: user.photoURL || '',
+      })
+    }
+  }, [user, form])
+
+  const onSubmit = async (values: z.infer<typeof profileSchema>) => {
+    if (!user) {
+      toast({ variant: 'destructive', title: 'Erro', description: 'Usuário não autenticado.' });
+      return;
+    }
+    setIsLoading(true);
+    try {
+      await updateProfile(user, {
+        displayName: values.displayName,
+        photoURL: values.photoURL,
+      });
+
+      toast({
+        title: "Sucesso!",
+        description: "Seu perfil foi atualizado.",
+      });
+      onOpenChange(false);
+      window.location.reload();
+    } catch (error) {
+      console.error("Erro ao atualizar perfil:", error);
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Não foi possível atualizar seu perfil.",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Meu Perfil</DialogTitle>
+          <DialogDescription>
+            Atualize suas informações de perfil.
+          </DialogDescription>
+        </DialogHeader>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="displayName"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nome</FormLabel>
+                  <FormControl><Input {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="photoURL"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>URL da Foto do Perfil</FormLabel>
+                  <FormControl><Input placeholder="https://exemplo.com/sua-foto.jpg" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Cancelar</Button>
+              <Button type="submit" variant="accent" disabled={isLoading}>
+                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Salvar
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 
 export function UserNav() {
   const [user, setUser] = useState<User | null>(null);
   const [isCompanyDataOpen, setIsCompanyDataOpen] = useState(false);
+  const [isProfileDataOpen, setIsProfileDataOpen] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
   const { state: sidebarState } = useSidebar();
@@ -278,6 +384,9 @@ export function UserNav() {
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
+             <DropdownMenuItem onSelect={() => setIsProfileDataOpen(true)}>
+              Meu Perfil
+            </DropdownMenuItem>
              <DropdownMenuItem onSelect={() => setIsCompanyDataOpen(true)}>
               Dados da Empresa
             </DropdownMenuItem>
@@ -293,6 +402,7 @@ export function UserNav() {
         </DropdownMenuContent>
       </DropdownMenu>
       <CompanyDataDialog isOpen={isCompanyDataOpen} onOpenChange={setIsCompanyDataOpen} />
+      <ProfileDataDialog user={user} isOpen={isProfileDataOpen} onOpenChange={setIsProfileDataOpen} />
     </>
   );
 }
