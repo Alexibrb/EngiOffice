@@ -61,6 +61,7 @@ import { Input } from '@/components/ui/input';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { useCompanyData } from './layout';
 import Image from 'next/image';
+import { PageHeader } from '@/components/page-header';
 
 
 const paymentSchema = z.object({
@@ -311,30 +312,10 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-             {companyData?.logoUrl && (
-                <Image 
-                    src={companyData.logoUrl} 
-                    alt="Logo da Empresa" 
-                    width={64} 
-                    height={64} 
-                    className="rounded-lg object-contain"
-                    data-ai-hint="company logo"
-                />
-            )}
-            <div>
-              <h1 className="text-3xl font-bold font-headline text-primary">Olá, {user?.displayName?.split(' ')[0] || 'Usuário'}!</h1>
-              <p className="text-muted-foreground">
-                Uma visão geral do seu escritório.
-              </p>
-            </div>
-          </div>
-           <div className="text-right text-sm text-muted-foreground">
-                <p className="font-bold text-card-foreground">{companyData?.companyName}</p>
-                <p>{companyData?.slogan}</p>
-           </div>
-      </div>
+      <PageHeader 
+        title="Dashboard"
+        description="Uma visão geral do seu escritório."
+      />
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
