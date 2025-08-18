@@ -22,20 +22,30 @@ export const useCompanyData = () => {
 
 function CompanyHeader({ companyData }: { companyData: CompanyData | null }) {
   return (
-    <div className="flex items-center gap-4 px-4 sm:px-6 h-16 border-b">
-        {companyData?.logoUrl && (
+    <div className="flex items-center gap-4 p-4">
+        {companyData?.logoUrl ? (
             <Image
                 src={companyData.logoUrl}
                 alt="Logo da Empresa"
-                width={40}
-                height={40}
-                className="rounded-md object-contain"
+                width={80}
+                height={80}
+                className="rounded-md object-contain self-start"
                 data-ai-hint="company logo"
             />
+        ) : (
+           <div className="w-20 h-20 bg-muted rounded-md flex items-center justify-center text-muted-foreground text-xs text-center" data-ai-hint="company logo placeholder">
+                Logo Aqui
+           </div>
         )}
       <div className="flex flex-col">
-        <h1 className="text-lg font-semibold font-headline text-foreground">{companyData?.companyName || 'EngiOffice'}</h1>
-        <p className="text-xs text-muted-foreground italic">{companyData?.slogan}</p>
+        <h1 className="text-lg font-bold text-foreground">{companyData?.companyName || 'Nome da Empresa'}</h1>
+        <p className="text-sm text-muted-foreground italic">{companyData?.slogan || 'Slogan da empresa'}</p>
+        <p className="text-xs text-muted-foreground">{companyData?.address || 'Endereço da empresa'}</p>
+        <p className="text-xs text-muted-foreground">
+            {companyData?.phone && <span>{companyData.phone}</span>}
+            {companyData?.phone && companyData?.cnpj && <span className="mx-2">|</span>}
+            {companyData?.cnpj && <span>{companyData.cnpj}</span>}
+        </p>
       </div>
     </div>
   );
@@ -96,12 +106,12 @@ export default function DashboardLayout({
             <DashboardNav />
           </div>
           <div className="flex flex-1 flex-col">
-            <Header />
-            <main className="flex-1 p-4 md:p-6 lg:p-8">
-              <CompanyHeader companyData={companyData} />
-              <div className="mt-8">
-                {children}
-              </div>
+            <header className="sticky top-0 z-30 flex h-auto flex-col border-b bg-background">
+                <Header />
+                <CompanyHeader companyData={companyData} />
+            </header>
+            <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
+              {children}
             </main>
           </div>
         </div>
