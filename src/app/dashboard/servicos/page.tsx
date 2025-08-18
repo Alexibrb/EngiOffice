@@ -303,7 +303,7 @@ function AddClientDialog({ isOpen, setIsOpen, onClientAdded, cities, onCityAdded
                         <FormItem>
                           <FormLabel>Cidade</FormLabel>
                           <div className="flex items-center gap-2">
-                            <Select
+                             <Select
                               onValueChange={(value) => {
                                 const selectedCity = cities.find((c) => c.nome_cidade === value);
                                 field.onChange(value);
@@ -350,7 +350,7 @@ function AddClientDialog({ isOpen, setIsOpen, onClientAdded, cities, onCityAdded
                         <FormItem>
                           <FormLabel>Cidade</FormLabel>
                           <div className="flex items-center gap-2">
-                            <Select
+                             <Select
                               onValueChange={(value) => {
                                 const selectedCity = cities.find((c) => c.nome_cidade === value);
                                 field.onChange(value);
@@ -1141,7 +1141,7 @@ export default function ServicosPage() {
                                         <FormItem>
                                             <FormLabel>{editingService ? 'Adicionar ou Remover Anexos (URLs, um por linha)' : 'Anexos (URLs, um por linha)'}</FormLabel>
                                             <FormControl>
-                                                <Textarea rows={3} {...field} placeholder="https://exemplo.com/documento.pdf&#10;C:\Projetos\Cliente_Alfa\Planta_Baixa.dwg" />
+                                                <Textarea rows={3} {...field} placeholder="https://exemplo.com/documento.pdf\nC:\Projetos\Cliente_Alfa\Planta_Baixa.dwg" />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
@@ -1571,3 +1571,5 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, paymentValue, fi
     );
 }
 
+
+    
