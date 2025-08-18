@@ -85,35 +85,6 @@ const paymentSchema = z.object({
   valor_pago: z.coerce.number().min(0.01, "O valor deve ser maior que zero.")
 });
 
-const addressSchema = z.object({
-  street: z.string().optional(),
-  number: z.string().optional(),
-  neighborhood: z.string().optional(),
-  city: z.string().optional(),
-  state: z.string().optional(),
-  zip: z.string().optional().refine(val => !val || val.length === 9, {
-    message: 'CEP deve ter 8 dígitos.',
-  }),
-});
-
-const clientSchema = z.object({
-  nome_completo: z.string().min(1, { message: 'Nome completo é obrigatório.' }),
-  rg: z.string().optional(),
-  cpf_cnpj: z.string().optional().refine(val => !val || val.length === 14 || val.length === 18, {
-    message: 'CPF/CNPJ inválido.',
-  }),
-  telefone: z.string().optional().refine(val => !val || val.length >= 14, {
-    message: 'Telefone inválido.',
-  }),
-  endereco_residencial: addressSchema.optional(),
-  endereco_obra: addressSchema.optional(),
-  coordenadas: z.object({
-    lat: z.coerce.number().optional(),
-    lng: z.coerce.number().optional(),
-  }).optional(),
-});
-
-
 const AnexosList = ({ urls, toast }: { urls: string[], toast: any }) => {
   const handleCopy = (url: string) => {
     navigator.clipboard.writeText(url);
@@ -230,188 +201,16 @@ function AddServiceTypeDialog({ isOpen, setIsOpen, onServiceTypeAdded }: {
   );
 }
 
-function AddClientDialog({ isOpen, setIsOpen, onClientAdded, cities, onCityAdded, setIsCityDialogOpen }: {
-  isOpen: boolean,
-  setIsOpen: (isOpen: boolean) => void,
-  onClientAdded: () => Promise<void>,
-  cities: City[],
-  onCityAdded: () => Promise<void>,
-  setIsCityDialogOpen: (isOpen: boolean) => void
-}) {
-  const [isLoading, setIsLoading] = useState(false);
-  const { toast } = useToast();
-  const form = useForm<z.infer<typeof clientSchema>>({
-    resolver: zodResolver(clientSchema),
-    defaultValues: {
-      nome_completo: '',
-      rg: '',
-      cpf_cnpj: '',
-      telefone: '',
-      endereco_residencial: { street: '', number: '', neighborhood: '', city: '', state: '', zip: '' },
-      endereco_obra: { street: '', number: '', neighborhood: '', city: '', state: '', zip: '' },
-      coordenadas: { lat: 0, lng: 0 },
-    },
-  });
-
-  const handleSaveClient = async (values: z.infer<typeof clientSchema>) => {
-    setIsLoading(true);
-    try {
-      await addDoc(collection(db, 'clientes'), values);
-      toast({ title: 'Sucesso!', description: 'Cliente adicionado com sucesso.' });
-      form.reset();
-      setIsOpen(false);
-      await onClientAdded();
-    } catch (error) {
-      console.error("Erro ao salvar cliente: ", error);
-      toast({ variant: 'destructive', title: 'Erro', description: 'Ocorreu um erro ao salvar o cliente.' });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Adicionar Novo Cliente</DialogTitle>
-          <DialogDescription>
-            Preencha os dados do cliente. Campos marcados com * são obrigatórios.
-          </DialogDescription>
-        </DialogHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSaveClient)} className="space-y-6">
-            <div>
-              <h3 className="text-lg font-medium mb-4">Dados Pessoais</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField control={form.control} name="nome_completo" render={({ field }) => ( <FormItem> <FormLabel>Nome Completo *</FormLabel> <FormControl> <Input {...field} /> </FormControl> <FormMessage /> </FormItem> )} />
-                <FormField control={form.control} name="rg" render={({ field }) => ( <FormItem> <FormLabel>RG</FormLabel> <FormControl> <Input {...field} /> </FormControl> <FormMessage /> </FormItem> )} />
-                <FormField control={form.control} name="cpf_cnpj" render={({ field }) => ( <FormItem> <FormLabel>CPF/CNPJ</FormLabel> <FormControl> <Input {...field} onChange={(e) => field.onChange(formatCPF_CNPJ(e.target.value))} /> </FormControl> <FormMessage /> </FormItem> )} />
-                <FormField control={form.control} name="telefone" render={({ field }) => ( <FormItem> <FormLabel>Telefone</FormLabel> <FormControl> <Input type="tel" {...field} onChange={(e) => field.onChange(formatTelefone(e.target.value))} /> </FormControl> <FormMessage /> </FormItem> )} />
-              </div>
-            </div>
-            <Separator />
-            <div>
-                <h3 className="text-lg font-medium mb-4">Endereço Residencial</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField control={form.control} name="endereco_residencial.street" render={({ field }) => (<FormItem><FormLabel>Rua</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={form.control} name="endereco_residencial.number" render={({ field }) => (<FormItem><FormLabel>Número</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={form.control} name="endereco_residencial.neighborhood" render={({ field }) => (<FormItem className="md:col-span-2"><FormLabel>Bairro</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormItem>
-                        <FormLabel>Cidade</FormLabel>
-                        <div className="flex items-center gap-2">
-                        <FormField
-                            control={form.control}
-                            name="endereco_residencial.city"
-                            render={({ field }) => (
-                                <Select
-                                    onValueChange={(value) => {
-                                        const selectedCity = cities.find((c) => c.nome_cidade === value);
-                                        field.onChange(value);
-                                        form.setValue('endereco_residencial.state', selectedCity?.estado || '');
-                                    }}
-                                    value={field.value}
-                                >
-                                    <FormControl>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Selecione a Cidade" />
-                                        </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                        {cities.map((city) => (
-                                            <SelectItem key={city.id} value={city.nome_cidade}>
-                                                {city.nome_cidade}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            )}
-                        />
-                        <Button type="button" variant="outline" size="icon" onClick={() => setIsCityDialogOpen(true)}>
-                            <PlusCircle className="h-4 w-4" />
-                        </Button>
-                        </div>
-                        <FormMessage />
-                    </FormItem>
-                    <FormField control={form.control} name="endereco_residencial.state" render={({ field }) => ( <FormItem> <FormLabel>Estado</FormLabel> <FormControl> <Input {...field} disabled /> </FormControl> <FormMessage /> </FormItem> )} />
-                    <FormField control={form.control} name="endereco_residencial.zip" render={({ field }) => ( <FormItem> <FormLabel>CEP</FormLabel> <FormControl> <Input {...field} onChange={(e) => field.onChange(formatCEP(e.target.value))} /> </FormControl> <FormMessage /> </FormItem> )} />
-                </div>
-            </div>
-            <Separator />
-            <div>
-              <h3 className="text-lg font-medium mb-4">Endereço da Obra e Coordenadas</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField control={form.control} name="endereco_obra.street" render={({ field }) => (<FormItem><FormLabel>Rua</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={form.control} name="endereco_obra.number" render={({ field }) => (<FormItem><FormLabel>Número</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={form.control} name="endereco_obra.neighborhood" render={({ field }) => (<FormItem className="md:col-span-2"><FormLabel>Bairro</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                     <FormItem>
-                        <FormLabel>Cidade</FormLabel>
-                        <div className="flex items-center gap-2">
-                        <FormField
-                            control={form.control}
-                            name="endereco_obra.city"
-                            render={({ field }) => (
-                                <Select
-                                    onValueChange={(value) => {
-                                        const selectedCity = cities.find((c) => c.nome_cidade === value);
-                                        field.onChange(value);
-                                        form.setValue("endereco_obra.state", selectedCity?.estado || "");
-                                    }}
-                                    value={field.value}
-                                >
-                                    <FormControl>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Selecione a Cidade" />
-                                        </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                        {cities.map((city) => (
-                                            <SelectItem key={city.id} value={city.nome_cidade}>
-                                                {city.nome_cidade}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            )}
-                        />
-                        <Button type="button" variant="outline" size="icon" onClick={() => setIsCityDialogOpen(true)}>
-                            <PlusCircle className="h-4 w-4" />
-                        </Button>
-                        </div>
-                        <FormMessage />
-                    </FormItem>
-                    <FormField control={form.control} name="endereco_obra.state" render={({ field }) => ( <FormItem> <FormLabel>Estado</FormLabel> <FormControl> <Input {...field} disabled /> </FormControl> <FormMessage /> </FormItem> )} />
-                    <FormField control={form.control} name="endereco_obra.zip" render={({ field }) => ( <FormItem> <FormLabel>CEP</FormLabel> <FormControl> <Input {...field} onChange={(e) => field.onChange(formatCEP(e.target.value))} /> </FormControl> <FormMessage /> </FormItem> )} />
-                    <FormField control={form.control} name="coordenadas.lat" render={({ field }) => ( <FormItem> <FormLabel>Latitude</FormLabel> <FormControl> <Input type="number" step="any" {...field} /> </FormControl> <FormMessage /> </FormItem> )} />
-                    <FormField control={form.control} name="coordenadas.lng" render={({ field }) => ( <FormItem> <FormLabel>Longitude</FormLabel> <FormControl> <Input type="number" step="any" {...field} /> </FormControl> <FormMessage /> </FormItem> )} />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="ghost" onClick={() => setIsOpen(false)}>Cancelar</Button>
-              <Button type="submit" variant="accent" disabled={isLoading}>
-                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Salvar Cliente
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
-      </DialogContent>
-    </Dialog>
-  )
-}
-
 
 export default function ServicosPage() {
   const [services, setServices] = useState<Service[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
-  const [cities, setCities] = useState<City[]>([]);
   const [serviceTypes, setServiceTypes] = useState<ServiceType[]>([]);
   const [search, setSearch] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isServiceTypeDialogOpen, setIsServiceTypeDialogOpen] = useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [isDistributionDialogOpen, setIsDistributionDialogOpen] = useState(false);
-  const [isClientDialogOpen, setIsClientDialogOpen] = useState(false);
-  const [isCityDialogOpen, setIsCityDialogOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [distributingService, setDistributingService] = useState<Service | null>(null);
   const [lastPaymentValue, setLastPaymentValue] = useState(0);
@@ -523,20 +322,6 @@ export default function ServicosPage() {
     }
   }
 
-  const fetchCities = async () => {
-    try {
-      const querySnapshot = await getDocs(collection(db, "cidades"));
-      const citiesData = querySnapshot.docs.map(doc => ({
-        ...doc.data(),
-        id: doc.id,
-      })) as City[];
-      citiesData.sort((a, b) => a.nome_cidade.localeCompare(b.nome_cidade));
-      setCities(citiesData);
-    } catch (error) {
-        console.error("Erro ao buscar cidades: ", error);
-    }
-  };
-
   const fetchServicesAndClients = async () => {
     try {
       const servicesSnapshot = await getDocs(collection(db, "servicos"));
@@ -552,7 +337,6 @@ export default function ServicosPage() {
       setServices(servicesData);
 
       await fetchClients();
-      await fetchCities();
       await fetchServiceTypes();
       await fetchFinancials();
 
@@ -1028,7 +812,9 @@ export default function ServicosPage() {
                                         ))}
                                         </SelectContent>
                                     </Select>
-                                     <Button type="button" variant="outline" size="icon" onClick={() => setIsClientDialogOpen(true)}><PlusCircle className="h-4 w-4" /></Button>
+                                     <Button type="button" variant="outline" size="icon" onClick={() => router.push('/dashboard/clientes?add=true')}>
+                                        <PlusCircle className="h-4 w-4" />
+                                     </Button>
                                 </div>
                                 <FormMessage />
                                 </FormItem>
@@ -1333,14 +1119,6 @@ export default function ServicosPage() {
         </CardContent>
       </Card>
       <AddServiceTypeDialog isOpen={isServiceTypeDialogOpen} setIsOpen={setIsServiceTypeDialogOpen} onServiceTypeAdded={fetchServiceTypes} />
-      <AddClientDialog 
-        isOpen={isClientDialogOpen} 
-        setIsOpen={setIsClientDialogOpen} 
-        onClientAdded={fetchClients}
-        cities={cities}
-        onCityAdded={fetchCities}
-        setIsCityDialogOpen={setIsCityDialogOpen}
-      />
     
       <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
           <DialogContent className="sm:max-w-md">
@@ -1570,9 +1348,3 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, paymentValue, fi
         </Dialog>
     );
 }
-
-
-    
-
-
-

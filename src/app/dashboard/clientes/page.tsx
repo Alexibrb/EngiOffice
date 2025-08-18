@@ -52,6 +52,7 @@ import { formatCPF_CNPJ, formatTelefone, formatCEP } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { PageHeader } from '@/components/page-header';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 const addressSchema = z.object({
   street: z.string().optional(),
@@ -274,6 +275,9 @@ export default function ClientesPage() {
   const [isCityDialogOpen, setIsCityDialogOpen] = useState(false);
   const [isDeletingAll, setIsDeletingAll] = useState(false);
   const { toast } = useToast();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
 
   const form = useForm<z.infer<typeof clientSchema>>({
     resolver: zodResolver(clientSchema),
@@ -325,6 +329,14 @@ export default function ClientesPage() {
       });
     }
   };
+
+  useEffect(() => {
+    const shouldAddClient = searchParams.get('add') === 'true';
+    if (shouldAddClient) {
+      handleAddNewClick();
+      router.replace('/dashboard/clientes', { scroll: false });
+    }
+  }, [searchParams, router]);
 
   useEffect(() => {
     fetchClients();
