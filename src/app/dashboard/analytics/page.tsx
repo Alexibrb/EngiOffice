@@ -70,6 +70,22 @@ export default function AnalyticsPage() {
         return data;
     };
 
+    const commissionByMonthData = () => {
+        const data: { name: string; comissao: number }[] = [];
+        for (let i = 5; i >= 0; i--) {
+            const date = subMonths(new Date(), i);
+            const monthName = format(date, 'MMM/yy', { locale: ptBR });
+            const monthStart = startOfMonth(date);
+
+            const paidCommissions = commissions
+                .filter(c => c.status === 'pago' && c.data >= monthStart && c.data < startOfMonth(subMonths(new Date(), i-1)))
+                .reduce((acc, c) => acc + c.valor, 0);
+            
+            data.push({ name: monthName, comissao: paidCommissions });
+        }
+        return data;
+    }
+
     const serviceStatusData = [
         { name: 'Em Andamento', value: services.filter(s => s.status === 'em andamento').length },
         { name: 'Concluído', value: services.filter(s => s.status === 'concluído').length },
@@ -84,17 +100,6 @@ export default function AnalyticsPage() {
         })
         .filter(c => c.receita > 0)
         .sort((a, b) => b.receita - a.receita)
-        .slice(0, 5);
-        
-    const commissionByEmployeeData = employees
-        .filter(emp => emp.tipo_contratacao === 'comissao')
-        .map(employee => {
-            const employeeCommissions = commissions.filter(c => c.funcionario_id === employee.id && c.status === 'pago');
-            const totalCommission = employeeCommissions.reduce((sum, c) => sum + c.valor, 0);
-            return { name: employee.nome, comissao: totalCommission };
-        })
-        .filter(e => e.comissao > 0)
-        .sort((a, b) => b.comissao - a.comissao)
         .slice(0, 5);
 
     if (isLoading) {
@@ -173,15 +178,15 @@ export default function AnalyticsPage() {
                 
                 <Card>
                     <CardHeader>
-                        <CardTitle>Top 5 Funcionários por Comissão</CardTitle>
-                        <CardDescription>Comissões pagas aos funcionários com melhor desempenho.</CardDescription>
+                        <CardTitle>Comissões por Mês</CardTitle>
+                        <CardDescription>Total de comissões pagas nos últimos 6 meses.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <ChartContainer config={{}} className="h-[300px] w-full">
-                            <BarChart data={commissionByEmployeeData} layout="vertical">
-                                <CartesianGrid horizontal={false} />
-                                <XAxis type="number" hide />
-                                <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} tickMargin={8} width={150}/>
+                           <BarChart data={commissionByMonthData()}>
+                                <CartesianGrid vertical={false} />
+                                <XAxis dataKey="name" tickLine={false} axisLine={false} tickMargin={8} />
+                                <YAxis />
                                 <ChartTooltip content={<ChartTooltipContent />} />
                                 <Bar dataKey="comissao" fill="var(--color-chart-3)" radius={4} name="Comissão" />
                             </BarChart>
@@ -192,4 +197,3 @@ export default function AnalyticsPage() {
         </div>
     );
 }
-
