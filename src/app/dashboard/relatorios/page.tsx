@@ -322,7 +322,7 @@ export default function RelatoriosPage() {
     let body: any[][];
     let foot: any[][] | undefined = undefined;
     let fileName = '';
-    let title = '';
+    let reportTitle = '';
 
     if (data.length === 0) {
       toast({ variant: "destructive", title: "Nenhum dado", description: `Não há dados para gerar o relatório com os filtros atuais.` });
@@ -331,7 +331,7 @@ export default function RelatoriosPage() {
 
     switch (selectedReport) {
       case 'clients':
-        title = 'Relatório de Clientes';
+        reportTitle = 'Relatório de Clientes';
         head = [['Cliente', 'Contato', 'Endereço Residencial', 'Endereço da Obra']];
         body = data.flatMap((item: Client) => {
             const residencial = item.endereco_residencial;
@@ -347,7 +347,7 @@ export default function RelatoriosPage() {
         fileName = 'relatorio_clientes.pdf';
         break;
       case 'suppliers':
-        title = 'Relatório de Fornecedores';
+        reportTitle = 'Relatório de Fornecedores';
         head = [['Fornecedor', 'Contato', 'Endereço', 'Produtos/Serviços']];
         body = data.flatMap((item: Supplier) => {
             const row = [
@@ -361,7 +361,7 @@ export default function RelatoriosPage() {
         fileName = 'relatorio_fornecedores.pdf';
         break;
       case 'services':
-        title = 'Relatório de Serviços';
+        reportTitle = 'Relatório de Serviços';
         head = [['Cliente', 'Descrição / Endereço', 'Valor do Serviço', 'Saldo Devedor', 'Status']];
         body = data.map((item: Service) => {
             const client = getClient(item.cliente_id);
@@ -379,14 +379,14 @@ export default function RelatoriosPage() {
         fileName = 'relatorio_servicos.pdf';
         break;
       case 'accountsPayable':
-        title = 'Relatório de Contas a Pagar';
+        reportTitle = 'Relatório de Contas a Pagar';
         head = [['Descrição', 'Favorecido', 'Vencimento', 'Valor', 'Status']];
         body = data.map((item: Account) => [item.descricao, getPayeeName(item), item.vencimento ? format(item.vencimento, "dd/MM/yyyy") : '-', `R$ ${item.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, item.status]);
         foot = [['Total', '', '', `R$ ${(totals.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, '']];
         fileName = 'relatorio_contas_a_pagar.pdf';
         break;
        case 'commissions':
-        title = 'Relatório de Comissões';
+        reportTitle = 'Relatório de Comissões';
         head = [['Funcionário', 'Cliente', 'Serviço Referente', 'Valor da Comissão', 'Status']];
         body = data.map((item: Commission) => {
             const service = getService(item.servico_id);
@@ -409,14 +409,43 @@ export default function RelatoriosPage() {
     }
 
     const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    let currentY = 15;
+
+    // Cabeçalho da Empresa
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(16);
-    doc.text(`${title} - ${companyData?.companyName || 'EngiOffice'}`, 14, 22);
+    doc.setFontSize(14);
+    if (companyData?.companyName) {
+        doc.text(companyData.companyName, pageWidth / 2, currentY, { align: 'center' });
+        currentY += 6;
+    }
+
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
-    doc.text(`Data de Emissão: ${new Date().toLocaleDateString('pt-BR')}`, 14, 28);
+
+    if (companyData?.slogan) {
+        doc.text(companyData.slogan, pageWidth / 2, currentY, { align: 'center' });
+        currentY += 5;
+    }
+    if (companyData?.address) {
+        doc.text(companyData.address, pageWidth / 2, currentY, { align: 'center' });
+        currentY += 5;
+    }
+    const phoneAndCnpj = [companyData?.phone, companyData?.cnpj].filter(Boolean).join(' | ');
+    if (phoneAndCnpj) {
+        doc.text(phoneAndCnpj, pageWidth / 2, currentY, { align: 'center' });
+        currentY += 8;
+    }
+    
+    // Título do Relatório
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(12);
+    doc.text(reportTitle, pageWidth / 2, currentY, { align: 'center' });
+    currentY += 8;
+
+
     autoTable(doc, {
-      startY: 35,
+      startY: currentY,
       head: head,
       body: body,
       foot: foot,
