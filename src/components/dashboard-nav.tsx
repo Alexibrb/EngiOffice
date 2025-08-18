@@ -19,6 +19,7 @@ import {
   ArrowUp,
   CreditCard,
   Calculator,
+  LineChart,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -68,6 +69,11 @@ const secondaryLinks = [
       label: 'Funcionários',
       icon: Briefcase,
     },
+    {
+      href: '/dashboard/analytics',
+      label: 'Analytics',
+      icon: LineChart,
+    }
 ]
 
 const aiLinks = [
