@@ -27,13 +27,13 @@ function CompanyHeader({ companyData }: { companyData: CompanyData | null }) {
             <Image
                 src={companyData.logoUrl}
                 alt="Logo da Empresa"
-                width={80}
-                height={80}
+                width={160}
+                height={160}
                 className="rounded-md object-contain self-start"
                 data-ai-hint="company logo"
             />
         ) : (
-           <div className="w-20 h-20 bg-muted rounded-md flex items-center justify-center text-muted-foreground text-xs text-center" data-ai-hint="company logo placeholder">
+           <div className="w-40 h-40 bg-muted rounded-md flex items-center justify-center text-muted-foreground text-xs text-center" data-ai-hint="company logo placeholder">
                 Logo Aqui
            </div>
         )}
