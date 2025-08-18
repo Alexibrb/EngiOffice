@@ -22,7 +22,7 @@ export const useCompanyData = () => {
 
 function CompanyHeader({ companyData }: { companyData: CompanyData | null }) {
   return (
-    <div className="flex items-center gap-4 p-4">
+    <div className="flex items-center gap-4 py-2 px-4">
         {companyData?.logoUrl ? (
             <Image
                 src={companyData.logoUrl}
