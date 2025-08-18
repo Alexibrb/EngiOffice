@@ -18,6 +18,7 @@ import {
   ArrowDown,
   ArrowUp,
   CreditCard,
+  Calculator,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -37,6 +38,7 @@ const mainLinks = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/dashboard/servicos', label: 'Serviços', icon: Wrench },
   { href: '/dashboard/clientes', label: 'Clientes', icon: Users },
+  { href: '/dashboard/calculadora', label: 'Calculadora', icon: Calculator },
   {
     href: '/dashboard/contas-a-pagar',
     label: 'Contas a Pagar',
@@ -96,6 +98,8 @@ export function DashboardNav() {
                   isActive={pathname === link.href.split('?')[0]}
                   asChild
                   tooltip={link.label}
+                  size="default"
+                  variant="default"
                 >
                   <span>
                     <link.icon />
@@ -122,6 +126,8 @@ export function DashboardNav() {
                         isActive={pathname === link.href}
                         asChild
                         tooltip={link.label}
+                        size="default"
+                        variant="default"
                         >
                           <span>
                             <link.icon />
@@ -144,6 +150,8 @@ export function DashboardNav() {
                   isActive={pathname === link.href}
                   asChild
                   tooltip={link.label}
+                  size="default"
+                  variant="default"
                 >
                   <span>
                     <link.icon />
