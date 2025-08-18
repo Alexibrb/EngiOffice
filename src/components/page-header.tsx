@@ -8,28 +8,22 @@ export function PageHeader({ title, description }: { title: string, description:
   const companyData = useCompanyData();
 
   return (
-    <div className="flex flex-col md:flex-row items-start justify-between gap-4 mb-8">
-      <div>
-        <h1 className="text-3xl font-bold font-headline text-primary">{title}</h1>
-        <p className="text-muted-foreground">{description}</p>
-      </div>
-      <div className="flex items-start gap-4">
-        <div className="text-right text-sm text-muted-foreground">
-            <p className="font-bold text-card-foreground">{companyData?.companyName}</p>
-            <p>{companyData?.slogan}</p>
-            <p>{companyData?.address}</p>
-            <p>{companyData?.phone} | {companyData?.cnpj}</p>
-        </div>
-        {companyData?.logoUrl && (
+    <div className="flex items-center gap-4 mb-8">
+       {companyData?.logoUrl && (
             <Image
                 src={companyData.logoUrl}
                 alt="Logo da Empresa"
-                width={64}
-                height={64}
+                width={80}
+                height={80}
                 className="rounded-lg object-contain"
                 data-ai-hint="company logo"
             />
         )}
+      <div className="flex flex-col">
+        <h1 className="text-2xl font-bold font-headline text-foreground">{companyData?.companyName}</h1>
+        <p className="text-sm text-muted-foreground italic">{companyData?.slogan}</p>
+        <p className="text-sm text-muted-foreground mt-1">{companyData?.address}</p>
+        <p className="text-sm text-muted-foreground">{companyData?.phone} | {companyData?.cnpj}</p>
       </div>
     </div>
   );
