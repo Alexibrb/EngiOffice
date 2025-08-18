@@ -35,7 +35,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { useToast } from "@/hooks/use-toast"
-import { collection, addDoc, getDocs, doc, setDoc, deleteDoc, updateDoc, arrayUnion, writeBatch } from 'firebase/firestore';
+import { collection, addDoc, getDocs, doc, setDoc, deleteDoc, updateDoc, arrayUnion, writeBatch, getDoc } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import { PlusCircle, MoreHorizontal, Loader2, Calendar as CalendarIcon, Download, XCircle, ArrowDown, CreditCard, Trash } from 'lucide-react';
 import {
@@ -1004,7 +1004,3 @@ function PayableTableComponent({ accounts, getPayeeName, onEdit, onDelete, total
         </div>
     );
 }
-
-    
-
-    
