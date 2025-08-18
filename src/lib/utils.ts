@@ -53,5 +53,3 @@ export function formatCEP(value: string): string {
     .replace(/(\d{5})(\d)/, '$1-$2')
     .slice(0, 9);
 }
-
-    
