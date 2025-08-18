@@ -68,7 +68,10 @@ export default function AnalyticsPage() {
 
     const filteredServices = useMemo(() => {
         return services.filter(service => {
-            const inDateRange = dateRange?.from ? (service.data_cadastro >= dateRange.from && service.data_cadastro <= (dateRange.to || dateRange.from)) : true;
+            const serviceDate = new Date(service.data_cadastro);
+            if (isNaN(serviceDate.getTime())) return false; // Invalid date guard
+
+            const inDateRange = dateRange?.from ? (serviceDate >= dateRange.from && serviceDate <= (dateRange.to || dateRange.from)) : true;
             const clientMatch = selectedClient ? service.cliente_id === selectedClient : true;
             // Employee filter can be applied if services have employee_id, which they don't currently.
             // For now, it will only filter commissions.
@@ -78,7 +81,10 @@ export default function AnalyticsPage() {
     
     const filteredCommissions = useMemo(() => {
          return commissions.filter(commission => {
-            const inDateRange = dateRange?.from ? (commission.data >= dateRange.from && commission.data <= (dateRange.to || dateRange.from)) : true;
+            const commissionDate = new Date(commission.data);
+            if (isNaN(commissionDate.getTime())) return false;
+
+            const inDateRange = dateRange?.from ? (commissionDate >= dateRange.from && commissionDate <= (dateRange.to || dateRange.from)) : true;
             const employeeMatch = selectedEmployee ? commission.funcionario_id === selectedEmployee : true;
             const clientMatch = selectedClient ? commission.cliente_id === selectedClient : true;
             return inDateRange && employeeMatch && clientMatch;
@@ -87,7 +93,10 @@ export default function AnalyticsPage() {
 
     const filteredAccountsPayable = useMemo(() => {
          return accountsPayable.filter(account => {
-            const inDateRange = dateRange?.from ? (account.vencimento >= dateRange.from && account.vencimento <= (dateRange.to || dateRange.from)) : true;
+            const dueDate = new Date(account.vencimento);
+            if (isNaN(dueDate.getTime())) return false;
+
+            const inDateRange = dateRange?.from ? (dueDate >= dateRange.from && dueDate <= (dateRange.to || dateRange.from)) : true;
             // Further filtering for client/employee would require linking accounts to services/employees.
             return inDateRange;
         });
@@ -103,11 +112,17 @@ export default function AnalyticsPage() {
             const monthEnd = endOfMonth(date);
 
             const received = filteredServices
-                .filter(s => s.valor_pago > 0 && s.data_cadastro >= monthStart && s.data_cadastro <= monthEnd)
+                .filter(s => {
+                    const serviceDate = new Date(s.data_cadastro);
+                    return s.valor_pago > 0 && !isNaN(serviceDate.getTime()) && serviceDate >= monthStart && serviceDate <= monthEnd;
+                })
                 .reduce((acc, s) => acc + s.valor_pago, 0);
             
             const paid = filteredAccountsPayable
-                .filter(a => a.status === 'pago' && a.vencimento >= monthStart && a.vencimento <= monthEnd)
+                .filter(a => {
+                    const dueDate = new Date(a.vencimento);
+                    return a.status === 'pago' && !isNaN(dueDate.getTime()) && dueDate >= monthStart && dueDate <= monthEnd;
+                })
                 .reduce((acc, a) => acc + a.valor, 0);
 
             data.push({ name: monthName, recebido: received, pago: paid });
@@ -124,7 +139,10 @@ export default function AnalyticsPage() {
             const monthEnd = endOfMonth(date);
 
             const paidCommissions = filteredCommissions
-                .filter(c => c.status === 'pago' && c.data >= monthStart && c.data <= monthEnd)
+                .filter(c => {
+                    const commissionDate = new Date(c.data);
+                    return c.status === 'pago' && !isNaN(commissionDate.getTime()) && commissionDate >= monthStart && commissionDate <= monthEnd
+                })
                 .reduce((acc, c) => acc + c.valor, 0);
             
             data.push({ name: monthName, comissao: paidCommissions });
@@ -151,9 +169,6 @@ export default function AnalyticsPage() {
     const totalRecebido = filteredServices.reduce((sum, s) => sum + (s.valor_pago || 0), 0);
     const totalAReceber = filteredServices.reduce((sum, s) => sum + (s.saldo_devedor || 0), 0);
     
-    const totalServicesCount = filteredServices.filter(s => s.status !== 'cancelado').length;
-    const ongoingServicesCount = filteredServices.filter(s => s.status === 'em andamento').length;
-    const completedServicesCount = filteredServices.filter(s => s.status === 'concluído').length;
 
     const handleClearFilters = () => {
         setDateRange(undefined);
@@ -233,39 +248,6 @@ export default function AnalyticsPage() {
                     </CardContent>
                 </Card>
              </div>
-             
-             <div className="grid gap-4 md:grid-cols-3">
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Total de Serviços</CardTitle>
-                        <ClipboardList className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{totalServicesCount}</div>
-                        <p className="text-xs text-muted-foreground">Total de serviços cadastrados (não cancelados)</p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Serviços em Andamento</CardTitle>
-                        <Wrench className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{ongoingServicesCount}</div>
-                        <p className="text-xs text-muted-foreground">Total de projetos em execução</p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Serviços Concluídos</CardTitle>
-                        <CheckCircle className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{completedServicesCount}</div>
-                        <p className="text-xs text-muted-foreground">Total de projetos finalizados</p>
-                    </CardContent>
-                </Card>
-            </div>
 
 
             <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
