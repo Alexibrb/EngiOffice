@@ -9,7 +9,7 @@ import { PageHeader } from '@/components/page-header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
-import { Loader2, ArrowUp, ArrowDown, XCircle, Calendar as CalendarIcon, ClipboardList, Wrench, CheckCircle } from 'lucide-react';
+import { Loader2, XCircle, Calendar as CalendarIcon } from 'lucide-react';
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
@@ -166,10 +166,6 @@ export default function AnalyticsPage() {
         .sort((a, b) => b.receita - a.receita)
         .slice(0, 5);
         
-    const totalRecebido = filteredServices.reduce((sum, s) => sum + (s.valor_pago || 0), 0);
-    const totalAReceber = filteredServices.reduce((sum, s) => sum + (s.saldo_devedor || 0), 0);
-    
-
     const handleClearFilters = () => {
         setDateRange(undefined);
         setSelectedClient('');
@@ -221,34 +217,6 @@ export default function AnalyticsPage() {
                     </Button>
                 </CardContent>
             </Card>
-
-             <div className="grid gap-4 md:grid-cols-2">
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Total Recebido</CardTitle>
-                        <ArrowUp className="h-4 w-4 text-green-500" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-green-500">R$ {totalRecebido.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
-                        <p className="text-xs text-muted-foreground">
-                            Soma de todos os pagamentos já realizados
-                        </p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Total a Receber</CardTitle>
-                        <ArrowDown className="h-4 w-4 text-red-500" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-red-500">R$ {totalAReceber.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
-                          <p className="text-xs text-muted-foreground">
-                            Soma de todos os saldos devedores pendentes
-                        </p>
-                    </CardContent>
-                </Card>
-             </div>
-
 
             <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
                 <Card>
