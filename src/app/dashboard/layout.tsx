@@ -107,10 +107,10 @@ export default function DashboardLayout({
           </div>
           <div className="flex flex-1 flex-col">
             <header className="sticky top-0 z-30 flex h-auto flex-col border-b bg-background">
-                <Header />
                 <CompanyHeader companyData={companyData} />
             </header>
             <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
+              <Header />
               {children}
             </main>
           </div>

@@ -7,7 +7,7 @@ import { DashboardNav } from './dashboard-nav';
 
 export function Header() {
   return (
-    <div className="flex h-14 items-center gap-4 px-4 sm:px-6">
+    <div className="flex h-14 items-center gap-4 sm:px-6 md:hidden">
        <Sheet>
             <SheetTrigger asChild>
               <Button size="icon" variant="outline" className="sm:hidden">
