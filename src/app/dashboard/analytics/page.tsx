@@ -195,6 +195,19 @@ export default function AnalyticsPage() {
             </div>
         );
     }
+    
+    const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }: any) => {
+        const RADIAN = Math.PI / 180;
+        const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+        const x = cx + radius * Math.cos(-midAngle * RADIAN);
+        const y = cy + radius * Math.sin(-midAngle * RADIAN);
+
+        return (
+            <text x={x} y={y} fill="white" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central">
+                {`${(percent * 100).toFixed(0)}%`}
+            </text>
+        );
+    };
 
     return (
         <div className="flex flex-col gap-8">
@@ -322,7 +335,7 @@ export default function AnalyticsPage() {
                         <ChartContainer config={{}} className="h-[300px] w-[300px]">
                             <PieChart>
                                 <ChartTooltip content={<ChartTooltipContent nameKey="name" formatter={(value) => `R$ ${Number(value).toLocaleString('pt-BR')}`} />} />
-                                <Pie data={revenueStatusData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} label>
+                                <Pie data={revenueStatusData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} labelLine={false} label={renderCustomizedLabel}>
                                     <Cell key={`cell-recebido`} fill={POSITIVE_COLOR} />
                                     <Cell key={`cell-a-receber`} fill={NEGATIVE_COLOR} />
                                 </Pie>
@@ -335,7 +348,3 @@ export default function AnalyticsPage() {
         </div>
     );
 }
-
-    
-
-    
