@@ -14,7 +14,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PageHeader } from '@/components/page-header';
-import { Calculator, PlusCircle } from 'lucide-react';
+import { Calculator, PlusCircle, RotateCcw } from 'lucide-react';
 import { Table, TableBody, TableCell, TableRow, TableHead, TableHeader, TableFooter } from '@/components/ui/table';
 
 function AreaCalculator() {
@@ -110,11 +110,13 @@ const initialAreaFields = [
     { id: 'mezanino', label: 'Área Mezanino' },
 ];
 
+const initialAreas = {
+    terreno: '0.00', subsolo: '0.00', terreo: '0.00', mezanino: '0.00'
+};
+
 function AreaAnalysisCalculator() {
     const [areaFields, setAreaFields] = useState(initialAreaFields);
-    const [areas, setAreas] = useState<Record<string, string>>({
-        terreno: '0.00', subsolo: '0.00', terreo: '0.00', mezanino: '0.00'
-    });
+    const [areas, setAreas] = useState<Record<string, string>>(initialAreas);
     const [pavCount, setPavCount] = useState(0);
 
     const handleAreaChange = (id: string, value: string) => {
@@ -128,6 +130,12 @@ function AreaAnalysisCalculator() {
         setAreas(prev => ({ ...prev, [newField.id]: '0.00' }));
         setPavCount(newPavCount);
     }
+    
+    const handleReset = () => {
+        setAreaFields(initialAreaFields);
+        setAreas(initialAreas);
+        setPavCount(0);
+    };
 
     const parsedAreas = useMemo(() => {
         const result: Record<string, number> = {};
@@ -198,10 +206,16 @@ function AreaAnalysisCalculator() {
                                 </TableRow>
                             </TableFooter>
                         </Table>
-                         <Button onClick={addPavement} variant="outline" size="sm" className="mt-4">
-                            <PlusCircle className="mr-2 h-4 w-4"/>
-                            Adicionar Pavimento
-                        </Button>
+                         <div className="flex items-center gap-2 mt-4">
+                            <Button onClick={addPavement} variant="outline" size="sm">
+                                <PlusCircle className="mr-2 h-4 w-4"/>
+                                Adicionar Pavimento
+                            </Button>
+                            <Button onClick={handleReset} variant="destructive" size="sm">
+                                <RotateCcw className="mr-2 h-4 w-4"/>
+                                Zerar Cálculo
+                            </Button>
+                         </div>
                     </div>
                      <div>
                         <Table>
