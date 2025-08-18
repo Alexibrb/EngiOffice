@@ -9,7 +9,7 @@ import { PageHeader } from '@/components/page-header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
-import { Loader2, ArrowUp, ArrowDown, XCircle, Calendar as CalendarIcon } from 'lucide-react';
+import { Loader2, ArrowUp, ArrowDown, XCircle, Calendar as CalendarIcon, ClipboardList, Wrench, CheckCircle } from 'lucide-react';
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
@@ -151,6 +151,10 @@ export default function AnalyticsPage() {
     const totalRecebido = filteredServices.reduce((sum, s) => sum + (s.valor_pago || 0), 0);
     const totalAReceber = filteredServices.reduce((sum, s) => sum + (s.saldo_devedor || 0), 0);
     
+    const totalServicesCount = filteredServices.filter(s => s.status !== 'cancelado').length;
+    const ongoingServicesCount = filteredServices.filter(s => s.status === 'em andamento').length;
+    const completedServicesCount = filteredServices.filter(s => s.status === 'concluído').length;
+
     const handleClearFilters = () => {
         setDateRange(undefined);
         setSelectedClient('');
@@ -229,6 +233,39 @@ export default function AnalyticsPage() {
                     </CardContent>
                 </Card>
              </div>
+             
+             <div className="grid gap-4 md:grid-cols-3">
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Total de Serviços</CardTitle>
+                        <ClipboardList className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{totalServicesCount}</div>
+                        <p className="text-xs text-muted-foreground">Total de serviços cadastrados (não cancelados)</p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Serviços em Andamento</CardTitle>
+                        <Wrench className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{ongoingServicesCount}</div>
+                        <p className="text-xs text-muted-foreground">Total de projetos em execução</p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Serviços Concluídos</CardTitle>
+                        <CheckCircle className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{completedServicesCount}</div>
+                        <p className="text-xs text-muted-foreground">Total de projetos finalizados</p>
+                    </CardContent>
+                </Card>
+            </div>
 
 
             <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
