@@ -266,7 +266,7 @@ export default function AnalyticsPage() {
                                 <CartesianGrid horizontal={false} />
                                 <XAxis type="number" hide />
                                 <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} tickMargin={8} width={100} />
-                                <ChartTooltip content={<ChartTooltipContent />} />
+                                <ChartTooltip content={<ChartTooltipContent formatter={(value) => Number(value).toLocaleString('pt-BR')}/>} />
                                 <Bar dataKey="value" name="Total" radius={4}>
                                     {serviceStatusData.map((entry) => (
                                         <Cell key={`cell-${entry.name}`} fill={entry.fill} />
@@ -335,5 +335,7 @@ export default function AnalyticsPage() {
         </div>
     );
 }
+
+    
 
     
