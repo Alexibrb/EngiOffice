@@ -38,7 +38,6 @@ const mainLinks = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/dashboard/servicos', label: 'Serviços', icon: Wrench },
   { href: '/dashboard/clientes', label: 'Clientes', icon: Users },
-  { href: '/dashboard/calculadora', label: 'Calculadora', icon: Calculator },
   {
     href: '/dashboard/contas-a-pagar',
     label: 'Contas a Pagar',
@@ -55,6 +54,7 @@ const mainLinks = [
     icon: HandCoins,
   },
   { href: '/dashboard/relatorios', label: 'Relatórios', icon: FileText },
+  { href: '/dashboard/calculadora', label: 'Calculadora', icon: Calculator },
 ];
 
 const secondaryLinks = [
