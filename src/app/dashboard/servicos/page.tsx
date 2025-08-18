@@ -343,35 +343,45 @@ function AddClientDialog({ isOpen, setIsOpen, onClientAdded, cities, onCityAdded
                     <FormField control={form.control} name="endereco_obra.street" render={({ field }) => (<FormItem><FormLabel>Rua</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
                     <FormField control={form.control} name="endereco_obra.number" render={({ field }) => (<FormItem><FormLabel>Número</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
                     <FormField control={form.control} name="endereco_obra.neighborhood" render={({ field }) => (<FormItem className="md:col-span-2"><FormLabel>Bairro</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField
+                     <FormField
                       control={form.control}
                       name="endereco_obra.city"
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Cidade</FormLabel>
                           <div className="flex items-center gap-2">
-                             <Select
+                            <Select
                               onValueChange={(value) => {
-                                const selectedCity = cities.find((c) => c.nome_cidade === value);
+                                const selectedCity = cities.find(
+                                  (c) => c.nome_cidade === value
+                                );
                                 field.onChange(value);
-                                form.setValue('endereco_obra.state', selectedCity?.estado || '');
+                                form.setValue("endereco_obra.state",selectedCity?.estado || "");
                               }}
                               value={field.value}
                             >
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Selecione a Cidade" />
-                                </SelectTrigger>
-                              </FormControl>
+                                <FormControl>
+                                    <SelectTrigger>
+                                    <SelectValue placeholder="Selecione a Cidade" />
+                                    </SelectTrigger>
+                                </FormControl>
                               <SelectContent>
                                 {cities.map((city) => (
-                                  <SelectItem key={city.id} value={city.nome_cidade}>
+                                  <SelectItem
+                                    key={city.id}
+                                    value={city.nome_cidade}
+                                  >
                                     {city.nome_cidade}
                                   </SelectItem>
                                 ))}
                               </SelectContent>
                             </Select>
-                            <Button type="button" variant="outline" size="icon" onClick={() => setIsCityDialogOpen(true)}>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              onClick={() => setIsCityDialogOpen(true)}
+                            >
                               <PlusCircle className="h-4 w-4" />
                             </Button>
                           </div>
