@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PageHeader } from '@/components/page-header';
 import { Calculator } from 'lucide-react';
+import { Table, TableBody, TableCell, TableRow, TableHead, TableHeader, TableFooter } from '@/components/ui/table';
 
 function AreaCalculator() {
   const [width, setWidth] = useState('');
@@ -102,92 +103,117 @@ function PricePerSqMCalculator() {
   );
 }
 
-function OccupancyRateCalculator() {
-  const [buildingArea, setBuildingArea] = useState('');
-  const [landArea, setLandArea] = useState('');
-  const [result, setResult] = useState<number | null>(null);
+const areaFields = [
+    { id: 'terreno', label: 'Área do Terreno' },
+    { id: 'subsolo', label: 'Área Subsolo' },
+    { id: 'terreo', label: 'Área Térreo' },
+    { id: 'mezanino', label: 'Área Mezanino' },
+    { id: 'pav1', label: 'Área 1º pav' },
+    { id: 'pav2', label: 'Área 2º Pav.' },
+    { id: 'pav3', label: 'Área 3º pav.' },
+];
 
-  const calculate = () => {
-    const ba = parseFloat(buildingArea);
-    const la = parseFloat(landArea);
-    if (!isNaN(ba) && !isNaN(la) && ba > 0 && la > 0 && ba <= la) {
-      setResult((ba / la) * 100);
-    } else {
-      setResult(null);
-    }
-  };
+function AreaAnalysisCalculator() {
+    const [areas, setAreas] = useState<Record<string, string>>({
+        terreno: '361.06', subsolo: '74.66', terreo: '346.02', mezanino: '0.00',
+        pav1: '346.02', pav2: '0.00', pav3: '0.00'
+    });
 
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Taxa de Ocupação</CardTitle>
-        <CardDescription>Calcule a porcentagem do terreno ocupada pela construção.</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="occupancy-building">Área da Edificação (m²)</Label>
-            <Input id="occupancy-building" type="number" placeholder="Ex: 150" value={buildingArea} onChange={(e) => setBuildingArea(e.target.value)} />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="occupancy-land">Área do Terreno (m²)</Label>
-            <Input id="occupancy-land" type="number" placeholder="Ex: 500" value={landArea} onChange={(e) => setLandArea(e.target.value)} />
-          </div>
-        </div>
-        <Button onClick={calculate} className="w-full" variant="accent">Calcular Taxa</Button>
-      </CardContent>
-      {result !== null && (
-        <CardFooter>
-          <p className="w-full text-center text-lg font-bold">Taxa de Ocupação: {result.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}%</p>
-        </CardFooter>
-      )}
-    </Card>
-  );
+    const handleAreaChange = (id: string, value: string) => {
+        setAreas(prev => ({ ...prev, [id]: value }));
+    };
+
+    const parsedAreas = useMemo(() => {
+        const result: Record<string, number> = {};
+        for (const key in areas) {
+            result[key] = parseFloat(areas[key]) || 0;
+        }
+        return result;
+    }, [areas]);
+
+    const totalConstruido = useMemo(() => {
+        return parsedAreas.subsolo + parsedAreas.terreo + parsedAreas.mezanino + parsedAreas.pav1 + parsedAreas.pav2 + parsedAreas.pav3;
+    }, [parsedAreas]);
+
+    const areaComputavel = useMemo(() => {
+        return parsedAreas.terreo + parsedAreas.mezanino + parsedAreas.pav1 + parsedAreas.pav2 + parsedAreas.pav3;
+    }, [parsedAreas]);
+
+    const coeficienteAproveitamento = useMemo(() => {
+        if (parsedAreas.terreno > 0) {
+            return areaComputavel / parsedAreas.terreno;
+        }
+        return 0;
+    }, [areaComputavel, parsedAreas.terreno]);
+
+    const taxaOcupacao = useMemo(() => {
+        if (parsedAreas.terreno > 0) {
+            return parsedAreas.terreo / parsedAreas.terreno;
+        }
+        return 0;
+    }, [parsedAreas.terreo, parsedAreas.terreno]);
+
+
+    return (
+        <Card className="md:col-span-2">
+            <CardHeader>
+                <CardTitle>Cálculo de Áreas e Coeficientes</CardTitle>
+                <CardDescription>Calcule o total construído, taxa de ocupação e coeficiente de aproveitamento.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-4">
+                    <div>
+                        <Table>
+                            <TableBody>
+                                {areaFields.map(field => (
+                                    <TableRow key={field.id}>
+                                        <TableCell className="font-medium p-2"><Label htmlFor={field.id}>{field.label}</Label></TableCell>
+                                        <TableCell className="p-2">
+                                            <Input
+                                                id={field.id}
+                                                type="number"
+                                                placeholder="0.00"
+                                                value={areas[field.id]}
+                                                onChange={(e) => handleAreaChange(field.id, e.target.value)}
+                                                className="text-right"
+                                            />
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                            <TableFooter>
+                                 <TableRow>
+                                    <TableCell className="font-bold p-2">Total Construído</TableCell>
+                                    <TableCell className="text-right font-bold p-2">{totalConstruido.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m²</TableCell>
+                                </TableRow>
+                            </TableFooter>
+                        </Table>
+                    </div>
+                     <div>
+                        <Table>
+                             <TableHeader>
+                                <TableRow>
+                                    <TableHead className="p-2">Índice</TableHead>
+                                    <TableHead className="text-right p-2">Resultado</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                <TableRow>
+                                    <TableCell className="font-bold p-2">C.A (Coeficiente de Aproveitamento)</TableCell>
+                                    <TableCell className="text-right text-lg font-bold p-2">{coeficienteAproveitamento.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                                </TableRow>
+                                <TableRow>
+                                    <TableCell className="font-bold p-2">T.O (Taxa de Ocupação)</TableCell>
+                                    <TableCell className="text-right text-lg font-bold p-2">{taxaOcupacao.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                                </TableRow>
+                            </TableBody>
+                        </Table>
+                     </div>
+                </div>
+            </CardContent>
+        </Card>
+    );
 }
-
-function LandUseCalculator() {
-  const [totalBuiltArea, setTotalBuiltArea] = useState('');
-  const [landArea, setLandArea] = useState('');
-  const [result, setResult] = useState<number | null>(null);
-
-  const calculate = () => {
-    const tba = parseFloat(totalBuiltArea);
-    const la = parseFloat(landArea);
-    if (!isNaN(tba) && !isNaN(la) && tba > 0 && la > 0) {
-      setResult(tba / la);
-    } else {
-      setResult(null);
-    }
-  };
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Coeficiente de Aproveitamento</CardTitle>
-        <CardDescription>Calcule a relação entre a área construída e a área do terreno.</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="use-built">Área Total Construída (m²)</Label>
-            <Input id="use-built" type="number" placeholder="Ex: 400" value={totalBuiltArea} onChange={(e) => setTotalBuiltArea(e.target.value)} />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="use-land">Área do Terreno (m²)</Label>
-            <Input id="use-land" type="number" placeholder="Ex: 500" value={landArea} onChange={(e) => setLandArea(e.target.value)} />
-          </div>
-        </div>
-        <Button onClick={calculate} className="w-full" variant="accent">Calcular Coeficiente</Button>
-      </CardContent>
-      {result !== null && (
-        <CardFooter>
-          <p className="w-full text-center text-lg font-bold">Coeficiente: {result.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</p>
-        </CardFooter>
-      )}
-    </Card>
-  );
-}
-
 
 export default function CalculadoraPage() {
   return (
@@ -199,8 +225,7 @@ export default function CalculadoraPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <AreaCalculator />
         <PricePerSqMCalculator />
-        <OccupancyRateCalculator />
-        <LandUseCalculator />
+        <AreaAnalysisCalculator />
       </div>
     </div>
   );
