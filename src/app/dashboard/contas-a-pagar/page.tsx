@@ -149,11 +149,16 @@ export default function ContasAPagarPage() {
 
     const fetchData = async () => {
         try {
-            const companyDocRef = doc(db, 'empresa', 'dados');
-            const companyDocSnap = await getDoc(companyDocRef);
-            if (companyDocSnap.exists()) {
-              setCompanyData(companyDocSnap.data() as CompanyData);
+            try {
+                const companyDocRef = doc(db, 'empresa', 'dados');
+                const companyDocSnap = await getDoc(companyDocRef);
+                if (companyDocSnap.exists()) {
+                  setCompanyData(companyDocSnap.data() as CompanyData);
+                }
+            } catch (e) {
+                console.warn("Could not fetch company data, might not exist yet.", e)
             }
+
 
             const payableSnapshot = await getDocs(collection(db, "contas_a_pagar"));
             
@@ -208,7 +213,7 @@ export default function ContasAPagarPage() {
         try {
              const submissionValues = {
                 ...values,
-                valor: parseFloat(String(values.valor).replace('.', '').replace(',', '.')),
+                valor: parseFloat(String(values.valor).replace(',', '.')),
             };
 
             if (editingAccount) {
@@ -672,15 +677,15 @@ function PayableFormComponent({ form, payees, services, onAddSupplier, onAddProd
     const isSupplier = selectedPayee?.tipo === 'fornecedor';
     
     useEffect(() => {
-        if (payeeId && !editingAccount) {
-             const payee = payees.find(p => p.id === payeeId);
-            if (payee) {
-                form.setValue('tipo_referencia', payee.tipo);
-                if (payee.tipo === 'funcionario') {
-                    form.setValue('descricao', 'Pagamento de Salário');
-                    const salary = (payee as Employee).salario || 0;
-                    form.setValue('valor', salary.toLocaleString('pt-BR', { minimumFractionDigits: 2 }), { shouldValidate: true });
-                }
+        if (!payeeId || editingAccount) return;
+        
+        const payee = payees.find(p => p.id === payeeId);
+        if (payee) {
+            form.setValue('tipo_referencia', payee.tipo);
+            if (payee.tipo === 'funcionario') {
+                form.setValue('descricao', 'Pagamento de Salário');
+                const salary = (payee as Employee).salario || 0;
+                form.setValue('valor', salary.toLocaleString('pt-BR', { minimumFractionDigits: 2 }), { shouldValidate: true });
             }
         }
     }, [payeeId, editingAccount, form, payees]);
