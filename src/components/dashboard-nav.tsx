@@ -31,6 +31,7 @@ import {
   SidebarGroup,
   SidebarGroupLabel,
 } from '@/components/ui/sidebar';
+import { UserNav } from './user-nav';
 
 const mainLinks = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -156,6 +157,9 @@ export function DashboardNav() {
 
 
       </SidebarContent>
+       <SidebarFooter>
+        <UserNav />
+      </SidebarFooter>
     </Sidebar>
   );
 }

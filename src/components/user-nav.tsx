@@ -24,7 +24,6 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
-  DialogTrigger,
 } from '@/components/ui/dialog';
 import {
   Form,
@@ -40,6 +39,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Input } from './ui/input';
 import { Loader2 } from 'lucide-react';
+import { useSidebar } from './ui/sidebar';
+import { cn } from '@/lib/utils';
 
 const companySchema = z.object({
   logoUrl: z.string().url({ message: "Por favor, insira uma URL válida para o logo." }).optional().or(z.literal('')),
@@ -89,6 +90,8 @@ function CompanyDataDialog({ isOpen, onOpenChange }: { isOpen: boolean, onOpenCh
         description: "Dados da empresa atualizados.",
       });
       onOpenChange(false);
+      // Optional: force-reload to reflect changes immediately.
+      window.location.reload();
     } catch (error) {
       console.error("Erro ao salvar dados da empresa:", error);
       toast({
@@ -200,6 +203,7 @@ export function UserNav() {
   const [isCompanyDataOpen, setIsCompanyDataOpen] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
+  const { state: sidebarState } = useSidebar();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -231,7 +235,6 @@ export function UserNav() {
     }
   };
 
-
   if (!user) {
     return null;
   }
@@ -249,7 +252,7 @@ export function UserNav() {
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+          <Button variant="ghost" className={cn("w-full justify-start items-center gap-2 p-2", sidebarState === 'collapsed' && 'h-10 w-10 p-0 justify-center')}>
             <Avatar className="h-8 w-8">
               <AvatarImage
                 src={user.photoURL || `https://placehold.co/40x40.png`}
@@ -258,6 +261,10 @@ export function UserNav() {
               />
               <AvatarFallback>{getInitials(user.displayName)}</AvatarFallback>
             </Avatar>
+            <div className={cn("flex flex-col items-start truncate", sidebarState === 'collapsed' && 'hidden')}>
+               <span className="font-medium text-sm truncate">{user.displayName || 'Usuário'}</span>
+               <span className="text-xs text-muted-foreground truncate">{user.email}</span>
+            </div>
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent className="w-56" align="end" forceMount>

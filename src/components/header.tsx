@@ -1,4 +1,3 @@
-import { UserNav } from '@/components/user-nav';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from './ui/button';
 import {
@@ -21,7 +20,7 @@ export function Header() {
             </SheetContent>
           </Sheet>
       <div className="flex-1" />
-      <UserNav />
+      {/* UserNav is now in DashboardNav */}
     </div>
   );
 }
