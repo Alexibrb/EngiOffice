@@ -14,7 +14,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PageHeader } from '@/components/page-header';
-import { Calculator } from 'lucide-react';
+import { Calculator, PlusCircle } from 'lucide-react';
 import { Table, TableBody, TableCell, TableRow, TableHead, TableHeader, TableFooter } from '@/components/ui/table';
 
 function AreaCalculator() {
@@ -103,25 +103,31 @@ function PricePerSqMCalculator() {
   );
 }
 
-const areaFields = [
+const initialAreaFields = [
     { id: 'terreno', label: 'Área do Terreno' },
     { id: 'subsolo', label: 'Área Subsolo' },
     { id: 'terreo', label: 'Área Térreo' },
     { id: 'mezanino', label: 'Área Mezanino' },
-    { id: 'pav1', label: 'Área 1º pav' },
-    { id: 'pav2', label: 'Área 2º Pav.' },
-    { id: 'pav3', label: 'Área 3º pav.' },
 ];
 
 function AreaAnalysisCalculator() {
+    const [areaFields, setAreaFields] = useState(initialAreaFields);
     const [areas, setAreas] = useState<Record<string, string>>({
-        terreno: '361.06', subsolo: '74.66', terreo: '346.02', mezanino: '0.00',
-        pav1: '346.02', pav2: '0.00', pav3: '0.00'
+        terreno: '0.00', subsolo: '0.00', terreo: '0.00', mezanino: '0.00'
     });
+    const [pavCount, setPavCount] = useState(0);
 
     const handleAreaChange = (id: string, value: string) => {
         setAreas(prev => ({ ...prev, [id]: value }));
     };
+
+    const addPavement = () => {
+        const newPavCount = pavCount + 1;
+        const newField = { id: `pav${newPavCount}`, label: `Área ${newPavCount}º pav.` };
+        setAreaFields(prev => [...prev, newField]);
+        setAreas(prev => ({ ...prev, [newField.id]: '0.00' }));
+        setPavCount(newPavCount);
+    }
 
     const parsedAreas = useMemo(() => {
         const result: Record<string, number> = {};
@@ -132,11 +138,15 @@ function AreaAnalysisCalculator() {
     }, [areas]);
 
     const totalConstruido = useMemo(() => {
-        return parsedAreas.subsolo + parsedAreas.terreo + parsedAreas.mezanino + parsedAreas.pav1 + parsedAreas.pav2 + parsedAreas.pav3;
+        return Object.keys(parsedAreas)
+            .filter(key => key !== 'terreno')
+            .reduce((sum, key) => sum + parsedAreas[key], 0);
     }, [parsedAreas]);
 
     const areaComputavel = useMemo(() => {
-        return parsedAreas.terreo + parsedAreas.mezanino + parsedAreas.pav1 + parsedAreas.pav2 + parsedAreas.pav3;
+       return Object.keys(parsedAreas)
+            .filter(key => key !== 'terreno' && key !== 'subsolo')
+            .reduce((sum, key) => sum + parsedAreas[key], 0);
     }, [parsedAreas]);
 
     const coeficienteAproveitamento = useMemo(() => {
@@ -188,6 +198,10 @@ function AreaAnalysisCalculator() {
                                 </TableRow>
                             </TableFooter>
                         </Table>
+                         <Button onClick={addPavement} variant="outline" size="sm" className="mt-4">
+                            <PlusCircle className="mr-2 h-4 w-4"/>
+                            Adicionar Pavimento
+                        </Button>
                     </div>
                      <div>
                         <Table>
