@@ -11,12 +11,34 @@ import { SidebarProvider } from '@/components/ui/sidebar';
 import { Loader2 } from 'lucide-react';
 import { doc, getDoc } from 'firebase/firestore';
 import type { CompanyData } from '@/lib/types';
+import Image from 'next/image';
 
 
 const CompanyDataContext = createContext<CompanyData | null>(null);
 
 export const useCompanyData = () => {
     return useContext(CompanyDataContext);
+}
+
+function CompanyHeader({ companyData }: { companyData: CompanyData | null }) {
+  return (
+    <div className="flex items-center gap-4 px-4 sm:px-6 h-16 border-b">
+        {companyData?.logoUrl && (
+            <Image
+                src={companyData.logoUrl}
+                alt="Logo da Empresa"
+                width={40}
+                height={40}
+                className="rounded-md object-contain"
+                data-ai-hint="company logo"
+            />
+        )}
+      <div className="flex flex-col">
+        <h1 className="text-lg font-semibold font-headline text-foreground">{companyData?.companyName || 'EngiOffice'}</h1>
+        <p className="text-xs text-muted-foreground italic">{companyData?.slogan}</p>
+      </div>
+    </div>
+  );
 }
 
 
@@ -34,10 +56,14 @@ export default function DashboardLayout({
     const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
       if (fbUser) {
         setFirebaseUser(fbUser);
-        const companyDocRef = doc(db, 'empresa', 'dados');
-        const docSnap = await getDoc(companyDocRef);
-        if (docSnap.exists()) {
-          setCompanyData(docSnap.data() as CompanyData);
+        try {
+          const companyDocRef = doc(db, 'empresa', 'dados');
+          const docSnap = await getDoc(companyDocRef);
+          if (docSnap.exists()) {
+            setCompanyData(docSnap.data() as CompanyData);
+          }
+        } catch (e) {
+            console.error("Failed to fetch company data:", e)
         }
       } else {
         setFirebaseUser(null);
@@ -71,7 +97,12 @@ export default function DashboardLayout({
           </div>
           <div className="flex flex-1 flex-col">
             <Header />
-            <main className="flex-1 p-4 md:p-6 lg:p-8">{children}</main>
+            <main className="flex-1 p-4 md:p-6 lg:p-8">
+              <CompanyHeader companyData={companyData} />
+              <div className="mt-8">
+                {children}
+              </div>
+            </main>
           </div>
         </div>
       </SidebarProvider>

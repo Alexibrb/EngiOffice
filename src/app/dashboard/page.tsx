@@ -313,7 +313,7 @@ export default function DashboardPage() {
   return (
     <div className="flex flex-col gap-8">
       <PageHeader 
-        title="Dashboard"
+        title={`Olá, ${user?.displayName || 'Usuário'}!`}
         description="Uma visão geral do seu escritório."
       />
 
