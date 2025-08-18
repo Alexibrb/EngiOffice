@@ -683,7 +683,7 @@ function PayableFormComponent({ form, payees, services, onAddSupplier, onAddProd
                 }
             }
         }
-    }, [payeeId, form, payees, editingAccount]);
+    }, [payeeId, editingAccount, form, payees]);
 
     return (
          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
