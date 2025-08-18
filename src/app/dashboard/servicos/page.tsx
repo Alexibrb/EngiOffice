@@ -296,42 +296,42 @@ function AddClientDialog({ isOpen, setIsOpen, onClientAdded, cities, onCityAdded
                     <FormField control={form.control} name="endereco_residencial.street" render={({ field }) => (<FormItem><FormLabel>Rua</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
                     <FormField control={form.control} name="endereco_residencial.number" render={({ field }) => (<FormItem><FormLabel>Número</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
                     <FormField control={form.control} name="endereco_residencial.neighborhood" render={({ field }) => (<FormItem className="md:col-span-2"><FormLabel>Bairro</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField
-                        control={form.control}
-                        name="endereco_residencial.city"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Cidade</FormLabel>
-                                <div className="flex items-center gap-2">
-                                    <Select
-                                        onValueChange={(value) => {
-                                            const selectedCity = cities.find((c) => c.nome_cidade === value);
-                                            field.onChange(value);
-                                            form.setValue('endereco_residencial.state', selectedCity?.estado || '');
-                                        }}
-                                        value={field.value}
-                                    >
-                                        <FormControl>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Selecione a Cidade" />
-                                            </SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent>
-                                            {cities.map((city) => (
-                                                <SelectItem key={city.id} value={city.nome_cidade}>
-                                                    {city.nome_cidade}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                    <Button type="button" variant="outline" size="icon" onClick={() => setIsCityDialogOpen(true)}>
-                                        <PlusCircle className="h-4 w-4" />
-                                    </Button>
-                                </div>
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                    />
+                    <FormItem>
+                        <FormLabel>Cidade</FormLabel>
+                        <div className="flex items-center gap-2">
+                        <FormField
+                            control={form.control}
+                            name="endereco_residencial.city"
+                            render={({ field }) => (
+                                <Select
+                                    onValueChange={(value) => {
+                                        const selectedCity = cities.find((c) => c.nome_cidade === value);
+                                        field.onChange(value);
+                                        form.setValue('endereco_residencial.state', selectedCity?.estado || '');
+                                    }}
+                                    value={field.value}
+                                >
+                                    <FormControl>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Selecione a Cidade" />
+                                        </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                        {cities.map((city) => (
+                                            <SelectItem key={city.id} value={city.nome_cidade}>
+                                                {city.nome_cidade}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            )}
+                        />
+                        <Button type="button" variant="outline" size="icon" onClick={() => setIsCityDialogOpen(true)}>
+                            <PlusCircle className="h-4 w-4" />
+                        </Button>
+                        </div>
+                        <FormMessage />
+                    </FormItem>
                     <FormField control={form.control} name="endereco_residencial.state" render={({ field }) => ( <FormItem> <FormLabel>Estado</FormLabel> <FormControl> <Input {...field} disabled /> </FormControl> <FormMessage /> </FormItem> )} />
                     <FormField control={form.control} name="endereco_residencial.zip" render={({ field }) => ( <FormItem> <FormLabel>CEP</FormLabel> <FormControl> <Input {...field} onChange={(e) => field.onChange(formatCEP(e.target.value))} /> </FormControl> <FormMessage /> </FormItem> )} />
                 </div>
@@ -343,42 +343,42 @@ function AddClientDialog({ isOpen, setIsOpen, onClientAdded, cities, onCityAdded
                     <FormField control={form.control} name="endereco_obra.street" render={({ field }) => (<FormItem><FormLabel>Rua</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
                     <FormField control={form.control} name="endereco_obra.number" render={({ field }) => (<FormItem><FormLabel>Número</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
                     <FormField control={form.control} name="endereco_obra.neighborhood" render={({ field }) => (<FormItem className="md:col-span-2"><FormLabel>Bairro</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                     <FormField
-                        control={form.control}
-                        name="endereco_obra.city"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Cidade</FormLabel>
-                                <div className="flex items-center gap-2">
-                                    <Select
-                                        onValueChange={(value) => {
-                                            const selectedCity = cities.find((c) => c.nome_cidade === value);
-                                            field.onChange(value);
-                                            form.setValue("endereco_obra.state", selectedCity?.estado || "");
-                                        }}
-                                        value={field.value}
-                                    >
-                                        <FormControl>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Selecione a Cidade" />
-                                            </SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent>
-                                            {cities.map((city) => (
-                                                <SelectItem key={city.id} value={city.nome_cidade}>
-                                                    {city.nome_cidade}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                    <Button type="button" variant="outline" size="icon" onClick={() => setIsCityDialogOpen(true)}>
-                                        <PlusCircle className="h-4 w-4" />
-                                    </Button>
-                                </div>
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                    />
+                     <FormItem>
+                        <FormLabel>Cidade</FormLabel>
+                        <div className="flex items-center gap-2">
+                        <FormField
+                            control={form.control}
+                            name="endereco_obra.city"
+                            render={({ field }) => (
+                                <Select
+                                    onValueChange={(value) => {
+                                        const selectedCity = cities.find((c) => c.nome_cidade === value);
+                                        field.onChange(value);
+                                        form.setValue("endereco_obra.state", selectedCity?.estado || "");
+                                    }}
+                                    value={field.value}
+                                >
+                                    <FormControl>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Selecione a Cidade" />
+                                        </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                        {cities.map((city) => (
+                                            <SelectItem key={city.id} value={city.nome_cidade}>
+                                                {city.nome_cidade}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            )}
+                        />
+                        <Button type="button" variant="outline" size="icon" onClick={() => setIsCityDialogOpen(true)}>
+                            <PlusCircle className="h-4 w-4" />
+                        </Button>
+                        </div>
+                        <FormMessage />
+                    </FormItem>
                     <FormField control={form.control} name="endereco_obra.state" render={({ field }) => ( <FormItem> <FormLabel>Estado</FormLabel> <FormControl> <Input {...field} disabled /> </FormControl> <FormMessage /> </FormItem> )} />
                     <FormField control={form.control} name="endereco_obra.zip" render={({ field }) => ( <FormItem> <FormLabel>CEP</FormLabel> <FormControl> <Input {...field} onChange={(e) => field.onChange(formatCEP(e.target.value))} /> </FormControl> <FormMessage /> </FormItem> )} />
                     <FormField control={form.control} name="coordenadas.lat" render={({ field }) => ( <FormItem> <FormLabel>Latitude</FormLabel> <FormControl> <Input type="number" step="any" {...field} /> </FormControl> <FormMessage /> </FormItem> )} />
@@ -1573,5 +1573,6 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, paymentValue, fi
 
 
     
+
 
 
