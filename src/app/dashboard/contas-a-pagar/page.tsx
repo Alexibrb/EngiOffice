@@ -74,7 +74,6 @@ const accountSchema = z.object({
   }),
   vencimento: z.date({ required_error: 'Data de vencimento é obrigatória.' }),
   status: z.enum(['pendente', 'pago']),
-  servico_id: z.string().optional(),
 });
 
 
@@ -92,7 +91,6 @@ export default function ContasAPagarPage() {
     const [accountsPayable, setAccountsPayable] = useState<Account[]>([]);
     const [suppliers, setSuppliers] = useState<Supplier[]>([]);
     const [employees, setEmployees] = useState<Employee[]>([]);
-    const [services, setServices] = useState<Service[]>([]);
     const [companyData, setCompanyData] = useState<CompanyData | null>(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isSupplierDialogOpen, setIsSupplierDialogOpen] = useState(false);
@@ -141,12 +139,7 @@ export default function ContasAPagarPage() {
         const employeesData = employeesSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Employee[];
         setEmployees(employeesData);
     }
-    const fetchServices = async () => {
-        const servicesSnapshot = await getDocs(collection(db, "servicos"));
-        const servicesData = servicesSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Service[];
-        setServices(servicesData);
-    }
-
+    
     const fetchData = async () => {
         try {
             try {
@@ -164,8 +157,7 @@ export default function ContasAPagarPage() {
             
             await fetchSuppliers();
             await fetchEmployees();
-            await fetchServices();
-
+            
             const payableData = payableSnapshot.docs.map(doc => {
                 const data = doc.data();
                 return { ...data, id: doc.id, vencimento: data.vencimento.toDate() } as Account;
@@ -544,7 +536,6 @@ export default function ContasAPagarPage() {
                             <PayableFormComponent 
                                 form={form} 
                                 payees={payees} 
-                                services={services}
                                 onAddSupplier={() => setIsSupplierDialogOpen(true)}
                                 onAddProduct={() => setIsAddProductDialogOpen(true)}
                                 editingAccount={editingAccount}
@@ -663,10 +654,9 @@ export default function ContasAPagarPage() {
     );
 }
 
-function PayableFormComponent({ form, payees, services, onAddSupplier, onAddProduct, editingAccount }: { 
+function PayableFormComponent({ form, payees, onAddSupplier, onAddProduct, editingAccount }: { 
     form: any, 
     payees: Payee[], 
-    services: Service[],
     onAddSupplier: () => void,
     onAddProduct: () => void,
     editingAccount: Account | null
@@ -801,35 +791,6 @@ function PayableFormComponent({ form, payees, services, onAddSupplier, onAddProd
                         <FormMessage />
                     </FormItem>
                 )}
-            />
-             <FormField
-              control={form.control}
-              name="servico_id"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Associar ao Serviço (Opcional)</FormLabel>
-                   <Select 
-                      onValueChange={field.onChange} 
-                      value={field.value} 
-                      defaultValue={field.value}
-                  >
-                      <FormControl>
-                          <SelectTrigger>
-                              <SelectValue placeholder="Selecione um serviço" />
-                          </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                          <SelectItem value="nenhum">Nenhum</SelectItem>
-                          {services.map(s => (
-                              <SelectItem key={s.id} value={s.id}>
-                                  {s.descricao}
-                              </SelectItem>
-                          ))}
-                      </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
             />
             <FormField
                 control={form.control}
@@ -1009,3 +970,5 @@ function PayableTableComponent({ accounts, getPayeeName, onEdit, onDelete, total
         </div>
     );
 }
+
+    
