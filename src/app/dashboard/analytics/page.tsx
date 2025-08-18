@@ -9,7 +9,7 @@ import { PageHeader } from '@/components/page-header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
-import { Loader2, XCircle, Calendar as CalendarIcon } from 'lucide-react';
+import { Loader2, XCircle, Calendar as CalendarIcon, Wrench, CheckCircle, CircleOff } from 'lucide-react';
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
@@ -20,6 +20,8 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { cn } from '@/lib/utils';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
+const POSITIVE_COLOR = '#16a34a';
+const NEGATIVE_COLOR = '#dc2626';
 
 export default function AnalyticsPage() {
     const [services, setServices] = useState<Service[]>([]);
@@ -73,8 +75,6 @@ export default function AnalyticsPage() {
 
             const inDateRange = dateRange?.from ? (serviceDate >= dateRange.from && serviceDate <= (dateRange.to || dateRange.from)) : true;
             const clientMatch = selectedClient ? service.cliente_id === selectedClient : true;
-            // Employee filter can be applied if services have employee_id, which they don't currently.
-            // For now, it will only filter commissions.
             return inDateRange && clientMatch;
         });
     }, [services, dateRange, selectedClient]);
@@ -97,7 +97,6 @@ export default function AnalyticsPage() {
             if (isNaN(dueDate.getTime())) return false;
 
             const inDateRange = dateRange?.from ? (dueDate >= dateRange.from && dueDate <= (dateRange.to || dateRange.from)) : true;
-            // Further filtering for client/employee would require linking accounts to services/employees.
             return inDateRange;
         });
     }, [accountsPayable, dateRange])
@@ -149,6 +148,17 @@ export default function AnalyticsPage() {
         }
         return data;
     }
+    
+    const revenueStatusData = useMemo(() => {
+        const totalPaid = filteredServices.reduce((sum, s) => sum + (s.valor_pago || 0), 0);
+        const totalPending = filteredServices.reduce((sum, s) => sum + (s.saldo_devedor || 0), 0);
+        
+        return [
+            { name: 'Recebido', value: totalPaid },
+            { name: 'A Receber', value: totalPending },
+        ].filter(item => item.value > 0);
+    }, [filteredServices]);
+
 
     const serviceStatusData = [
         { name: 'Em Andamento', value: filteredServices.filter(s => s.status === 'em andamento').length },
@@ -232,8 +242,8 @@ export default function AnalyticsPage() {
                                 <YAxis tickFormatter={(value) => `R$${value/1000}k`}/>
                                 <ChartTooltip content={<ChartTooltipContent formatter={(value) => `R$ ${Number(value).toLocaleString('pt-BR')}`}/>} />
                                 <ChartLegend content={<ChartLegendContent />} />
-                                <Bar dataKey="recebido" fill="#16a34a" radius={4} name="Recebido" />
-                                <Bar dataKey="pago" fill="#dc2626" radius={4} name="Pago"/>
+                                <Bar dataKey="recebido" fill={POSITIVE_COLOR} radius={4} name="Recebido" />
+                                <Bar dataKey="pago" fill={NEGATIVE_COLOR} radius={4} name="Pago"/>
                             </BarChart>
                         </ChartContainer>
                     </CardContent>
@@ -271,7 +281,7 @@ export default function AnalyticsPage() {
                                 <XAxis type="number" hide />
                                 <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} tickMargin={8} width={150} />
                                 <ChartTooltip content={<ChartTooltipContent formatter={(value) => `R$ ${Number(value).toLocaleString('pt-BR')}`}/>} />
-                                <Bar dataKey="receita" fill="#16a34a" radius={4} name="Receita" />
+                                <Bar dataKey="receita" fill={POSITIVE_COLOR} radius={4} name="Receita" />
                             </BarChart>
                         </ChartContainer>
                     </CardContent>
@@ -289,8 +299,27 @@ export default function AnalyticsPage() {
                                 <XAxis dataKey="name" tickLine={false} axisLine={false} tickMargin={8} />
                                 <YAxis tickFormatter={(value) => `R$${value/1000}k`}/>
                                 <ChartTooltip content={<ChartTooltipContent formatter={(value) => `R$ ${Number(value).toLocaleString('pt-BR')}`}/>} />
-                                <Bar dataKey="comissao" fill="#dc2626" radius={4} name="Comissão" />
+                                <Bar dataKey="comissao" fill={NEGATIVE_COLOR} radius={4} name="Comissão" />
                             </BarChart>
+                        </ChartContainer>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Receita: Recebido vs. A Receber</CardTitle>
+                        <CardDescription>Proporção do valor total dos serviços que foi pago versus o que está pendente.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex justify-center">
+                        <ChartContainer config={{}} className="h-[300px] w-[300px]">
+                            <PieChart>
+                                <ChartTooltip content={<ChartTooltipContent nameKey="name" formatter={(value) => `R$ ${Number(value).toLocaleString('pt-BR')}`} />} />
+                                <Pie data={revenueStatusData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} label>
+                                    <Cell key={`cell-recebido`} fill={POSITIVE_COLOR} />
+                                    <Cell key={`cell-a-receber`} fill={NEGATIVE_COLOR} />
+                                </Pie>
+                                <ChartLegend content={<ChartLegendContent />} />
+                            </PieChart>
                         </ChartContainer>
                     </CardContent>
                 </Card>
