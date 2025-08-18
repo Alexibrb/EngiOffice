@@ -12,6 +12,7 @@ import { Loader2 } from 'lucide-react';
 import { doc, getDoc } from 'firebase/firestore';
 import type { CompanyData } from '@/lib/types';
 import Image from 'next/image';
+import { ThemeSwitcher } from '@/components/theme-switcher';
 
 
 const CompanyDataContext = createContext<CompanyData | null>(null);
@@ -22,7 +23,8 @@ export const useCompanyData = () => {
 
 function CompanyHeader({ companyData }: { companyData: CompanyData | null }) {
   return (
-    <div className="flex items-center gap-4 py-2 px-4">
+    <div className="flex items-center justify-between gap-4 py-2 px-4">
+      <div className="flex items-center gap-4">
         {companyData?.logoUrl ? (
             <Image
                 src={companyData.logoUrl}
@@ -37,16 +39,18 @@ function CompanyHeader({ companyData }: { companyData: CompanyData | null }) {
                 Logo Aqui
            </div>
         )}
-      <div className="flex flex-col">
-        <h1 className="text-lg font-bold text-foreground">{companyData?.companyName || 'Nome da Empresa'}</h1>
-        <p className="text-sm text-muted-foreground italic">{companyData?.slogan || 'Slogan da empresa'}</p>
-        <p className="text-xs text-muted-foreground">{companyData?.address || 'Endereço da empresa'}</p>
-        <p className="text-xs text-muted-foreground">
-            {companyData?.phone && <span>{companyData.phone}</span>}
-            {companyData?.phone && companyData?.cnpj && <span className="mx-2">|</span>}
-            {companyData?.cnpj && <span>{companyData.cnpj}</span>}
-        </p>
+        <div className="flex flex-col">
+            <h1 className="text-lg font-bold text-foreground">{companyData?.companyName || 'Nome da Empresa'}</h1>
+            <p className="text-sm text-muted-foreground italic">{companyData?.slogan || 'Slogan da empresa'}</p>
+            <p className="text-xs text-muted-foreground">{companyData?.address || 'Endereço da empresa'}</p>
+            <p className="text-xs text-muted-foreground">
+                {companyData?.phone && <span>{companyData.phone}</span>}
+                {companyData?.phone && companyData?.cnpj && <span className="mx-2">|</span>}
+                {companyData?.cnpj && <span>{companyData.cnpj}</span>}
+            </p>
+        </div>
       </div>
+      <ThemeSwitcher />
     </div>
   );
 }
