@@ -160,11 +160,17 @@ export default function AnalyticsPage() {
     }, [filteredServices]);
 
 
-    const serviceStatusData = [
-        { name: 'Em Andamento', value: filteredServices.filter(s => s.status === 'em andamento').length },
-        { name: 'Concluído', value: filteredServices.filter(s => s.status === 'concluído').length },
-        { name: 'Cancelado', value: filteredServices.filter(s => s.status === 'cancelado').length },
-    ].filter(item => item.value > 0);
+    const serviceStatusData = useMemo(() => {
+        const total = filteredServices.filter(s => s.status !== 'cancelado').length;
+        const inProgress = filteredServices.filter(s => s.status === 'em andamento').length;
+        const completed = filteredServices.filter(s => s.status === 'concluído').length;
+
+        return [
+            { name: 'Cadastrados', value: total, fill: COLORS[0] },
+            { name: 'Em Andamento', value: inProgress, fill: COLORS[2] },
+            { name: 'Concluídos', value: completed, fill: COLORS[1] },
+        ];
+    }, [filteredServices]);
 
     const revenueByClientData = clients
         .map(client => {
@@ -252,19 +258,21 @@ export default function AnalyticsPage() {
                 <Card>
                     <CardHeader>
                         <CardTitle>Status dos Serviços</CardTitle>
-                        <CardDescription>Distribuição dos serviços por status (baseado nos filtros).</CardDescription>
+                        <CardDescription>Contagem de serviços por status (baseado nos filtros).</CardDescription>
                     </CardHeader>
-                    <CardContent className="flex justify-center">
-                        <ChartContainer config={{}} className="h-[300px] w-[300px]">
-                            <PieChart>
-                                <ChartTooltip content={<ChartTooltipContent nameKey="name" />} />
-                                <Pie data={serviceStatusData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} label>
-                                    {serviceStatusData.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    <CardContent>
+                        <ChartContainer config={{}} className="h-[300px] w-full">
+                            <BarChart data={serviceStatusData} layout="vertical">
+                                <CartesianGrid horizontal={false} />
+                                <XAxis type="number" hide />
+                                <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} tickMargin={8} width={100} />
+                                <ChartTooltip content={<ChartTooltipContent />} />
+                                <Bar dataKey="value" name="Total" radius={4}>
+                                    {serviceStatusData.map((entry) => (
+                                        <Cell key={`cell-${entry.name}`} fill={entry.fill} />
                                     ))}
-                                </Pie>
-                                <ChartLegend content={<ChartLegendContent />} />
-                            </PieChart>
+                                </Bar>
+                            </BarChart>
                         </ChartContainer>
                     </CardContent>
                 </Card>
@@ -327,3 +335,5 @@ export default function AnalyticsPage() {
         </div>
     );
 }
+
+    
