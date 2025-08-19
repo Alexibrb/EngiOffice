@@ -8,7 +8,7 @@ import type { Service, Client, Account, Commission, Employee } from '@/lib/types
 import { PageHeader } from '@/components/page-header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@/components/ui/chart';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
 import { Loader2, XCircle, Calendar as CalendarIcon, Wrench, CheckCircle, CircleOff } from 'lucide-react';
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -255,15 +255,25 @@ export default function AnalyticsPage() {
                     </CardHeader>
                     <CardContent>
                         <ChartContainer config={{}} className="h-[300px] w-full">
-                            <BarChart data={financialOverviewData()}>
+                            <AreaChart data={financialOverviewData()}>
+                                 <defs>
+                                    <linearGradient id="colorRecebido" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor={POSITIVE_COLOR} stopOpacity={0.8}/>
+                                    <stop offset="95%" stopColor={POSITIVE_COLOR} stopOpacity={0}/>
+                                    </linearGradient>
+                                    <linearGradient id="colorPago" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor={NEGATIVE_COLOR} stopOpacity={0.8}/>
+                                    <stop offset="95%" stopColor={NEGATIVE_COLOR} stopOpacity={0}/>
+                                    </linearGradient>
+                                </defs>
                                 <CartesianGrid vertical={false} />
                                 <XAxis dataKey="name" tickLine={false} axisLine={false} tickMargin={8} />
                                 <YAxis tickFormatter={(value) => `R$${value/1000}k`}/>
                                 <ChartTooltip content={<ChartTooltipContent formatter={(value) => `R$ ${Number(value).toLocaleString('pt-BR')}`}/>} />
                                 <ChartLegend content={<ChartLegendContent />} />
-                                <Bar dataKey="recebido" fill={POSITIVE_COLOR} radius={4} name="Recebido" />
-                                <Bar dataKey="pago" fill={NEGATIVE_COLOR} radius={4} name="Pago"/>
-                            </BarChart>
+                                <Area type="monotone" dataKey="recebido" stroke={POSITIVE_COLOR} fillOpacity={1} fill="url(#colorRecebido)" name="Recebido" />
+                                <Area type="monotone" dataKey="pago" stroke={NEGATIVE_COLOR} fillOpacity={1} fill="url(#colorPago)" name="Pago" />
+                            </AreaChart>
                         </ChartContainer>
                     </CardContent>
                 </Card>
