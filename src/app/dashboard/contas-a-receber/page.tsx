@@ -141,7 +141,7 @@ export default function ContasAReceberPage() {
             });
             setServices(servicesData);
 
-            const clientsData = clientsSnapshot.docs.map(doc => ({ ...doc.data(), codigo_cliente: doc.id } as Client[];
+            const clientsData = clientsSnapshot.docs.map(doc => ({ ...doc.data(), codigo_cliente: doc.id } as Client));
             setClients(clientsData);
 
             await fetchFinancials();
@@ -805,15 +805,3 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, paymentValue, fi
         </Dialog>
     );
 }
-
-    
-
-
-
-    
-
-    
-
-
-
-    
