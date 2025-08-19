@@ -58,6 +58,7 @@ export default function ComissoesPage() {
     
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
     const [statusFilter, setStatusFilter] = useState<string>('');
+    const [selectedClient, setSelectedClient] = useState('');
     const [financials, setFinancials] = useState({
       balance: 0,
       commissionableEmployees: [] as Employee[],
@@ -185,6 +186,7 @@ export default function ComissoesPage() {
      const handleClearFilters = () => {
         setDateRange(undefined);
         setStatusFilter('');
+        setSelectedClient('');
     }
 
     const filteredCommissions = commissions
@@ -197,6 +199,9 @@ export default function ComissoesPage() {
             const toDate = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from);
             const commissionDate = commission.data;
             return commissionDate >= fromDate && commissionDate <= toDate;
+        })
+        .filter(commission => {
+            return selectedClient ? commission.cliente_id === selectedClient : true;
         });
     
     const filteredTotal = filteredCommissions.reduce((acc, curr) => acc + curr.valor, 0);
@@ -290,53 +295,42 @@ export default function ComissoesPage() {
                         Lançar Comissão
                     </Button>
                 </div>
-                 <div className="flex items-center gap-4 p-4 bg-muted rounded-lg">
-                    <div className="flex items-center gap-2">
-                        <Popover>
-                            <PopoverTrigger asChild>
-                              <Button
-                                id="date"
-                                variant={"outline"}
-                                className={cn( "w-[300px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}
-                              >
-                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                {dateRange?.from ? (
-                                  dateRange.to ? (
-                                    <>
-                                      {format(dateRange.from, "LLL dd, y")} -{" "}
-                                      {format(dateRange.to, "LLL dd, y")}
-                                    </>
-                                  ) : (
-                                    format(dateRange.from, "LLL dd, y")
-                                  )
+                 <div className="flex flex-wrap items-center gap-4 p-4 bg-muted rounded-lg">
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <Button id="date" variant={"outline"} className={cn( "w-[300px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {dateRange?.from ? (
+                                dateRange.to ? (
+                                <>
+                                    {format(dateRange.from, "LLL dd, y", { locale: ptBR })} -{" "}
+                                    {format(dateRange.to, "LLL dd, y", { locale: ptBR })}
+                                </>
                                 ) : (
-                                  <span>Filtrar por data...</span>
-                                )}
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                              <Calendar
-                                initialFocus
-                                mode="range"
-                                defaultMonth={dateRange?.from}
-                                selected={dateRange}
-                                onSelect={setDateRange}
-                                numberOfMonths={2}
-                              />
-                            </PopoverContent>
-                        </Popover>
-                    </div>
-                     <div className="flex items-center gap-2">
-                        <Select value={statusFilter} onValueChange={setStatusFilter}>
-                            <SelectTrigger className="w-[180px]">
-                                <SelectValue placeholder="Filtrar status" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="pendente">Pendente</SelectItem>
-                                <SelectItem value="pago">Pago</SelectItem>
-                            </SelectContent>
-                        </Select>
-                     </div>
+                                format(dateRange.from, "LLL dd, y", { locale: ptBR })
+                                )
+                            ) : (
+                                <span>Filtrar por período</span>
+                            )}
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={setDateRange} numberOfMonths={2} locale={ptBR}/>
+                        </PopoverContent>
+                    </Popover>
+                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                        <SelectTrigger className="w-[180px]">
+                            <SelectValue placeholder="Filtrar status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="pendente">Pendente</SelectItem>
+                            <SelectItem value="pago">Pago</SelectItem>
+                        </SelectContent>
+                    </Select>
+                     <Select value={selectedClient} onValueChange={setSelectedClient}>
+                        <SelectTrigger className="w-[250px]"><SelectValue placeholder="Filtrar por cliente..." /></SelectTrigger>
+                        <SelectContent>{clients.map(c => <SelectItem key={c.codigo_cliente} value={c.codigo_cliente}>{c.nome_completo}</SelectItem>)}</SelectContent>
+                    </Select>
                      <Button variant="ghost" onClick={handleClearFilters} className="text-muted-foreground">
                         <XCircle className="mr-2 h-4 w-4"/>
                         Limpar Filtros
@@ -683,3 +677,4 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, financials, toas
     
 
     
+
