@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
 import { Loader2, XCircle, Calendar as CalendarIcon } from 'lucide-react';
-import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
+import { format, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -31,7 +31,11 @@ export default function AnalyticsPage() {
     const [employees, setEmployees] = useState<Employee[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+    const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
+        const end = new Date();
+        const start = subMonths(end, 1);
+        return { from: start, to: end };
+    });
     const [selectedClient, setSelectedClient] = useState('');
     const [selectedEmployee, setSelectedEmployee] = useState('');
 
@@ -110,14 +114,14 @@ export default function AnalyticsPage() {
             const monthStart = startOfMonth(date);
             const monthEnd = endOfMonth(date);
 
-            const received = filteredServices
+            const received = services
                 .filter(s => {
                     const serviceDate = new Date(s.data_cadastro);
                     return s.valor_pago > 0 && !isNaN(serviceDate.getTime()) && serviceDate >= monthStart && serviceDate <= monthEnd;
                 })
                 .reduce((acc, s) => acc + s.valor_pago, 0);
             
-            const paid = filteredAccountsPayable
+            const paid = accountsPayable
                 .filter(a => {
                     const dueDate = new Date(a.vencimento);
                     return a.status === 'pago' && !isNaN(dueDate.getTime()) && dueDate >= monthStart && dueDate <= monthEnd;
@@ -128,6 +132,40 @@ export default function AnalyticsPage() {
         }
         return data;
     };
+    
+    const dailyFinancialsData = useMemo(() => {
+        if (!dateRange?.from) return [];
+        
+        const start = startOfDay(dateRange.from);
+        const end = dateRange.to ? startOfDay(dateRange.to) : start;
+
+        const intervalDays = eachDayOfInterval({ start, end });
+
+        return intervalDays.map(day => {
+            const dayStart = startOfDay(day);
+            const dayEnd = endOfMonth(day);
+
+            const dailyRevenue = filteredServices
+                .filter(s => {
+                    const serviceDate = startOfDay(new Date(s.data_cadastro));
+                    return s.valor_pago > 0 && serviceDate.getTime() === dayStart.getTime();
+                })
+                .reduce((sum, s) => sum + s.valor_pago, 0);
+
+            const dailyExpenses = filteredAccountsPayable
+                .filter(a => {
+                    const dueDate = startOfDay(new Date(a.vencimento));
+                    return a.status === 'pago' && dueDate.getTime() === dayStart.getTime();
+                })
+                .reduce((sum, a) => sum + a.valor, 0);
+
+            return {
+                name: format(day, 'dd/MM'),
+                receitas: dailyRevenue,
+                despesas: dailyExpenses,
+            };
+        }).filter(d => d.receitas > 0 || d.despesas > 0); 
+    }, [filteredServices, filteredAccountsPayable, dateRange]);
     
     const commissionableEmployees = useMemo(() => {
         return employees.filter(e => e.tipo_contratacao === 'comissao' && e.status === 'ativo');
@@ -265,8 +303,8 @@ export default function AnalyticsPage() {
             <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
                 <Card>
                     <CardHeader>
-                        <CardTitle>Visão Geral Financeira</CardTitle>
-                        <CardDescription>Receitas vs. Despesas nos últimos 6 meses (baseado nos filtros).</CardDescription>
+                        <CardTitle>Visão Geral Financeira (Mensal)</CardTitle>
+                        <CardDescription>Receitas vs. Despesas nos últimos 6 meses (ignora filtros).</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <ChartContainer config={{}} className="h-[300px] w-full">
@@ -329,6 +367,36 @@ export default function AnalyticsPage() {
                                 <ChartTooltip content={<ChartTooltipContent formatter={(value) => `R$ ${Number(value).toLocaleString('pt-BR')}`}/>} />
                                 <Bar dataKey="receita" fill={POSITIVE_COLOR} radius={4} name="Receita" />
                             </BarChart>
+                        </ChartContainer>
+                    </CardContent>
+                </Card>
+                
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Fluxo de Caixa (Diário)</CardTitle>
+                        <CardDescription>Entradas e saídas diárias (baseado nos filtros).</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <ChartContainer config={{}} className="h-[300px] w-full">
+                           <AreaChart data={dailyFinancialsData}>
+                                 <defs>
+                                    <linearGradient id="colorReceitasDiario" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor={POSITIVE_COLOR} stopOpacity={0.8}/>
+                                    <stop offset="95%" stopColor={POSITIVE_COLOR} stopOpacity={0}/>
+                                    </linearGradient>
+                                    <linearGradient id="colorDespesasDiario" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor={NEGATIVE_COLOR} stopOpacity={0.8}/>
+                                    <stop offset="95%" stopColor={NEGATIVE_COLOR} stopOpacity={0}/>
+                                    </linearGradient>
+                                </defs>
+                                <CartesianGrid vertical={false} />
+                                <XAxis dataKey="name" tickLine={false} axisLine={false} tickMargin={8} />
+                                <YAxis tickFormatter={(value) => `R$${value/1000}k`}/>
+                                <ChartTooltip content={<ChartTooltipContent formatter={(value, name) => `${name}: R$ ${Number(value).toLocaleString('pt-BR')}`}/>} />
+                                <ChartLegend content={<ChartLegendContent />} />
+                                <Area type="monotone" dataKey="receitas" stroke={POSITIVE_COLOR} fillOpacity={1} fill="url(#colorReceitasDiario)" name="Receitas" />
+                                <Area type="monotone" dataKey="despesas" stroke={NEGATIVE_COLOR} fillOpacity={1} fill="url(#colorDespesasDiario)" name="Despesas" />
+                            </AreaChart>
                         </ChartContainer>
                     </CardContent>
                 </Card>
