@@ -442,8 +442,7 @@ export default function ComissoesPage() {
                                 <TableRow>
                                     <TableHead>Cliente</TableHead>
                                     <TableHead>Descrição / Endereço</TableHead>
-                                    <TableHead>Valor do Serviço</TableHead>
-                                    <TableHead>Saldo Devedor</TableHead>
+                                    <TableHead>Valor Recebido</TableHead>
                                     <TableHead>Status</TableHead>
                                     <TableHead>Distribuição</TableHead>
                                     <TableHead className="text-right">Ações</TableHead>
@@ -461,8 +460,7 @@ export default function ComissoesPage() {
                                                 <div className="font-medium">{service.descricao}</div>
                                                 <div className="text-xs text-muted-foreground">{formattedAddress}</div>
                                             </TableCell>
-                                            <TableCell>R$ {(service.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
-                                            <TableCell className="text-red-500">R$ {(service.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
+                                            <TableCell className="font-medium text-green-500">R$ {(service.valor_pago || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
                                             <TableCell>
                                                 <Badge variant={
                                                     service.status === 'concluído' ? 'secondary' :
@@ -679,3 +677,5 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, financials, toas
         </Dialog>
     );
 }
+
+    
