@@ -22,7 +22,7 @@ import {
 import type { Client, Supplier, Service, Account, Employee, CompanyData } from '@/lib/types';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { Download, Search, XCircle, Calendar as CalendarIcon, ChevronDown, ChevronRight } from 'lucide-react';
+import { Download, Search, XCircle, Calendar as CalendarIcon, ChevronDown, ChevronRight, LinkIcon } from 'lucide-react';
 import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from "@/hooks/use-toast"
@@ -362,20 +362,24 @@ export default function RelatoriosPage() {
         break;
       case 'services':
         reportTitle = 'Relatório de Serviços';
-        head = [['Cliente', 'Descrição / Endereço', 'Valor do Serviço', 'Saldo Devedor', 'Status']];
+        head = [['Cliente', 'Descrição / Endereço', 'Valores', 'Status', 'Coordenadas', 'Anexos']];
         body = data.map((item: Service) => {
             const client = getClient(item.cliente_id);
             const address = client?.endereco_obra;
             const formattedAddress = address ? `${address.street}, ${address.number} - ${address.neighborhood}, ${address.city} - ${address.state}` : 'N/A';
+            const valores = `Total: R$ ${item.valor_total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}\nSaldo: R$ ${item.saldo_devedor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+            const coordenadas = `Lat: ${client?.coordenadas?.lat || 'N/A'}\nLng: ${client?.coordenadas?.lng || 'N/A'}`;
+            const anexos = item.anexos && item.anexos.length > 0 ? item.anexos.join('\n') : 'N/A';
             return [
                 client?.nome_completo || 'Desconhecido', 
                 `${item.descricao}\n${formattedAddress}`, 
-                `R$ ${item.valor_total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 
-                `R$ ${item.saldo_devedor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 
-                item.status
+                valores,
+                item.status,
+                coordenadas,
+                anexos
             ];
         });
-        foot = [['Total', '', `R$ ${(totals.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, `R$ ${(totals.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, '']];
+        foot = [['Total', '', `R$ ${(totals.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, '', '', '']];
         fileName = 'relatorio_servicos.pdf';
         break;
       case 'accountsPayable':
@@ -591,10 +595,12 @@ export default function RelatoriosPage() {
                         <TableRow>
                             <TableHead>Cliente</TableHead>
                             <TableHead>Descrição / Endereço</TableHead>
-                            <TableHead>Valor do Serviço</TableHead>
+                            <TableHead>Valor Total</TableHead>
                             <TableHead>Saldo Devedor</TableHead>
                             <TableHead>Status</TableHead>
                             <TableHead>Distribuição</TableHead>
+                            <TableHead>Coordenadas</TableHead>
+                            <TableHead>Anexos</TableHead>
                         </TableRow>
                     </TableHeader>
                   <TableBody>
@@ -613,16 +619,30 @@ export default function RelatoriosPage() {
                                 <TableCell className="text-red-500">R$ {(s.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
                                 <TableCell><Badge variant={s.status === 'concluído' ? 'secondary' : s.status === 'cancelado' ? 'destructive' : 'default'}>{s.status}</Badge></TableCell>
                                 <TableCell>{getDistributionStatus(s)}</TableCell>
+                                <TableCell className="text-xs">
+                                    {client?.coordenadas?.lat ? `Lat: ${client.coordenadas.lat}` : ''}<br/>
+                                    {client?.coordenadas?.lng ? `Lng: ${client.coordenadas.lng}` : ''}
+                                </TableCell>
+                                <TableCell className="text-xs">
+                                    {(s.anexos && s.anexos.length > 0) ? (
+                                        s.anexos.map((anexo, index) => (
+                                            <a key={index} href={anexo} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:underline truncate">
+                                                <LinkIcon className="h-3 w-3 shrink-0"/>
+                                                <span>{anexo.split('/').pop()}</span>
+                                            </a>
+                                        ))
+                                    ) : 'N/A'}
+                                </TableCell>
                             </TableRow>
                          )
-                    }) : (<TableRow><TableCell colSpan={6} className="h-24 text-center">Nenhum serviço encontrado.</TableCell></TableRow>)}
+                    }) : (<TableRow><TableCell colSpan={8} className="h-24 text-center">Nenhum serviço encontrado.</TableCell></TableRow>)}
                   </TableBody>
                   <TableFooter>
                     <TableRow>
                       <TableCell colSpan={2} className="font-bold">Total</TableCell>
                       <TableCell className="font-bold">R$ {(totals.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
                       <TableCell className="font-bold text-red-500">R$ {(totals.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
-                      <TableCell colSpan={2}></TableCell>
+                      <TableCell colSpan={4}></TableCell>
                     </TableRow>
                   </TableFooter>
                 </Table>
