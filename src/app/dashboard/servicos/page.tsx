@@ -647,14 +647,14 @@ export default function ServicosPage() {
         const isDistributable = service.status !== 'cancelado' && (service.valor_pago || 0) > 0;
         
         if (!isDistributable) {
-            return <Badge variant="outline">Aguardando</Badge>
+            return { text: 'Aguardando', variant: 'outline' as const };
         }
         
         if (service.lucro_distribuido) {
-            return <Badge variant="secondary">Realizada</Badge>;
+            return { text: 'Realizada', variant: 'secondary' as const };
         }
         
-        return <Badge variant="destructive">Pendente</Badge>;
+        return { text: 'Pendente', variant: 'destructive' as const };
     }
 
 
@@ -1007,8 +1007,8 @@ export default function ServicosPage() {
                 <Table>
                 <TableHeader>
                     <TableRow>
-                        <TableHead>Cliente / Endereço</TableHead>
-                        <TableHead>Descrição do Serviço / Detalhes</TableHead>
+                        <TableHead>Cliente / Endereços</TableHead>
+                        <TableHead>Detalhes do Serviço</TableHead>
                         <TableHead>Valores</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead><span className="sr-only">Ações</span></TableHead>
@@ -1017,17 +1017,23 @@ export default function ServicosPage() {
                 <TableBody>
                     {filteredServices.length > 0 ? filteredServices.map((service) => {
                         const client = getClient(service.cliente_id);
-                        const address = client?.endereco_obra;
-                        const formattedAddress = address ? `${address.street}, ${address.number} - ${address.neighborhood}, ${address.city} - ${address.state}` : 'N/A';
-                         const distributionStatus = getDistributionStatus(service);
+                        const residencial = client?.endereco_residencial;
+                        const obra = client?.endereco_obra;
+                        const formattedResidencial = (residencial && residencial.street) ? `Residencial: ${residencial.street}, ${residencial.number} - ${residencial.neighborhood}, ${residencial.city}` : '';
+                        const formattedObra = (obra && obra.street) ? `Obra: ${obra.street}, ${obra.number} - ${obra.neighborhood}, ${obra.city}` : '';
+                        const distributionStatus = getDistributionStatus(service);
+                        const coordenadas = (client?.coordenadas?.lat && client?.coordenadas?.lng) ? `Coords: ${client.coordenadas.lat}, ${client.coordenadas.lng}` : '';
+
                         return (
                             <TableRow key={service.id}>
                                 <TableCell className="align-top">
                                     <div className="font-bold">{client?.nome_completo || 'Desconhecido'}</div>
-                                    <div className="text-xs text-muted-foreground">{formattedAddress}</div>
+                                    <div className="text-xs text-muted-foreground">{formattedResidencial}</div>
+                                    <div className="text-xs text-muted-foreground">{formattedObra}</div>
                                 </TableCell>
                                 <TableCell className="align-top">
                                   <div className="font-medium">{service.descricao}</div>
+                                  <div className="text-xs text-muted-foreground">{coordenadas}</div>
                                   {(service.anexos && service.anexos.length > 0) && (
                                     <div className="text-xs text-muted-foreground mt-1 space-y-1">
                                         {service.anexos.map((anexo, index) => (
@@ -1045,7 +1051,7 @@ export default function ServicosPage() {
                                 </TableCell>
                                  <TableCell className="align-top space-y-1">
                                     <Badge variant={service.status === 'concluído' ? 'secondary' : service.status === 'cancelado' ? 'destructive' : 'default'}>{service.status}</Badge>
-                                    <Badge variant={distributionStatus.props.variant}>{distributionStatus.props.children}</Badge>
+                                    <Badge variant={distributionStatus.variant}>{distributionStatus.text}</Badge>
                                 </TableCell>
                                 <TableCell className="align-top">
                                     <DropdownMenu>
