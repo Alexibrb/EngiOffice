@@ -574,7 +574,11 @@ export default function ServicosPage() {
     doc.setFontSize(12);
     doc.setFont('helvetica', 'normal');
     doc.text(companyData?.companyName || 'EngiOffice', 20, 40);
-    doc.text(`CNPJ: ${companyData?.cnpj || 'Não informado'}`, 20, 46);
+    const contactInfo = [
+        companyData?.cnpj ? `CNPJ: ${companyData.cnpj}` : '',
+        companyData?.crea ? `CREA: ${companyData.crea}` : ''
+    ].filter(Boolean).join(' | ');
+    doc.text(contactInfo, 20, 46);
     doc.text(companyData?.address || 'Endereço não informado', 20, 52);
 
 

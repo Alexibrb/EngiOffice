@@ -130,6 +130,7 @@ export type CompanyData = {
   cnpj?: string;
   address?: string;
   phone?: string;
+  crea?: string;
 };
 
     

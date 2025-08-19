@@ -45,8 +45,10 @@ function CompanyHeader({ companyData }: { companyData: CompanyData | null }) {
             <p className="text-xs text-muted-foreground">{companyData?.address || 'Endereço da empresa'}</p>
             <p className="text-xs text-muted-foreground">
                 {companyData?.phone && <span>{companyData.phone}</span>}
-                {companyData?.phone && companyData?.cnpj && <span className="mx-2">|</span>}
-                {companyData?.cnpj && <span>{companyData.cnpj}</span>}
+                {(companyData?.phone && (companyData?.cnpj || companyData?.crea)) && <span className="mx-2">|</span>}
+                {companyData?.cnpj && <span>CNPJ: {companyData.cnpj}</span>}
+                {(companyData?.cnpj && companyData?.crea) && <span className="mx-2">|</span>}
+                {companyData?.crea && <span>CREA: {companyData.crea}</span>}
             </p>
         </div>
       </div>

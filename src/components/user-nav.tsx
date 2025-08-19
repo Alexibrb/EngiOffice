@@ -48,6 +48,7 @@ const companySchema = z.object({
   companyName: z.string().min(1, { message: "Nome da empresa é obrigatório." }),
   slogan: z.string().optional(),
   cnpj: z.string().optional(),
+  crea: z.string().optional(),
   address: z.string().optional(),
   phone: z.string().optional(),
 });
@@ -69,6 +70,7 @@ function CompanyDataDialog({ isOpen, onOpenChange }: { isOpen: boolean, onOpenCh
       companyName: '',
       slogan: '',
       cnpj: '',
+      crea: '',
       address: '',
       phone: '',
     },
@@ -162,6 +164,17 @@ function CompanyDataDialog({ isOpen, onOpenChange }: { isOpen: boolean, onOpenCh
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>CNPJ</FormLabel>
+                    <FormControl><Input {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+               <FormField
+                control={form.control}
+                name="crea"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>CREA</FormLabel>
                     <FormControl><Input {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>

@@ -440,9 +440,13 @@ export default function RelatoriosPage() {
         doc.text(companyData.address, pageWidth / 2, currentY, { align: 'center' });
         currentY += 5;
     }
-    const phoneAndCnpj = [companyData?.phone, companyData?.cnpj].filter(Boolean).join(' | ');
-    if (phoneAndCnpj) {
-        doc.text(phoneAndCnpj, pageWidth / 2, currentY, { align: 'center' });
+    const contactInfo = [
+        companyData?.phone,
+        companyData?.cnpj ? `CNPJ: ${companyData.cnpj}` : '',
+        companyData?.crea ? `CREA: ${companyData.crea}` : ''
+    ].filter(Boolean).join(' | ');
+    if (contactInfo) {
+        doc.text(contactInfo, pageWidth / 2, currentY, { align: 'center' });
         currentY += 8;
     }
     
