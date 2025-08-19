@@ -23,7 +23,7 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import { collection, getDocs, doc, updateDoc, Timestamp, writeBatch } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
-import { Calendar as CalendarIcon, Download, ExternalLink, XCircle, ArrowUp, TrendingUp, MoreHorizontal, HandCoins, FileText, Loader2, User, Users, CheckCircle } from 'lucide-react';
+import { Calendar as CalendarIcon, Download, ExternalLink, XCircle, ArrowUp, TrendingUp, MoreHorizontal, HandCoins, FileText, Loader2, User, Users, CheckCircle, Link as LinkIcon } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -141,7 +141,7 @@ export default function ContasAReceberPage() {
             });
             setServices(servicesData);
 
-            const clientsData = clientsSnapshot.docs.map(doc => ({ ...doc.data(), codigo_cliente: doc.id } as Client));
+            const clientsData = clientsSnapshot.docs.map(doc => ({ ...doc.data(), codigo_cliente: doc.id }) as Client);
             setClients(clientsData);
 
             await fetchFinancials();
@@ -519,14 +519,14 @@ function ReceivableTableComponent({ services, getClient, totalValor, totalSaldo,
         const isDistributable = service.status !== 'cancelado' && (service.valor_pago || 0) > 0;
         
         if (!isDistributable) {
-            return <Badge variant="outline">Aguardando</Badge>
+            return { text: 'Aguardando', variant: 'outline' as const };
         }
         
         if (service.lucro_distribuido) {
-            return <Badge variant="secondary">Realizada</Badge>;
+            return { text: 'Realizada', variant: 'secondary' as const };
         }
         
-        return <Badge variant="destructive">Pendente</Badge>;
+        return { text: 'Pendente', variant: 'destructive' as const };
     }
 
     return (
@@ -534,41 +534,51 @@ function ReceivableTableComponent({ services, getClient, totalValor, totalSaldo,
             <Table>
                 <TableHeader>
                     <TableRow>
-                        <TableHead>Cliente</TableHead>
-                        <TableHead>Descrição / Endereço</TableHead>
-                        <TableHead>Valor do Serviço</TableHead>
-                        <TableHead>Saldo Devedor</TableHead>
+                        <TableHead>Cliente / Endereços</TableHead>
+                        <TableHead>Detalhes do Serviço</TableHead>
+                        <TableHead>Valores</TableHead>
                         <TableHead>Status</TableHead>
-                        <TableHead>Distribuição</TableHead>
                          <TableHead><span className="sr-only">Ações</span></TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
                     {services.length > 0 ? services.map((service) => {
                         const client = getClient(service.cliente_id);
-                        const address = client?.endereco_obra;
-                        const formattedAddress = address ? `${address.street}, ${address.number} - ${address.neighborhood}, ${address.city} - ${address.state}` : 'N/A';
+                        const residencial = client?.endereco_residencial;
+                        const obra = client?.endereco_obra;
+                        const formattedResidencial = (residencial && residencial.street) ? `Residencial: ${residencial.street}, ${residencial.number} - ${residencial.neighborhood}, ${residencial.city}` : '';
+                        const formattedObra = (obra && obra.street) ? `Obra: ${obra.street}, ${obra.number} - ${obra.neighborhood}, ${obra.city}` : '';
+                        const distributionStatus = getDistributionStatus(service);
+                        const coordenadas = (client?.coordenadas?.lat && client?.coordenadas?.lng) ? `Coords: ${client.coordenadas.lat}, ${client.coordenadas.lng}` : '';
 
                         return (
                             <TableRow key={service.id}>
-                                <TableCell className="font-medium">{client?.nome_completo || 'Desconhecido'}</TableCell>
-                                <TableCell>
+                                <TableCell className="align-top">
+                                    <div className="font-bold">{client?.nome_completo || 'Desconhecido'}</div>
+                                    <div className="text-xs text-muted-foreground">{formattedResidencial}</div>
+                                    <div className="text-xs text-muted-foreground">{formattedObra}</div>
+                                </TableCell>
+                                <TableCell className="align-top">
                                   <div className="font-medium">{service.descricao}</div>
-                                  <div className="text-xs text-muted-foreground">{formattedAddress}</div>
+                                  <div className="text-xs text-muted-foreground">{coordenadas}</div>
+                                  {(service.anexos && service.anexos.length > 0) && (
+                                    <div className="text-xs text-muted-foreground mt-1 space-y-1">
+                                        {service.anexos.map((anexo, index) => (
+                                            <a key={index} href={anexo} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:underline truncate">
+                                                <LinkIcon className="h-3 w-3 shrink-0"/>
+                                                <span className="truncate">{anexo}</span>
+                                            </a>
+                                        ))}
+                                    </div>
+                                  )}
                                 </TableCell>
-                                <TableCell>R$ {(service.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
-                                <TableCell className="text-red-500">R$ {(service.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
-                                <TableCell>
-                                    <Badge variant={
-                                        service.status === 'concluído' ? 'secondary' :
-                                        service.status === 'cancelado' ? 'destructive' :
-                                        'default'
-                                    }>
-                                        {service.status}
-                                    </Badge>
+                                <TableCell className="align-top">
+                                    <div className="font-medium">Total: R$ {(service.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                                    <div className="text-sm text-red-500">Saldo: R$ {(service.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
                                 </TableCell>
-                                <TableCell>
-                                    {getDistributionStatus(service)}
+                                 <TableCell className="align-top space-y-1">
+                                    <Badge variant={service.status === 'concluído' ? 'secondary' : service.status === 'cancelado' ? 'destructive' : 'default'}>{service.status}</Badge>
+                                    <Badge variant={distributionStatus.variant}>{distributionStatus.text}</Badge>
                                 </TableCell>
                                 <TableCell>
                                     <DropdownMenu>
@@ -607,17 +617,18 @@ function ReceivableTableComponent({ services, getClient, totalValor, totalSaldo,
                         )
                     }) : (
                         <TableRow>
-                            <TableCell colSpan={7} className="h-24 text-center">Nenhum serviço encontrado.</TableCell>
+                            <TableCell colSpan={5} className="h-24 text-center">Nenhum serviço encontrado.</TableCell>
                         </TableRow>
                     )}
                 </TableBody>
                 <TableFooter>
                     <TableRow>
-                        <TableCell colSpan={3} className="font-bold">Total</TableCell>
-                        <TableCell className="text-right font-bold text-red-500">
-                           R$ {totalSaldo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        <TableCell colSpan={2} className="font-bold">Total</TableCell>
+                        <TableCell className="font-bold">
+                           <div>Total: R$ {totalValor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                           <div className="text-red-500">Saldo: R$ {totalSaldo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
                         </TableCell>
-                        <TableCell colSpan={3}></TableCell>
+                        <TableCell colSpan={2}></TableCell>
                     </TableRow>
                 </TableFooter>
             </Table>
