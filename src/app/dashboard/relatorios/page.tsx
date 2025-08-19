@@ -22,7 +22,7 @@ import {
 import type { Client, Supplier, Service, Account, Employee, CompanyData } from '@/lib/types';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { Download, Search, XCircle, Calendar as CalendarIcon, ChevronDown, ChevronRight, LinkIcon } from 'lucide-react';
+import { Download, Search, XCircle, Calendar as CalendarIcon, ChevronDown, ChevronRight, Link as LinkIcon } from 'lucide-react';
 import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from "@/hooks/use-toast"
@@ -305,14 +305,14 @@ export default function RelatoriosPage() {
     const isDistributable = service.status !== 'cancelado' && (service.valor_pago || 0) > 0;
     
     if (!isDistributable) {
-        return <Badge variant="outline">Aguardando</Badge>
+        return { text: 'Aguardando', variant: 'outline' as const };
     }
     
     if (service.lucro_distribuido) {
-        return <Badge variant="secondary">Realizada</Badge>;
+        return { text: 'Realizada', variant: 'secondary' as const };
     }
     
-    return <Badge variant="destructive">Pendente</Badge>;
+    return { text: 'Pendente', variant: 'destructive' as const };
   }
 
 
@@ -362,24 +362,29 @@ export default function RelatoriosPage() {
         break;
       case 'services':
         reportTitle = 'Relatório de Serviços';
-        head = [['Cliente', 'Descrição / Endereço', 'Valores', 'Status', 'Coordenadas', 'Anexos']];
+        head = [['Cliente / Endereços', 'Detalhes do Serviço', 'Valores', 'Status']];
         body = data.map((item: Service) => {
             const client = getClient(item.cliente_id);
-            const address = client?.endereco_obra;
-            const formattedAddress = address ? `${address.street}, ${address.number} - ${address.neighborhood}, ${address.city} - ${address.state}` : 'N/A';
+            const residencial = client?.endereco_residencial;
+            const obra = client?.endereco_obra;
+            const formattedResidencial = residencial ? `Residencial: ${residencial.street}, ${residencial.number} - ${residencial.neighborhood}, ${residencial.city}` : '';
+            const formattedObra = obra ? `Obra: ${obra.street}, ${obra.number} - ${obra.neighborhood}, ${obra.city}` : '';
+            
+            const coordenadas = (client?.coordenadas?.lat && client?.coordenadas?.lng) ? `Coords: ${client.coordenadas.lat}, ${client.coordenadas.lng}` : '';
+            const anexos = item.anexos && item.anexos.length > 0 ? `Anexos: ${item.anexos.join(', ')}` : '';
+
             const valores = `Total: R$ ${item.valor_total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}\nSaldo: R$ ${item.saldo_devedor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
-            const coordenadas = `Lat: ${client?.coordenadas?.lat || 'N/A'}\nLng: ${client?.coordenadas?.lng || 'N/A'}`;
-            const anexos = item.anexos && item.anexos.length > 0 ? item.anexos.join('\n') : 'N/A';
+            const statusServico = `Serviço: ${item.status}`;
+            const statusDistribuicao = `Distribuição: ${getDistributionStatus(item).text}`;
+
             return [
-                client?.nome_completo || 'Desconhecido', 
-                `${item.descricao}\n${formattedAddress}`, 
+                `${client?.nome_completo || 'Desconhecido'}\n${formattedResidencial}\n${formattedObra}`, 
+                `${item.descricao}\n${coordenadas}\n${anexos}`,
                 valores,
-                item.status,
-                coordenadas,
-                anexos
+                `${statusServico}\n${statusDistribuicao}`
             ];
         });
-        foot = [['Total', '', `R$ ${(totals.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, '', '', '']];
+        foot = [['Total', '', `Total: R$ ${(totals.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}\nSaldo: R$ ${(totals.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, '']];
         fileName = 'relatorio_servicos.pdf';
         break;
       case 'accountsPayable':
@@ -593,56 +598,67 @@ export default function RelatoriosPage() {
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead>Cliente</TableHead>
-                            <TableHead>Descrição / Endereço</TableHead>
-                            <TableHead>Valor Total</TableHead>
-                            <TableHead>Saldo Devedor</TableHead>
+                            <TableHead>Cliente / Endereços</TableHead>
+                            <TableHead>Detalhes do Serviço</TableHead>
+                            <TableHead>Valores</TableHead>
                             <TableHead>Status</TableHead>
-                            <TableHead>Distribuição</TableHead>
-                            <TableHead>Coordenadas</TableHead>
-                            <TableHead>Anexos</TableHead>
                         </TableRow>
                     </TableHeader>
                   <TableBody>
                     {filteredData.length > 0 ? filteredData.slice(0, 10).map((s: Service) => {
                          const client = getClient(s.cliente_id);
-                         const address = client?.endereco_obra;
-                         const formattedAddress = address ? `${address.street}, ${address.number} - ${address.neighborhood}, ${address.city} - ${address.state}` : 'N/A';
+                         const residencial = client?.endereco_residencial;
+                         const obra = client?.endereco_obra;
+                         const formattedResidencial = (residencial && residencial.street) ? `Residencial: ${residencial.street}, ${residencial.number} - ${residencial.neighborhood}, ${residencial.city}` : '';
+                         const formattedObra = (obra && obra.street) ? `Obra: ${obra.street}, ${obra.number} - ${obra.neighborhood}, ${obra.city}` : '';
+                         
+                         const distributionStatus = getDistributionStatus(s);
+
                          return (
                             <TableRow key={s.id}>
-                                <TableCell className="font-medium">{client?.nome_completo || 'Desconhecido'}</TableCell>
-                                <TableCell>
+                                <TableCell className="align-top">
+                                    <div className="font-bold">{client?.nome_completo || 'Desconhecido'}</div>
+                                    <div className="text-xs text-muted-foreground">{formattedResidencial}</div>
+                                    <div className="text-xs text-muted-foreground">{formattedObra}</div>
+                                </TableCell>
+                                <TableCell className="align-top">
                                   <div className="font-medium">{s.descricao}</div>
-                                  <div className="text-xs text-muted-foreground">{formattedAddress}</div>
+                                  {(client?.coordenadas?.lat && client?.coordenadas?.lng) && (
+                                    <div className="text-xs text-muted-foreground">
+                                        Coords: {client.coordenadas.lat}, {client.coordenadas.lng}
+                                    </div>
+                                  )}
+                                   {(s.anexos && s.anexos.length > 0) && (
+                                        <div className="text-xs text-muted-foreground mt-1 space-y-1">
+                                            {s.anexos.map((anexo, index) => (
+                                                <a key={index} href={anexo} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:underline truncate">
+                                                    <LinkIcon className="h-3 w-3 shrink-0"/>
+                                                    <span className="truncate">{anexo}</span>
+                                                </a>
+                                            ))}
+                                        </div>
+                                    )}
                                 </TableCell>
-                                <TableCell>R$ {(s.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
-                                <TableCell className="text-red-500">R$ {(s.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
-                                <TableCell><Badge variant={s.status === 'concluído' ? 'secondary' : s.status === 'cancelado' ? 'destructive' : 'default'}>{s.status}</Badge></TableCell>
-                                <TableCell>{getDistributionStatus(s)}</TableCell>
-                                <TableCell className="text-xs">
-                                    {client?.coordenadas?.lat ? `Lat: ${client.coordenadas.lat}` : ''}<br/>
-                                    {client?.coordenadas?.lng ? `Lng: ${client.coordenadas.lng}` : ''}
+                                <TableCell className="align-top">
+                                    <div className="font-medium">Total: R$ {(s.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                                    <div className="text-sm text-red-500">Saldo: R$ {(s.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
                                 </TableCell>
-                                <TableCell className="text-xs">
-                                    {(s.anexos && s.anexos.length > 0) ? (
-                                        s.anexos.map((anexo, index) => (
-                                            <a key={index} href={anexo} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:underline truncate">
-                                                <LinkIcon className="h-3 w-3 shrink-0"/>
-                                                <span>{anexo.split('/').pop()}</span>
-                                            </a>
-                                        ))
-                                    ) : 'N/A'}
+                                <TableCell className="align-top space-y-1">
+                                    <Badge variant={s.status === 'concluído' ? 'secondary' : s.status === 'cancelado' ? 'destructive' : 'default'}>{s.status}</Badge>
+                                    <Badge variant={distributionStatus.variant}>{distributionStatus.text}</Badge>
                                 </TableCell>
                             </TableRow>
                          )
-                    }) : (<TableRow><TableCell colSpan={8} className="h-24 text-center">Nenhum serviço encontrado.</TableCell></TableRow>)}
+                    }) : (<TableRow><TableCell colSpan={4} className="h-24 text-center">Nenhum serviço encontrado.</TableCell></TableRow>)}
                   </TableBody>
                   <TableFooter>
                     <TableRow>
                       <TableCell colSpan={2} className="font-bold">Total</TableCell>
-                      <TableCell className="font-bold">R$ {(totals.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
-                      <TableCell className="font-bold text-red-500">R$ {(totals.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
-                      <TableCell colSpan={4}></TableCell>
+                      <TableCell className="font-bold">
+                        <div>Total: R$ {(totals.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                        <div className="text-red-500">Saldo: R$ {(totals.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                      </TableCell>
+                      <TableCell></TableCell>
                     </TableRow>
                   </TableFooter>
                 </Table>
