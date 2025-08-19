@@ -445,6 +445,7 @@ export default function ServicosPage() {
             valor_pago: novoValorPago,
             saldo_devedor: novoSaldoDevedor,
             status: newStatus,
+            lucro_distribuido: false, // Resetar para permitir nova distribuição
         });
 
         toast({ title: 'Sucesso!', description: 'Pagamento lançado com sucesso.' });
