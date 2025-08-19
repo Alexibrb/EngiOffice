@@ -278,10 +278,12 @@ export default function DashboardPage() {
         }
 
         const serviceDocRef = doc(db, 'servicos', editingService.id);
+        const newStatus = novoSaldoDevedor === 0 ? 'concluído' : 'em andamento';
         await updateDoc(serviceDocRef, {
             valor_pago: novoValorPago,
             saldo_devedor: novoSaldoDevedor,
-            status: novoSaldoDevedor === 0 ? 'concluído' : 'em andamento'
+            status: newStatus,
+            lucro_distribuido: false,
         });
 
         toast({ title: 'Sucesso!', description: 'Pagamento lançado com sucesso.' });
@@ -471,7 +473,7 @@ export default function DashboardPage() {
                                   <DropdownMenuItem onClick={() => handleEditService(service.id)}>
                                     Editar
                                   </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => handlePaymentClick(service)} disabled={service.forma_pagamento !== 'a_prazo' || service.status !== 'em andamento'}>
+                                  <DropdownMenuItem onClick={() => handlePaymentClick(service)} disabled={service.status !== 'em andamento'}>
                                     <HandCoins className="mr-2 h-4 w-4" />
                                     Lançar Pagamento
                                   </DropdownMenuItem>
