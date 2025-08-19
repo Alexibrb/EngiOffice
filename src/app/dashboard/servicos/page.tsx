@@ -1260,9 +1260,10 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, paymentValue, fi
                 }
             });
             
-             // Marcar o serviço como tendo o lucro distribuído
             const serviceDocRef = doc(db, 'servicos', service.id);
-            batch.update(serviceDocRef, { lucro_distribuido: true });
+            const isFullyPaid = (service.saldo_devedor || 0) <= 0;
+            batch.update(serviceDocRef, { lucro_distribuido: isFullyPaid });
+
 
             await batch.commit();
 

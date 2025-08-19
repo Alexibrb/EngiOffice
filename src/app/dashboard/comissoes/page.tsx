@@ -597,6 +597,7 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, financials, toas
             const isFullyPaid = (service.saldo_devedor || 0) <= 0;
             batch.update(serviceDocRef, { lucro_distribuido: isFullyPaid });
 
+
             await batch.commit();
 
             toast({ title: 'Sucesso!', description: 'Comissões distribuídas e lançadas com sucesso!' });

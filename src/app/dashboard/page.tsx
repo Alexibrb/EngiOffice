@@ -214,7 +214,7 @@ export default function DashboardPage() {
     const pageWidth = doc.internal.pageSize.getWidth();
     
     const isPartialPayment = paymentValue !== undefined && paymentValue < service.valor_total;
-    const valueToDisplay = isPartialPayment ? paymentValue : service.valor_total;
+    const valueToDisplay = isPartialPayment ? paymentValue : service.valor_pago;
     const title = isPartialPayment ? 'RECIBO DE PAGAMENTO PARCIAL' : 'RECIBO DE PAGAMENTO';
 
 
