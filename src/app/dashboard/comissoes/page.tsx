@@ -79,7 +79,6 @@ export default function ComissoesPage() {
                 const data = doc.data();
                 return { ...data, id: doc.id, data: data.data.toDate() } as Commission;
             });
-            setCommissions(commissionsData);
             
             const employeesData = employeesSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }) as Employee);
             setEmployees(employeesData);
@@ -94,7 +93,7 @@ export default function ComissoesPage() {
             });
             setServices(servicesData);
             
-            const clientsData = clientsSnapshot.docs.map(doc => ({ ...doc.data(), codigo_cliente: doc.id }) as Client);
+            const clientsData = clientsSnapshot.docs.map(doc => ({ ...doc.data(), codigo_cliente: doc.id } as Client));
             setClients(clientsData);
 
             // Fetch financials for distribution dialog
@@ -117,6 +116,15 @@ export default function ComissoesPage() {
                 balance: totalRevenue - totalExpenses - totalCommissionsPaid,
                 commissionableEmployees,
             });
+            
+            const sortedCommissions = commissionsData.sort((a, b) => {
+                const serviceA = servicesData.find(s => s.id === a.servico_id);
+                const serviceB = servicesData.find(s => s.id === b.servico_id);
+                const dateA = serviceA ? new Date(serviceA.data_cadastro).getTime() : 0;
+                const dateB = serviceB ? new Date(serviceB.data_cadastro).getTime() : 0;
+                return dateB - dateA;
+            });
+            setCommissions(sortedCommissions);
 
 
         } catch (error) {
@@ -678,3 +686,6 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, financials, toas
 
     
 
+    
+
+    
