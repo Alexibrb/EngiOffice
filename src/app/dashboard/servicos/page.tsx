@@ -1125,7 +1125,8 @@ export default function ServicosPage() {
                     <TableRow>
                         <TableCell colSpan={2} className="font-bold">Total</TableCell>
                         <TableCell className="font-bold">
-                            <div className="text-red-500">Saldo: R$ {filteredSaldoDevedor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                           <div>Total: R$ {filteredTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                           <div className="text-red-500">Saldo: R$ {filteredSaldoDevedor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
                         </TableCell>
                         <TableCell colSpan={2}></TableCell>
                     </TableRow>
