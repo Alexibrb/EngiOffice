@@ -9,7 +9,7 @@ import { PageHeader } from '@/components/page-header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
-import { Loader2, XCircle, Calendar as CalendarIcon, Wrench, CheckCircle, CircleOff } from 'lucide-react';
+import { Loader2, XCircle, Calendar as CalendarIcon } from 'lucide-react';
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
@@ -103,7 +103,7 @@ export default function AnalyticsPage() {
 
 
     const financialOverviewData = () => {
-        const data: { name: string; recebido: number; pago: number }[] = [];
+        const data: { name: string; receitas: number; despesas: number }[] = [];
         for (let i = 5; i >= 0; i--) {
             const date = subMonths(new Date(), i);
             const monthName = format(date, 'MMM/yy', { locale: ptBR });
@@ -124,27 +124,42 @@ export default function AnalyticsPage() {
                 })
                 .reduce((acc, a) => acc + a.valor, 0);
 
-            data.push({ name: monthName, recebido: received, pago: paid });
+            data.push({ name: monthName, receitas: received, despesas: paid });
         }
         return data;
     };
+    
+    const commissionableEmployees = useMemo(() => {
+        return employees.filter(e => e.tipo_contratacao === 'comissao' && e.status === 'ativo');
+    }, [employees]);
+
 
     const commissionByMonthData = () => {
-        const data: { name: string; comissao: number }[] = [];
+        const data: { name: string; [key: string]: any }[] = [];
         for (let i = 5; i >= 0; i--) {
             const date = subMonths(new Date(), i);
             const monthName = format(date, 'MMM/yy', { locale: ptBR });
             const monthStart = startOfMonth(date);
             const monthEnd = endOfMonth(date);
-
-            const paidCommissions = filteredCommissions
-                .filter(c => {
-                    const commissionDate = new Date(c.data);
-                    return c.status === 'pago' && !isNaN(commissionDate.getTime()) && commissionDate >= monthStart && commissionDate <= monthEnd
-                })
-                .reduce((acc, c) => acc + c.valor, 0);
             
-            data.push({ name: monthName, comissao: paidCommissions });
+            const monthData: { name: string; [key: string]: any } = { name: monthName };
+
+            commissionableEmployees.forEach(emp => {
+                const totalCommission = filteredCommissions
+                    .filter(c => {
+                        const commissionDate = new Date(c.data);
+                        return c.funcionario_id === emp.id && 
+                               c.status === 'pago' && 
+                               !isNaN(commissionDate.getTime()) && 
+                               commissionDate >= monthStart && 
+                               commissionDate <= monthEnd;
+                    })
+                    .reduce((acc, c) => acc + c.valor, 0);
+                
+                monthData[emp.nome] = totalCommission;
+            });
+            
+            data.push(monthData);
         }
         return data;
     }
@@ -251,17 +266,17 @@ export default function AnalyticsPage() {
                 <Card>
                     <CardHeader>
                         <CardTitle>Visão Geral Financeira</CardTitle>
-                        <CardDescription>Receita vs. Despesas nos últimos 6 meses (baseado nos filtros).</CardDescription>
+                        <CardDescription>Receitas vs. Despesas nos últimos 6 meses (baseado nos filtros).</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <ChartContainer config={{}} className="h-[300px] w-full">
                             <AreaChart data={financialOverviewData()}>
                                  <defs>
-                                    <linearGradient id="colorRecebido" x1="0" y1="0" x2="0" y2="1">
+                                    <linearGradient id="colorReceitas" x1="0" y1="0" x2="0" y2="1">
                                     <stop offset="5%" stopColor={POSITIVE_COLOR} stopOpacity={0.8}/>
                                     <stop offset="95%" stopColor={POSITIVE_COLOR} stopOpacity={0}/>
                                     </linearGradient>
-                                    <linearGradient id="colorPago" x1="0" y1="0" x2="0" y2="1">
+                                    <linearGradient id="colorDespesas" x1="0" y1="0" x2="0" y2="1">
                                     <stop offset="5%" stopColor={NEGATIVE_COLOR} stopOpacity={0.8}/>
                                     <stop offset="95%" stopColor={NEGATIVE_COLOR} stopOpacity={0}/>
                                     </linearGradient>
@@ -269,10 +284,10 @@ export default function AnalyticsPage() {
                                 <CartesianGrid vertical={false} />
                                 <XAxis dataKey="name" tickLine={false} axisLine={false} tickMargin={8} />
                                 <YAxis tickFormatter={(value) => `R$${value/1000}k`}/>
-                                <ChartTooltip content={<ChartTooltipContent formatter={(value) => `R$ ${Number(value).toLocaleString('pt-BR')}`}/>} />
+                                <ChartTooltip content={<ChartTooltipContent formatter={(value, name) => `${name}: R$ ${Number(value).toLocaleString('pt-BR')}`}/>} />
                                 <ChartLegend content={<ChartLegendContent />} />
-                                <Area type="monotone" dataKey="recebido" stroke={POSITIVE_COLOR} fillOpacity={1} fill="url(#colorRecebido)" name="Recebido" />
-                                <Area type="monotone" dataKey="pago" stroke={NEGATIVE_COLOR} fillOpacity={1} fill="url(#colorPago)" name="Pago" />
+                                <Area type="monotone" dataKey="receitas" stroke={POSITIVE_COLOR} fillOpacity={1} fill="url(#colorReceitas)" name="Receitas" />
+                                <Area type="monotone" dataKey="despesas" stroke={NEGATIVE_COLOR} fillOpacity={1} fill="url(#colorDespesas)" name="Despesas" />
                             </AreaChart>
                         </ChartContainer>
                     </CardContent>
@@ -321,16 +336,19 @@ export default function AnalyticsPage() {
                 <Card>
                     <CardHeader>
                         <CardTitle>Comissões por Mês</CardTitle>
-                        <CardDescription>Total de comissões pagas nos últimos 6 meses (baseado nos filtros).</CardDescription>
+                        <CardDescription>Total de comissões pagas por funcionário nos últimos 6 meses (baseado nos filtros).</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <ChartContainer config={{}} className="h-[300px] w-full">
-                           <BarChart data={commissionByMonthData()}>
+                           <BarChart data={commissionByMonthData()} stackOffset="sign">
                                 <CartesianGrid vertical={false} />
                                 <XAxis dataKey="name" tickLine={false} axisLine={false} tickMargin={8} />
                                 <YAxis tickFormatter={(value) => `R$${value/1000}k`}/>
-                                <ChartTooltip content={<ChartTooltipContent formatter={(value) => `R$ ${Number(value).toLocaleString('pt-BR')}`}/>} />
-                                <Bar dataKey="comissao" fill={NEGATIVE_COLOR} radius={4} name="Comissão" />
+                                <ChartTooltip content={<ChartTooltipContent formatter={(value, name) => `${name}: R$ ${Number(value).toLocaleString('pt-BR')}`} />} />
+                                <ChartLegend content={<ChartLegendContent />} />
+                                {commissionableEmployees.map((emp, index) => (
+                                    <Bar key={emp.id} dataKey={emp.nome} fill={COLORS[index % COLORS.length]} stackId="a" radius={4} />
+                                ))}
                             </BarChart>
                         </ChartContainer>
                     </CardContent>
