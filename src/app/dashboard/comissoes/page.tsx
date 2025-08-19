@@ -594,7 +594,8 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, financials, toas
             });
             
             const serviceDocRef = doc(db, 'servicos', service.id);
-            batch.update(serviceDocRef, { lucro_distribuido: true });
+            const isFullyPaid = (service.saldo_devedor || 0) <= 0;
+            batch.update(serviceDocRef, { lucro_distribuido: isFullyPaid });
 
             await batch.commit();
 
@@ -677,5 +678,7 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, financials, toas
         </Dialog>
     );
 }
+
+    
 
     
