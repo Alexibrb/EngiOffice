@@ -36,7 +36,7 @@ const initialRow: Omit<SapataRow, 'id'> = {
 const CIMENTO_POR_M3 = 350; // kg/m³ (aprox. 7 sacos/m³)
 const PROPORCAO_AREIA = 0.52; // m³ de areia por m³ de concreto
 const PROPORCAO_BRITA = 0.83; // m³ de brita por m³ de concreto
-const PESO_FERRO_POR_METRO = 0.617; // kg/m para barra de 10mm (exemplo)
+const COMPRIMENTO_BARRA_FERRO = 12; // metros
 
 
 export default function QuantitativoPage() {
@@ -74,18 +74,11 @@ export default function QuantitativoPage() {
       const volumeUnitario = larguraM * comprimentoM * alturaM;
       const volumeTotal = volumeUnitario * row.quant;
       
-      // Ajuste de 7cm para a dobra do ferro
       const dobraM = 0.07; 
       
-      const perimetroVertical = ((larguraM + dobraM) + (alturaM + dobraM)) * 2;
-      const perimetroHorizontal = ((larguraM + dobraM) + (comprimentoM + dobraM)) * 2;
+      const totalLinearFerro = (((larguraM + dobraM) * 2 * row.elosVert) + ((comprimentoM + dobraM) * 2 * row.elosHoriz)) * row.quant;
+      const totalBarrasFerro = Math.ceil(totalLinearFerro / COMPRIMENTO_BARRA_FERRO);
 
-      const totalLinearVertical = perimetroVertical * row.elosVert;
-      const totalLinearHorizontal = perimetroHorizontal * row.elosHoriz;
-
-      const totalLinearFerro = (totalLinearVertical + totalLinearHorizontal) * row.quant;
-
-      const totalPesoFerro = totalLinearFerro * PESO_FERRO_POR_METRO;
       const cimentoKg = volumeTotal * CIMENTO_POR_M3;
       const areiaM3 = volumeTotal * PROPORCAO_AREIA;
       const britaM3 = volumeTotal * PROPORCAO_BRITA;
@@ -94,7 +87,7 @@ export default function QuantitativoPage() {
         ...row,
         volume: volumeTotal,
         totalLinear: totalLinearFerro,
-        totalFerro: totalPesoFerro,
+        totalBarras: totalBarrasFerro,
         cimento: cimentoKg,
         areia: areiaM3,
         brita: britaM3,
@@ -106,12 +99,12 @@ export default function QuantitativoPage() {
     return calculatedRows.reduce((acc, row) => {
       acc.volume += row.volume;
       acc.totalLinear += row.totalLinear;
-      acc.totalFerro += row.totalFerro;
+      acc.totalBarras += row.totalBarras;
       acc.cimento += row.cimento;
       acc.areia += row.areia;
       acc.brita += row.brita;
       return acc;
-    }, { volume: 0, totalLinear: 0, totalFerro: 0, cimento: 0, areia: 0, brita: 0 });
+    }, { volume: 0, totalLinear: 0, totalBarras: 0, cimento: 0, areia: 0, brita: 0 });
   }, [calculatedRows]);
 
 
@@ -143,7 +136,7 @@ export default function QuantitativoPage() {
                   <TableHead>Elos Vert.</TableHead>
                   <TableHead>Volume (m³)</TableHead>
                   <TableHead>Total Linear (m)</TableHead>
-                  <TableHead>Total Ferros (kg)</TableHead>
+                  <TableHead>Barras de 12m</TableHead>
                   <TableHead>Cimento (kg)</TableHead>
                   <TableHead>Areia (m³)</TableHead>
                   <TableHead>Brita (m³)</TableHead>
@@ -153,17 +146,17 @@ export default function QuantitativoPage() {
               <TableBody>
                 {calculatedRows.map((row) => (
                   <TableRow key={row.id}>
-                    <TableCell><Input value={row.pav} onChange={(e) => handleInputChange(row.id, 'pav', e.target.value)} /></TableCell>
-                    <TableCell><Input value={row.tipo} onChange={(e) => handleInputChange(row.id, 'tipo', e.target.value)} /></TableCell>
-                    <TableCell><Input type="number" value={row.quant} onChange={(e) => handleInputChange(row.id, 'quant', e.target.value)} /></TableCell>
-                    <TableCell><Input type="number" step="1" value={row.largura} onChange={(e) => handleInputChange(row.id, 'largura', e.target.value)} /></TableCell>
-                    <TableCell><Input type="number" step="1" value={row.comprimento} onChange={(e) => handleInputChange(row.id, 'comprimento', e.target.value)} /></TableCell>
-                    <TableCell><Input type="number" step="1" value={row.altura} onChange={(e) => handleInputChange(row.id, 'altura', e.target.value)} /></TableCell>
-                    <TableCell><Input type="number" value={row.elosHoriz} onChange={(e) => handleInputChange(row.id, 'elosHoriz', e.target.value)} /></TableCell>
-                    <TableCell><Input type="number" value={row.elosVert} onChange={(e) => handleInputChange(row.id, 'elosVert', e.target.value)} /></TableCell>
+                    <TableCell><Input className="min-w-[100px]" value={row.pav} onChange={(e) => handleInputChange(row.id, 'pav', e.target.value)} /></TableCell>
+                    <TableCell><Input className="min-w-[80px]" value={row.tipo} onChange={(e) => handleInputChange(row.id, 'tipo', e.target.value)} /></TableCell>
+                    <TableCell><Input className="min-w-[80px]" type="number" value={row.quant} onChange={(e) => handleInputChange(row.id, 'quant', e.target.value)} /></TableCell>
+                    <TableCell><Input className="min-w-[120px]" type="number" step="1" value={row.largura} onChange={(e) => handleInputChange(row.id, 'largura', e.target.value)} /></TableCell>
+                    <TableCell><Input className="min-w-[120px]" type="number" step="1" value={row.comprimento} onChange={(e) => handleInputChange(row.id, 'comprimento', e.target.value)} /></TableCell>
+                    <TableCell><Input className="min-w-[120px]" type="number" step="1" value={row.altura} onChange={(e) => handleInputChange(row.id, 'altura', e.target.value)} /></TableCell>
+                    <TableCell><Input className="min-w-[120px]" type="number" value={row.elosHoriz} onChange={(e) => handleInputChange(row.id, 'elosHoriz', e.target.value)} /></TableCell>
+                    <TableCell><Input className="min-w-[120px]" type="number" value={row.elosVert} onChange={(e) => handleInputChange(row.id, 'elosVert', e.target.value)} /></TableCell>
                     <TableCell>{row.volume.toFixed(3)}</TableCell>
                     <TableCell>{row.totalLinear.toFixed(2)}</TableCell>
-                    <TableCell>{row.totalFerro.toFixed(2)}</TableCell>
+                    <TableCell>{row.totalBarras}</TableCell>
                     <TableCell>{row.cimento.toFixed(2)}</TableCell>
                     <TableCell>{row.areia.toFixed(3)}</TableCell>
                     <TableCell>{row.brita.toFixed(3)}</TableCell>
@@ -180,7 +173,7 @@ export default function QuantitativoPage() {
                     <TableCell colSpan={8} className="font-bold text-right">Totais</TableCell>
                     <TableCell className="font-bold">{totals.volume.toFixed(3)}</TableCell>
                     <TableCell className="font-bold">{totals.totalLinear.toFixed(2)}</TableCell>
-                    <TableCell className="font-bold">{totals.totalFerro.toFixed(2)}</TableCell>
+                    <TableCell className="font-bold">{totals.totalBarras}</TableCell>
                     <TableCell className="font-bold">{totals.cimento.toFixed(2)}</TableCell>
                     <TableCell className="font-bold">{totals.areia.toFixed(3)}</TableCell>
                     <TableCell className="font-bold">{totals.brita.toFixed(3)}</TableCell>
