@@ -427,7 +427,7 @@ function IrregularAreaCalculator() {
 function MaterialQuantifier() {
   const [serviceType, setServiceType] = useState('concreto');
   const [inputs, setInputs] = useState<Record<string, string>>({
-    volume: '0.18',
+    volume: '1.0',
     perda: '5',
     cimento: '1',
     areia: '2',
@@ -455,31 +455,46 @@ function MaterialQuantifier() {
       
       const volumeComPerdas = volume * (1 + (perda / 100));
 
-      // Fator Água/Cimento (exemplo, pode variar)
-      const fatorAguaCimento = 0.5;
+      // Dados de referência (pode variar)
+      const volumeLata = 18; // 1 lata = 18 litros
+      const massaSacoCimento = 50; // 1 saco de cimento = 50 kg
+      const densidadeCimento = 1400; // kg/m³ (cimento ensacado)
 
-      // Massa específica dos materiais (kg/m³)
-      const massaCimento = 3150;
-      const massaAreia = 2650;
-      const massaBrita = 2700;
+      // Volume do traço (em latas)
+      const volumeTracoEmLatas = cimento + areia + brita;
+      
+      // Volume de 1 saco de cimento (em litros)
+      const volumeSacoCimentoEmLitros = (massaSacoCimento / densidadeCimento) * 1000;
+      
+      // Rendimento: quantos m³ de concreto 1 traço produz
+      // Assumindo que 1 traço usa 1 saco de cimento
+      const volumeCimentoNoTraco = cimento * volumeSacoCimentoEmLitros;
+      const volumeAreiaNoTraco = areia * volumeLata;
+      const volumeBritaNoTraco = brita * volumeLata;
 
-      // Cálculo do consumo de materiais por m³ de concreto
-      const consumoCimento = (massaCimento * 1000) / (cimento + areia * (massaCimento / massaAreia) + brita * (massaCimento / massaBrita) + (fatorAguaCimento * massaCimento));
-      const consumoAreia = consumoCimento * areia / massaCimento;
-      const consumoBrita = consumoCimento * brita / massaCimento;
+      // O rendimento real é menor que a soma dos volumes secos. Um fator de 1.5 a 1.6 é comum.
+      // Simplificando, podemos usar um fator de rendimento para o traço em volume
+      // O rendimento de 1 saco de cimento (em m³)
+      const rendimentoPorSaco = (volumeSacoCimentoEmLitros + volumeAreiaNoTraco + volumeBritaNoTraco) / 1000 * 0.7; // Fator de redução
+      
+      const consumoCimentoPorM3 = 1 / rendimentoPorSaco; // Sacos/m³
+      
+      const consumoTotalCimentoSacos = volumeComPerdas * consumoCimentoPorM3;
+      const consumoTotalCimentoKg = consumoTotalCimentoSacos * massaSacoCimento;
 
-      const cimentoKg = volumeComPerdas * consumoCimento;
-      const cimentoSacos = Math.ceil(cimentoKg / 50);
+      // Consumo de agregados (m³) por m³ de concreto
+      const consumoAreiaM3 = (areia * volumeLata / 1000) * consumoCimentoPorM3;
+      const consumoBritaM3 = (brita * volumeLata / 1000) * consumoCimentoPorM3;
 
-      const volumeAreia = volumeComPerdas * consumoAreia;
-      const volumeBrita = volumeComPerdas * consumoBrita;
+      const volumeTotalAreia = volumeComPerdas * consumoAreiaM3;
+      const volumeTotalBrita = volumeComPerdas * consumoBritaM3;
 
 
       setResults({
-        'Cimento (sacos 50kg)': cimentoSacos,
-        'Cimento (kg)': cimentoKg.toFixed(2),
-        'Areia (m³)': volumeAreia.toFixed(3),
-        'Brita (m³)': volumeBrita.toFixed(3),
+        'Cimento (sacos 50kg)': Math.ceil(consumoTotalCimentoSacos),
+        'Cimento (kg)': consumoTotalCimentoKg.toFixed(2),
+        'Areia (m³)': volumeTotalAreia.toFixed(3),
+        'Brita (m³)': volumeTotalBrita.toFixed(3),
         'Volume com Perdas (m³)': volumeComPerdas.toFixed(3),
       });
     }
@@ -487,7 +502,7 @@ function MaterialQuantifier() {
   
   useEffect(() => {
     setInputs(serviceType === 'concreto' ? {
-        volume: '0.18',
+        volume: '1.0',
         perda: '5',
         cimento: '1',
         areia: '2',
@@ -503,7 +518,7 @@ function MaterialQuantifier() {
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="volume">Volume de Concreto (m³)</Label>
-              <Input id="volume" type="number" step="0.01" placeholder="Ex: 0.18" value={inputs.volume || ''} onChange={(e) => handleInputChange('volume', e.target.value)} />
+              <Input id="volume" type="number" step="0.01" placeholder="Ex: 1.0" value={inputs.volume || ''} onChange={(e) => handleInputChange('volume', e.target.value)} />
             </div>
              <div className="space-y-2">
               <Label htmlFor="perda">Percentual de Perda (%)</Label>
@@ -600,11 +615,9 @@ export default function CalculadoraPage() {
         title="Calculadora"
         description="Ferramentas rápidas para cálculos de engenharia e arquitetura."
       />
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <AreaCalculator />
         <PricePerSqMCalculator />
-      </div>
-      <div className="grid grid-cols-1 gap-8 mt-8">
         <AreaAnalysisCalculator />
         <IrregularAreaCalculator />
         <MaterialQuantifier />
