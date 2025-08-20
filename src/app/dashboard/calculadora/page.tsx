@@ -246,9 +246,9 @@ function AreaAnalysisCalculator() {
 
 const initialPoints = [
     { x: '0', y: '0' },
-    { x: '20', y: '0' },
-    { x: '20', y: '10' },
-    { x: '0', y: '10' },
+    { x: '10', y: '0' },
+    { x: '10', y: '20' },
+    { x: '0', y: '20' },
 ];
 
 function IrregularAreaCalculator() {
@@ -483,7 +483,7 @@ function BeamReinforcementCalculator() {
 
         // Suggest bars
         const suggestions = [];
-        for (let numBars = 2; numBars <= 8; numBars++) {
+        for (const numBars of [4, 6, 8, 10]) {
             for (const bar of steelBars) {
                 if (numBars * bar.area >= finalAs) {
                     suggestions.push({ num: numBars, bar, totalArea: numBars * bar.area });
@@ -593,10 +593,10 @@ export default function CalculadoraPage() {
         <AreaCalculator />
         <PricePerSqMCalculator />
         <AreaAnalysisCalculator />
-        <BeamReinforcementCalculator />
+        <IrregularAreaCalculator />
       </div>
       <div className="grid grid-cols-1 gap-8">
-        <IrregularAreaCalculator />
+        <BeamReinforcementCalculator />
       </div>
     </div>
   );
