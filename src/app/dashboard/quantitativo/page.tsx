@@ -33,7 +33,6 @@ const initialRow: Omit<SapataRow, 'id'> = {
 };
 
 // Constantes para cálculo de materiais (pode ser ajustado)
-const CIMENTO_POR_M3 = 350; // kg/m³ (aprox. 7 sacos/m³)
 const COMPRIMENTO_BARRA_FERRO = 12; // metros
 
 
@@ -77,12 +76,10 @@ export default function QuantitativoPage() {
       const totalLinearFerro = (((larguraComDobraM + alturaComDobraM) * 2 * row.elosVert) + ((comprimentoComDobraM + larguraComDobraM) * 2 * row.elosHoriz)) * row.quant;
       const totalBarrasFerro = (totalLinearFerro / COMPRIMENTO_BARRA_FERRO) * 1.1;
 
-      const cimentoKg = (volumeTotal * CIMENTO_POR_M3) * 1.1;
-      const cimentoSacos = cimentoKg / 50;
+      const cimentoSacos = volumeTotal > 0 ? volumeTotal / 0.16 : 0;
       
       const areiaM3 = (cimentoSacos * 5 * 18) / 1000;
       
-      // User specified formula for Brita
       const britaM3 = (cimentoSacos * 6 * 18) / 1000;
 
       return {
@@ -148,14 +145,14 @@ export default function QuantitativoPage() {
               <TableBody>
                 {calculatedRows.map((row) => (
                   <TableRow key={row.id}>
-                    <TableCell><Input value={row.pav} onChange={(e) => handleInputChange(row.id, 'pav', e.target.value)} /></TableCell>
-                    <TableCell><Input value={row.tipo} onChange={(e) => handleInputChange(row.id, 'tipo', e.target.value)} /></TableCell>
-                    <TableCell><Input type="number" value={row.quant} onChange={(e) => handleInputChange(row.id, 'quant', e.target.value)} /></TableCell>
-                    <TableCell><Input type="number" step="1" value={row.largura} onChange={(e) => handleInputChange(row.id, 'largura', e.target.value)} /></TableCell>
-                    <TableCell><Input type="number" step="1" value={row.comprimento} onChange={(e) => handleInputChange(row.id, 'comprimento', e.target.value)} /></TableCell>
-                    <TableCell><Input type="number" step="1" value={row.altura} onChange={(e) => handleInputChange(row.id, 'altura', e.target.value)} /></TableCell>
-                    <TableCell><Input type="number" value={row.elosHoriz} onChange={(e) => handleInputChange(row.id, 'elosHoriz', e.target.value)} /></TableCell>
-                    <TableCell><Input type="number" value={row.elosVert} onChange={(e) => handleInputChange(row.id, 'elosVert', e.target.value)} /></TableCell>
+                    <TableCell><Input value={row.pav} onChange={(e) => handleInputChange(row.id, 'pav', e.target.value)} className="w-24" /></TableCell>
+                    <TableCell><Input value={row.tipo} onChange={(e) => handleInputChange(row.id, 'tipo', e.target.value)} className="w-20" /></TableCell>
+                    <TableCell><Input type="number" value={row.quant} onChange={(e) => handleInputChange(row.id, 'quant', e.target.value)} className="w-20" /></TableCell>
+                    <TableCell><Input type="number" step="1" value={row.largura} onChange={(e) => handleInputChange(row.id, 'largura', e.target.value)} className="w-24" /></TableCell>
+                    <TableCell><Input type="number" step="1" value={row.comprimento} onChange={(e) => handleInputChange(row.id, 'comprimento', e.target.value)} className="w-24" /></TableCell>
+                    <TableCell><Input type="number" step="1" value={row.altura} onChange={(e) => handleInputChange(row.id, 'altura', e.target.value)} className="w-24" /></TableCell>
+                    <TableCell><Input type="number" value={row.elosHoriz} onChange={(e) => handleInputChange(row.id, 'elosHoriz', e.target.value)} className="w-24" /></TableCell>
+                    <TableCell><Input type="number" value={row.elosVert} onChange={(e) => handleInputChange(row.id, 'elosVert', e.target.value)} className="w-24" /></TableCell>
                     <TableCell>{row.volume.toFixed(3)}</TableCell>
                     <TableCell>{row.totalLinear.toFixed(2)}</TableCell>
                     <TableCell>{row.totalBarras.toFixed(2)}</TableCell>
