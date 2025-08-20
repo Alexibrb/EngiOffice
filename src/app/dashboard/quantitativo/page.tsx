@@ -733,6 +733,7 @@ type LajeRow = {
   id: string;
   pav: string;
   descricao: string;
+  tipo: 'Laje' | 'Contrapiso';
   espessuraConcreto: number; // cm
   area: number; // m²
 };
@@ -740,6 +741,7 @@ type LajeRow = {
 const initialLajeRow: Omit<LajeRow, 'id'> = {
   pav: 'Térreo',
   descricao: 'Laje 1',
+  tipo: 'Laje',
   espessuraConcreto: 0,
   area: 0,
 };
@@ -758,7 +760,7 @@ const LajeCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoFi
   const handleInputChange = (id: string, field: keyof LajeRow, value: string | number) => {
     const newRows = rows.map(row => {
       if (row.id === id) {
-        const parsedValue = (typeof value === 'string' && (field === 'pav' || field === 'descricao')) ? value : parseFloat(String(value)) || 0;
+        const parsedValue = (typeof value === 'string' && (field === 'pav' || field === 'descricao' || field === 'tipo')) ? value : parseFloat(String(value)) || 0;
         return { ...row, [field]: parsedValue };
       }
       return row;
@@ -790,14 +792,36 @@ const LajeCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoFi
   }, [filteredRows]);
 
   const getTotals = useCallback(() => {
-    return calculatedRows.reduce((acc: Totals, row) => {
-      (acc.volume as number) = (acc.volume as number || 0) + row.volume;
-      (acc.cimento as number) = (acc.cimento as number || 0) + row.cimento;
-      (acc.areia as number) = (acc.areia as number || 0) + row.areia;
-      (acc.brita as number) = (acc.brita as number || 0) + row.brita;
-      (acc.area as number) = (acc.area as number || 0) + row.area;
-      return acc;
-    }, { volume: 0, cimento: 0, areia: 0, brita: 0, area: 0 });
+    const totals: Totals = {
+        volume: 0,
+        cimento: 0,
+        areia: 0,
+        brita: 0,
+        area: 0,
+        items: [] as any
+    };
+
+    calculatedRows.forEach(row => {
+        (totals.volume as number) += row.volume;
+        (totals.cimento as number) += row.cimento;
+        (totals.areia as number) += row.areia;
+        (totals.brita as number) += row.brita;
+        if (row.tipo === 'Laje') {
+            (totals.area as number) += row.area;
+        }
+    });
+
+    (totals.items as any[]) = calculatedRows.map(row => ({
+        descricao: row.descricao,
+        tipo: row.tipo,
+        volume: row.volume,
+        cimento: row.cimento,
+        areia: row.areia,
+        brita: row.brita,
+        area: row.area
+    }));
+
+    return totals;
   }, [calculatedRows]);
 
   useImperativeHandle(ref, () => ({
@@ -825,6 +849,7 @@ const LajeCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoFi
               <TableRow>
                 <TableHead>Pav.</TableHead>
                 <TableHead>Descrição</TableHead>
+                <TableHead>Tipo</TableHead>
                 <TableHead>Espessura Concreto (cm)</TableHead>
                 <TableHead>Área (m²)</TableHead>
                 <TableHead className="font-bold bg-primary/10">Volume (m³)</TableHead>
@@ -846,6 +871,15 @@ const LajeCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoFi
                     </Select>
                   </TableCell>
                   <TableCell><Input value={row.descricao} onChange={(e) => handleInputChange(row.id, 'descricao', e.target.value)} /></TableCell>
+                  <TableCell className="min-w-[150px]">
+                    <Select value={row.tipo} onValueChange={(value) => handleInputChange(row.id, 'tipo', value)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="Laje">Laje</SelectItem>
+                            <SelectItem value="Contrapiso">Contrapiso</SelectItem>
+                        </SelectContent>
+                    </Select>
+                  </TableCell>
                   <TableCell><Input type="number" step="1" value={row.espessuraConcreto} onChange={(e) => handleInputChange(row.id, 'espessuraConcreto', e.target.value)} /></TableCell>
                   <TableCell><Input type="number" step="1" value={row.area} onChange={(e) => handleInputChange(row.id, 'area', e.target.value)} /></TableCell>
                   <TableCell className="font-bold bg-primary/10">{row.volume.toFixed(3)}</TableCell>
@@ -862,7 +896,7 @@ const LajeCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoFi
             </TableBody>
             <TableFooter>
               <TableRow>
-                  <TableCell colSpan={4} className="font-bold text-right">Totais</TableCell>
+                  <TableCell colSpan={5} className="font-bold text-right">Totais</TableCell>
                   <TableCell className="font-bold bg-primary/10">{(displayTotals.volume as number).toFixed(3)}</TableCell>
                   <TableCell className="font-bold bg-primary/10">{(displayTotals.cimento as number).toFixed(2)}</TableCell>
                   <TableCell className="font-bold bg-primary/10">{(displayTotals.areia as number).toFixed(3)}</TableCell>
@@ -1372,13 +1406,11 @@ export default function QuantitativoPage() {
                  body.push(['Argamassa (m³)', value.toFixed(3)]);
             }
 
-            if (totals.area > 0 && key === 'lajes') {
-                const value = totals.area as number;
-                const itemName = 'Área de Laje (m²)';
-                body.push([itemName, value.toFixed(2)]);
-                consolidatedTotals[itemName] = { value: (consolidatedTotals[itemName]?.value || 0) + value, unit: 'm²' };
+            if (key === 'lajes' && Array.isArray((totals as any).items)) {
+                (totals as any).items.forEach((item: any) => {
+                     body.push([`  - ${item.descricao} (${item.tipo})`, `${item.area.toFixed(2)} m²`]);
+                });
             }
-
 
             if (body.length > 0) {
                  autoTable(doc, {
@@ -1391,6 +1423,12 @@ export default function QuantitativoPage() {
                 currentY = (doc as any).lastAutoTable.finalY + 10;
             }
         });
+
+        if (allTotals.lajes && allTotals.lajes.area > 0) {
+             const value = allTotals.lajes.area as number;
+             const itemName = 'Área de Laje (m²)';
+             consolidatedTotals[itemName] = { value: (consolidatedTotals[itemName]?.value || 0) + value, unit: 'm²' };
+        }
 
         if (Object.keys(consolidatedTotals).length > 0) {
             const summaryBody = Object.entries(consolidatedTotals).map(([item, data]) => {
