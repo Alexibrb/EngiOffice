@@ -245,9 +245,9 @@ function AreaAnalysisCalculator() {
 
 const initialPoints = [
     { x: '0', y: '0' },
-    { x: '30', y: '0' },
-    { x: '35', y: '20' },
-    { x: '5', y: '25' },
+    { x: '10', y: '0' },
+    { x: '15', y: '20' },
+    { x: '5', y: '20' },
 ];
 
 function IrregularAreaCalculator() {
