@@ -795,8 +795,9 @@ const LajeCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoFi
       (acc.cimento as number) = (acc.cimento as number || 0) + row.cimento;
       (acc.areia as number) = (acc.areia as number || 0) + row.areia;
       (acc.brita as number) = (acc.brita as number || 0) + row.brita;
+      (acc.area as number) = (acc.area as number || 0) + row.area;
       return acc;
-    }, { volume: 0, cimento: 0, areia: 0, brita: 0 });
+    }, { volume: 0, cimento: 0, areia: 0, brita: 0, area: 0 });
   }, [calculatedRows]);
 
   useImperativeHandle(ref, () => ({
@@ -1369,6 +1370,13 @@ export default function QuantitativoPage() {
             if (totals.argamassa > 0) {
                  const value = totals.argamassa as number;
                  body.push(['Argamassa (m³)', value.toFixed(3)]);
+            }
+
+            if (totals.area > 0 && key === 'lajes') {
+                const value = totals.area as number;
+                const itemName = 'Área de Laje (m²)';
+                body.push([itemName, value.toFixed(2)]);
+                consolidatedTotals[itemName] = { value: (consolidatedTotals[itemName]?.value || 0) + value, unit: 'm²' };
             }
 
 
