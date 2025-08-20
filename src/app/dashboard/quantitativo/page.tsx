@@ -190,8 +190,7 @@ type VigamentoRow = {
   largura: number;
   comprimento: number;
   altura: number;
-  elosHoriz: number;
-  elosVert: number;
+  quantDeFerro: number;
 };
 
 const initialVigamentoRow: Omit<VigamentoRow, 'id'> = {
@@ -201,8 +200,7 @@ const initialVigamentoRow: Omit<VigamentoRow, 'id'> = {
   largura: 20,
   comprimento: 500,
   altura: 40,
-  elosHoriz: 4,
-  elosVert: 4,
+  quantDeFerro: 4,
 };
 
 
@@ -243,7 +241,8 @@ function VigamentoCalculator() {
       const volumeUnitario = larguraM * comprimentoM * alturaM;
       const volumeTotal = volumeUnitario * row.quant;
       
-      const totalLinearFerro = (((alturaComDobraM + larguraComDobraM) * 2 * row.elosVert) + ((larguraComDobraM + comprimentoComDobraM) * 2 * row.elosHoriz)) * row.quant;
+      // TODO: This calculation is a placeholder and needs to be updated for beams.
+      const totalLinearFerro = (((alturaComDobraM + larguraComDobraM) * 2 * row.quantDeFerro)) * row.quant;
       const totalBarrasFerro = (totalLinearFerro / COMPRIMENTO_BARRA_FERRO) * 1.1;
 
       const cimentoSacos = volumeTotal > 0 ? volumeTotal / 0.16 : 0;
@@ -293,8 +292,7 @@ function VigamentoCalculator() {
                 <TableHead>Largura (cm)</TableHead>
                 <TableHead>Compr. (cm)</TableHead>
                 <TableHead>Altura (cm)</TableHead>
-                <TableHead>Elos Horiz.</TableHead>
-                <TableHead>Elos Vert.</TableHead>
+                <TableHead>Quant. de Ferro</TableHead>
                 <TableHead>Volume (m³)</TableHead>
                 <TableHead>Total Linear (m)</TableHead>
                 <TableHead>Barras de 12m</TableHead>
@@ -313,8 +311,7 @@ function VigamentoCalculator() {
                   <TableCell><Input type="number" step="1" value={row.largura} onChange={(e) => handleInputChange(row.id, 'largura', e.target.value)} /></TableCell>
                   <TableCell><Input type="number" step="1" value={row.comprimento} onChange={(e) => handleInputChange(row.id, 'comprimento', e.target.value)} /></TableCell>
                   <TableCell><Input type="number" step="1" value={row.altura} onChange={(e) => handleInputChange(row.id, 'altura', e.target.value)} /></TableCell>
-                  <TableCell><Input type="number" value={row.elosHoriz} onChange={(e) => handleInputChange(row.id, 'elosHoriz', e.target.value)} /></TableCell>
-                  <TableCell><Input type="number" value={row.elosVert} onChange={(e) => handleInputChange(row.id, 'elosVert', e.target.value)} /></TableCell>
+                  <TableCell><Input type="number" value={row.quantDeFerro} onChange={(e) => handleInputChange(row.id, 'quantDeFerro', e.target.value)} /></TableCell>
                   <TableCell>{row.volume.toFixed(3)}</TableCell>
                   <TableCell>{row.totalLinear.toFixed(2)}</TableCell>
                   <TableCell>{row.totalBarras.toFixed(2)}</TableCell>
@@ -331,7 +328,7 @@ function VigamentoCalculator() {
             </TableBody>
             <TableFooter>
               <TableRow>
-                  <TableCell colSpan={8} className="font-bold text-right">Totais</TableCell>
+                  <TableCell colSpan={7} className="font-bold text-right">Totais</TableCell>
                   <TableCell className="font-bold">{totals.volume.toFixed(3)}</TableCell>
                   <TableCell className="font-bold">{totals.totalLinear.toFixed(2)}</TableCell>
                   <TableCell className="font-bold">{totals.totalBarras.toFixed(2)}</TableCell>
