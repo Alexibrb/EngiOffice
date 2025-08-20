@@ -173,7 +173,7 @@ function AreaAnalysisCalculator() {
 
 
     return (
-        <Card className="md:col-span-2">
+        <Card className="col-span-1">
             <CardHeader>
                 <CardTitle>Cálculo de Áreas e Coeficientes</CardTitle>
                 <CardDescription>Calcule o total construído, taxa de ocupação e coeficiente de aproveitamento.</CardDescription>
@@ -243,6 +243,133 @@ function AreaAnalysisCalculator() {
     );
 }
 
+function IrregularAreaCalculator() {
+  const [sides, setSides] = useState({ a: '', b: '', c: '', d: '', p: '' });
+  const [area, setArea] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [points, setPoints] = useState<string | null>(null);
+
+  const handleSideChange = (side: keyof typeof sides, value: string) => {
+    setSides(prev => ({ ...prev, [side]: value }));
+  };
+
+  const calculateAreaAndPoints = () => {
+    const { a, b, c, d, p } = sides;
+    const sideA = parseFloat(a);
+    const sideB = parseFloat(b);
+    const sideC = parseFloat(c);
+    const sideD = parseFloat(d);
+    const diagP = parseFloat(p);
+
+    if (isNaN(sideA) || isNaN(sideB) || isNaN(sideC) || isNaN(sideD) || isNaN(diagP)) {
+      setError('Todas as medidas devem ser números válidos.');
+      setArea(null);
+      setPoints(null);
+      return;
+    }
+
+    const heron = (x: number, y: number, z: number) => {
+      if (x + y <= z || x + z <= y || y + z <= x) return NaN;
+      const s = (x + y + z) / 2;
+      return Math.sqrt(s * (s - x) * (s - y) * (s - z));
+    };
+
+    const area1 = heron(sideA, sideB, diagP);
+    const area2 = heron(sideC, sideD, diagP);
+
+    if (isNaN(area1) || isNaN(area2)) {
+      setError('As medidas fornecidas não formam triângulos válidos.');
+      setArea(null);
+      setPoints(null);
+      return;
+    }
+
+    setError(null);
+    setArea(area1 + area2);
+
+    // Calculate points for drawing
+    const p1 = { x: 0, y: 0 };
+    const p2 = { x: sideA, y: 0 };
+
+    // Law of cosines to find angles
+    const angle1 = Math.acos((sideA * sideA + diagP * diagP - sideB * sideB) / (2 * sideA * diagP));
+    const p4 = {
+        x: diagP * Math.cos(angle1),
+        y: diagP * Math.sin(angle1)
+    };
+
+    const angle2 = Math.acos((sideA * sideA + sideD * sideD - sideC * sideC) / (2 * sideA * sideD));
+    const p3 = {
+        x: sideD * Math.cos(angle2),
+        y: -sideD * Math.sin(angle2) // Place it on the other side of A-B
+    };
+
+    const allPoints = [p1, p2, p4, p3];
+    const minX = Math.min(...allPoints.map(p => p.x));
+    const minY = Math.min(...allPoints.map(p => p.y));
+
+    // Normalize points to fit in the viewbox
+    const padding = 20;
+    const translatedPoints = allPoints.map(p => ({ x: p.x - minX + padding, y: p.y - minY + padding }));
+    
+    setPoints(translatedPoints.map(p => `${p.x},${p.y}`).join(' '));
+  };
+  
+  const viewBox = useMemo(() => {
+    if(!points) return "0 0 300 200";
+    const pts = points.split(' ').map(p => {
+      const [x,y] = p.split(',');
+      return {x: parseFloat(x), y: parseFloat(y)};
+    });
+    const maxX = Math.max(...pts.map(p => p.x));
+    const maxY = Math.max(...pts.map(p => p.y));
+    return `0 0 ${maxX + 20} ${maxY + 20}`;
+  }, [points]);
+
+  return (
+    <Card className="col-span-1">
+      <CardHeader>
+        <CardTitle>Cálculo de Terreno Irregular (4 Lados)</CardTitle>
+        <CardDescription>Use o método de triangulação (medida cruzada) para calcular a área.</CardDescription>
+      </CardHeader>
+      <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            {(['a', 'b', 'c', 'd'] as const).map(side => (
+              <div key={side} className="space-y-2">
+                <Label htmlFor={`side-${side}`}>Lado {side.toUpperCase()} (m)</Label>
+                <Input id={`side-${side}`} type="number" placeholder="0.00" value={sides[side]} onChange={e => handleSideChange(side, e.target.value)} />
+              </div>
+            ))}
+          </div>
+           <div className="space-y-2">
+              <Label htmlFor="diagonal-p">Diagonal (Medida Cruzada)</Label>
+              <Input id="diagonal-p" type="number" placeholder="0.00" value={sides.p} onChange={e => handleSideChange('p', e.target.value)} />
+           </div>
+          <Button onClick={calculateAreaAndPoints} className="w-full" variant="accent">Calcular Área</Button>
+           {error && <p className="text-sm text-destructive">{error}</p>}
+        </div>
+        <div className="space-y-4">
+            <Label>Desenho do Terreno (escala)</Label>
+            <div className="w-full h-48 bg-muted rounded-md flex items-center justify-center">
+                 {points ? (
+                    <svg viewBox={viewBox} className="w-full h-full">
+                      <polygon points={points} className="fill-primary/20 stroke-primary stroke-2" />
+                    </svg>
+                 ) : (
+                    <p className="text-sm text-muted-foreground">O desenho aparecerá aqui.</p>
+                 )}
+            </div>
+            {area !== null && (
+                 <p className="w-full text-center text-lg font-bold">Área Total: {area.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m²</p>
+            )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+
 export default function CalculadoraPage() {
   return (
     <div className="flex flex-col gap-8">
@@ -254,6 +381,7 @@ export default function CalculadoraPage() {
         <AreaCalculator />
         <PricePerSqMCalculator />
         <AreaAnalysisCalculator />
+        <IrregularAreaCalculator />
       </div>
     </div>
   );
