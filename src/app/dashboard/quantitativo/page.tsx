@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { PageHeader } from '@/components/page-header';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
@@ -1205,8 +1205,18 @@ export default function QuantitativoPage() {
                 body.push(['Cimento (sacos 50kg)', value.toFixed(2)]);
                 consolidatedTotals['Cimento (sacos 50kg)'] = { value: (consolidatedTotals['Cimento (sacos 50kg)']?.value || 0) + value, unit: 'sacos' };
             }
+            if (totals.cementSacks > 0) {
+                const value = totals.cementSacks;
+                body.push(['Cimento (sacos 50kg)', value.toFixed(2)]);
+                consolidatedTotals['Cimento (sacos 50kg)'] = { value: (consolidatedTotals['Cimento (sacos 50kg)']?.value || 0) + value, unit: 'sacos' };
+            }
             if (totals.areia > 0) {
                  const value = totals.areia;
+                body.push(['Areia (m³)', value.toFixed(3)]);
+                consolidatedTotals['Areia (m³)'] = { value: (consolidatedTotals['Areia (m³)']?.value || 0) + value, unit: 'm³' };
+            }
+            if (totals.sandM3 > 0) {
+                 const value = totals.sandM3;
                 body.push(['Areia (m³)', value.toFixed(3)]);
                 consolidatedTotals['Areia (m³)'] = { value: (consolidatedTotals['Areia (m³)']?.value || 0) + value, unit: 'm³' };
             }
@@ -1315,4 +1325,3 @@ export default function QuantitativoPage() {
     </div>
   );
 }
-
