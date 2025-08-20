@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, forwardRef, useImperativeHandle, useRef } from 'react';
 import { PageHeader } from '@/components/page-header';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
@@ -65,13 +65,16 @@ type Totals = {
     [key: string]: number;
 };
 
-type SapataCalculatorProps = {
+type CalculatorProps = {
     pavimentoFilter: string;
-    onTotalsChange: (totals: Totals) => void;
+};
+
+export type CalculatorRef = {
+    getTotals: () => Totals;
 };
 
 
-function SapataCalculator({ pavimentoFilter, onTotalsChange }: SapataCalculatorProps) {
+const SapataCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoFilter }, ref) => {
   const [rows, setRows] = useState<SapataRow[]>([{ ...initialSapataRow, id: crypto.randomUUID() }]);
 
   const handleAddRow = () => {
@@ -143,9 +146,9 @@ function SapataCalculator({ pavimentoFilter, onTotalsChange }: SapataCalculatorP
     }, { volume: 0, totalLinear: 0, totalBarras: 0, cimento: 0, areia: 0, brita: 0 });
   }, [calculatedRows]);
 
-  useEffect(() => {
-    onTotalsChange(totals);
-  }, [totals, onTotalsChange]);
+  useImperativeHandle(ref, () => ({
+    getTotals: () => totals,
+  }));
 
   return (
     <Card>
@@ -232,7 +235,8 @@ function SapataCalculator({ pavimentoFilter, onTotalsChange }: SapataCalculatorP
       </CardFooter>
     </Card>
   );
-}
+});
+SapataCalculator.displayName = "SapataCalculator";
 
 type VigamentoRow = {
   id: string;
@@ -257,13 +261,7 @@ const initialVigamentoRow: Omit<VigamentoRow, 'id'> = {
   quantDeFerro: 0,
 };
 
-type VigamentoCalculatorProps = {
-    pavimentoFilter: string;
-    onTotalsChange: (totals: Totals) => void;
-};
-
-
-function VigamentoCalculator({ pavimentoFilter, onTotalsChange }: VigamentoCalculatorProps) {
+const VigamentoCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoFilter }, ref) => {
   const [rows, setRows] = useState<VigamentoRow[]>([{ ...initialVigamentoRow, id: crypto.randomUUID() }]);
 
   const handleAddRow = () => {
@@ -338,10 +336,9 @@ function VigamentoCalculator({ pavimentoFilter, onTotalsChange }: VigamentoCalcu
     }, { volume: 0, totalLinear: 0, totalBarras: 0, cimento: 0, areia: 0, brita: 0, quantFerro3_16: 0 });
   }, [calculatedRows]);
   
-  useEffect(() => {
-    onTotalsChange(totals);
-  }, [totals, onTotalsChange]);
-
+  useImperativeHandle(ref, () => ({
+    getTotals: () => totals,
+  }));
 
   return (
     <Card>
@@ -431,7 +428,8 @@ function VigamentoCalculator({ pavimentoFilter, onTotalsChange }: VigamentoCalcu
       </CardFooter>
     </Card>
   );
-}
+});
+VigamentoCalculator.displayName = "VigamentoCalculator";
 
 type PilarRow = {
   id: string;
@@ -456,13 +454,7 @@ const initialPilarRow: Omit<PilarRow, 'id'> = {
   quantDeFerro: 0,
 };
 
-type PilarCalculatorProps = {
-    pavimentoFilter: string;
-    onTotalsChange: (totals: Totals) => void;
-};
-
-
-function PilarCalculator({ pavimentoFilter, onTotalsChange }: PilarCalculatorProps) {
+const PilarCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoFilter }, ref) => {
   const [rows, setRows] = useState<PilarRow[]>([{ ...initialPilarRow, id: crypto.randomUUID() }]);
 
   const handleAddRow = () => {
@@ -537,9 +529,9 @@ function PilarCalculator({ pavimentoFilter, onTotalsChange }: PilarCalculatorPro
     }, { volume: 0, totalLinear: 0, totalBarras: 0, cimento: 0, areia: 0, brita: 0, quantFerro3_16: 0 });
   }, [calculatedRows]);
 
-  useEffect(() => {
-    onTotalsChange(totals);
-  }, [totals, onTotalsChange]);
+  useImperativeHandle(ref, () => ({
+    getTotals: () => totals,
+  }));
 
   return (
     <Card>
@@ -629,7 +621,8 @@ function PilarCalculator({ pavimentoFilter, onTotalsChange }: PilarCalculatorPro
       </CardFooter>
     </Card>
   );
-}
+});
+PilarCalculator.displayName = "PilarCalculator";
 
 type LajeRow = {
   id: string;
@@ -646,12 +639,7 @@ const initialLajeRow: Omit<LajeRow, 'id'> = {
   area: 0,
 };
 
-type LajeCalculatorProps = {
-    pavimentoFilter: string;
-    onTotalsChange: (totals: Totals) => void;
-};
-
-function LajeCalculator({ pavimentoFilter, onTotalsChange }: LajeCalculatorProps) {
+const LajeCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoFilter }, ref) => {
   const [rows, setRows] = useState<LajeRow[]>([{ ...initialLajeRow, id: crypto.randomUUID() }]);
 
   const handleAddRow = () => {
@@ -706,10 +694,9 @@ function LajeCalculator({ pavimentoFilter, onTotalsChange }: LajeCalculatorProps
     }, { volume: 0, cimento: 0, areia: 0, brita: 0 });
   }, [calculatedRows]);
 
-  useEffect(() => {
-    onTotalsChange(totals);
-  }, [totals, onTotalsChange]);
-
+  useImperativeHandle(ref, () => ({
+    getTotals: () => totals,
+  }));
 
   return (
     <Card>
@@ -782,7 +769,9 @@ function LajeCalculator({ pavimentoFilter, onTotalsChange }: LajeCalculatorProps
       </CardFooter>
     </Card>
   );
-}
+});
+LajeCalculator.displayName = "LajeCalculator";
+
 
 type AlvenariaRow = {
   id: string;
@@ -803,13 +792,7 @@ const initialAlvenariaRow: Omit<AlvenariaRow, 'id'> = {
   junta: 1.5,
 };
 
-type AlvenariaCalculatorProps = {
-    pavimentoFilter: string;
-    onTotalsChange: (totals: Totals) => void;
-};
-
-
-function AlvenariaCalculator({ pavimentoFilter, onTotalsChange }: AlvenariaCalculatorProps) {
+const AlvenariaCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoFilter }, ref) => {
   const [rows, setRows] = useState<AlvenariaRow[]>([{ ...initialAlvenariaRow, id: crypto.randomUUID() }]);
 
   const handleAddRow = () => {
@@ -878,10 +861,9 @@ function AlvenariaCalculator({ pavimentoFilter, onTotalsChange }: AlvenariaCalcu
     }, { blocksNeeded: 0, mortarVolume: 0, cementSacks: 0, sandM3: 0 });
   }, [calculatedRows]);
 
-  useEffect(() => {
-    onTotalsChange(totals);
-  }, [totals, onTotalsChange]);
-
+  useImperativeHandle(ref, () => ({
+    getTotals: () => totals,
+  }));
 
   return (
     <Card>
@@ -958,7 +940,9 @@ function AlvenariaCalculator({ pavimentoFilter, onTotalsChange }: AlvenariaCalcu
       </CardFooter>
     </Card>
   )
-}
+});
+AlvenariaCalculator.displayName = "AlvenariaCalculator";
+
 
 type RebocoRow = {
   id: string;
@@ -977,13 +961,7 @@ const initialRebocoRow: Omit<RebocoRow, 'id'> = {
   lados: 1,
 };
 
-type RebocoCalculatorProps = {
-    pavimentoFilter: string;
-    onTotalsChange: (totals: Totals) => void;
-};
-
-
-function RebocoCalculator({ pavimentoFilter, onTotalsChange }: RebocoCalculatorProps) {
+const RebocoCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoFilter }, ref) => {
   const [rows, setRows] = useState<RebocoRow[]>([{ ...initialRebocoRow, id: crypto.randomUUID() }]);
 
   const handleAddRow = () => {
@@ -1043,10 +1021,9 @@ function RebocoCalculator({ pavimentoFilter, onTotalsChange }: RebocoCalculatorP
     }, { mortarVolume: 0, cementSacks: 0, sandM3: 0 });
   }, [calculatedRows]);
 
-  useEffect(() => {
-    onTotalsChange(totals);
-  }, [totals, onTotalsChange]);
-
+  useImperativeHandle(ref, () => ({
+    getTotals: () => totals,
+  }));
 
   return (
     <Card>
@@ -1128,7 +1105,8 @@ function RebocoCalculator({ pavimentoFilter, onTotalsChange }: RebocoCalculatorP
       </CardFooter>
     </Card>
   )
-}
+});
+RebocoCalculator.displayName = "RebocoCalculator";
 
 export default function QuantitativoPage() {
   const [visibleCalculators, setVisibleCalculators] = useState<Record<CalculatorType, boolean>>({
@@ -1141,22 +1119,16 @@ export default function QuantitativoPage() {
   });
   
   const [pavimentoFilter, setPavimentoFilter] = useState<string>('todos');
-  const [allTotals, setAllTotals] = useState<Record<CalculatorType, Totals>>({
-    sapatas: {},
-    vigamentos: {},
-    pilares: {},
-    lajes: {},
-    alvenaria: {},
-    reboco: {},
-  });
   const companyData = useCompanyData();
 
-  const handleTotalsChange = useCallback((calculatorKey: CalculatorType, totals: Totals) => {
-    setAllTotals(prev => ({
-        ...prev,
-        [calculatorKey]: totals
-    }));
-  }, []);
+  const calculatorRefs = {
+    sapatas: useRef<CalculatorRef>(null),
+    vigamentos: useRef<CalculatorRef>(null),
+    pilares: useRef<CalculatorRef>(null),
+    lajes: useRef<CalculatorRef>(null),
+    alvenaria: useRef<CalculatorRef>(null),
+    reboco: useRef<CalculatorRef>(null),
+  };
 
 
   const handleVisibilityChange = (key: CalculatorType, checked: boolean) => {
@@ -1194,9 +1166,17 @@ export default function QuantitativoPage() {
         
         const consolidatedTotals: Record<string, { value: number; unit: string }> = {};
 
+        const allTotals: Record<string, Totals> = {};
+        Object.entries(calculatorRefs).forEach(([key, ref]) => {
+            if (visibleCalculators[key as CalculatorType] && ref.current) {
+                allTotals[key] = ref.current.getTotals();
+            }
+        });
+
+
         // Seção Detalhada por Calculadora
         Object.entries(allTotals).forEach(([key, totals]) => {
-            if (!visibleCalculators[key as CalculatorType] || Object.keys(totals).length === 0) return;
+            if (Object.keys(totals).length === 0) return;
             
             const body: (string | number)[][] = [];
 
@@ -1320,7 +1300,7 @@ export default function QuantitativoPage() {
       </div>
 
       {calculators.map(({ key, component: Component }) =>
-        visibleCalculators[key] ? <Component key={key} pavimentoFilter={pavimentoFilter} onTotalsChange={(totals: Totals) => handleTotalsChange(key, totals)} /> : null
+        visibleCalculators[key] ? <Component key={key} pavimentoFilter={pavimentoFilter} ref={calculatorRefs[key]} /> : null
       )}
     </div>
   );
