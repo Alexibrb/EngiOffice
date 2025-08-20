@@ -425,7 +425,8 @@ function IrregularAreaCalculator() {
 }
 
 function BeamReinforcementCalculator() {
-    const [moment, setMoment] = useState('');
+    const [span, setSpan] = useState('');
+    const [load, setLoad] = useState('');
     const [width, setWidth] = useState('');
     const [height, setHeight] = useState('');
     const [cover, setCover] = useState('2.5');
@@ -444,19 +445,25 @@ function BeamReinforcementCalculator() {
     ];
 
     const calculateReinforcement = () => {
-        const Mk = parseFloat(moment);
+        const vao = parseFloat(span);
+        const carga = parseFloat(load);
         const bw = parseFloat(width);
         const h = parseFloat(height);
         const c = parseFloat(cover);
         const fckValue = parseInt(fck, 10);
 
-        if (isNaN(Mk) || isNaN(bw) || isNaN(h) || isNaN(c) || isNaN(fckValue)) {
+        if (isNaN(vao) || isNaN(carga) || isNaN(bw) || isNaN(h) || isNaN(c) || isNaN(fckValue)) {
             setResult(null);
             return;
         }
 
         // --- Simplified concrete beam design formulas (NBR 6118) ---
         // units: kN and cm
+        
+        // 1. Calculate Bending Moment (Mk)
+        const Mk = (carga * Math.pow(vao, 2)) / 8; // Result in kNm
+        
+        // 2. Continue with existing calculation logic
         const fcd = (fckValue / 1.4) * 0.1; // Convert MPa to kN/cm²
         const d = h - c; // Effective depth in cm
         const Md = Mk * 1.4 * 100; // Design moment in kN.cm
@@ -502,17 +509,21 @@ function BeamReinforcementCalculator() {
             <CardHeader>
                 <CardTitle>Calculadora de Armadura de Viga</CardTitle>
                 <CardDescription>
-                    Faça o pré-dimensionamento da armadura longitudinal de vigas biapoiadas.
+                    Faça o pré-dimensionamento da armadura longitudinal de vigas biapoiadas com carga distribuída.
                 </CardDescription>
             </CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <Label htmlFor="moment">Momento Fletor (Mk)</Label>
-                            <Input id="moment" type="number" placeholder="kNm" value={moment} onChange={(e) => setMoment(e.target.value)} />
+                            <Label htmlFor="beam-span">Vão da Viga (m)</Label>
+                            <Input id="beam-span" type="number" placeholder="Ex: 5" value={span} onChange={(e) => setSpan(e.target.value)} />
                         </div>
                         <div className="space-y-2">
+                            <Label htmlFor="beam-load">Carga (kN/m)</Label>
+                            <Input id="beam-load" type="number" placeholder="Ex: 25" value={load} onChange={(e) => setLoad(e.target.value)} />
+                        </div>
+                         <div className="space-y-2">
                              <Label htmlFor="fck">fck do Concreto</Label>
                             <Select value={fck} onValueChange={setFck}>
                                 <SelectTrigger id="fck"><SelectValue /></SelectTrigger>
@@ -595,7 +606,7 @@ export default function CalculadoraPage() {
         <AreaAnalysisCalculator />
         <IrregularAreaCalculator />
       </div>
-      <div className="grid grid-cols-1 gap-8">
+      <div className="grid grid-cols-1 gap-8 mt-8">
         <BeamReinforcementCalculator />
       </div>
     </div>
