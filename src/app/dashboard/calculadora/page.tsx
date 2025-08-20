@@ -355,7 +355,7 @@ function IrregularAreaCalculator() {
       </CardHeader>
       <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <div className="space-y-4">
-            <div className="pr-2 border rounded-md">
+             <div className="pr-2 border rounded-md">
              <Table>
                 <TableHeader>
                     <TableRow>
@@ -453,49 +453,39 @@ function MaterialQuantifier() {
         return;
       }
       
-      const volumeComPerdas = volume * (1 + (perda / 100));
+      const volumeTotalComPerdas = volume * (1 + (perda / 100));
 
-      // Dados de referência (pode variar)
-      const volumeLata = 18; // 1 lata = 18 litros
-      const massaSacoCimento = 50; // 1 saco de cimento = 50 kg
-      const densidadeCimento = 1400; // kg/m³ (cimento ensacado)
+      // Dados de referência (valores médios)
+      const massaEspecificaCimento = 1.4; // g/cm³ ou t/m³
+      const massaEspecificaAreia = 1.6;   // g/cm³ ou t/m³
+      const massaEspecificaBrita = 1.5;   // g/cm³ ou t/m³
+      const massaSacoCimento = 50;        // kg
 
-      // Volume do traço (em latas)
-      const volumeTracoEmLatas = cimento + areia + brita;
-      
-      // Volume de 1 saco de cimento (em litros)
-      const volumeSacoCimentoEmLitros = (massaSacoCimento / densidadeCimento) * 1000;
-      
-      // Rendimento: quantos m³ de concreto 1 traço produz
-      // Assumindo que 1 traço usa 1 saco de cimento
-      const volumeCimentoNoTraco = cimento * volumeSacoCimentoEmLitros;
-      const volumeAreiaNoTraco = areia * volumeLata;
-      const volumeBritaNoTraco = brita * volumeLata;
+      // Soma das proporções do traço
+      const somaTraco = cimento + areia + brita;
 
-      // O rendimento real é menor que a soma dos volumes secos. Um fator de 1.5 a 1.6 é comum.
-      // Simplificando, podemos usar um fator de rendimento para o traço em volume
-      // O rendimento de 1 saco de cimento (em m³)
-      const rendimentoPorSaco = (volumeSacoCimentoEmLitros + volumeAreiaNoTraco + volumeBritaNoTraco) / 1000 * 0.7; // Fator de redução
-      
-      const consumoCimentoPorM3 = 1 / rendimentoPorSaco; // Sacos/m³
-      
-      const consumoTotalCimentoSacos = volumeComPerdas * consumoCimentoPorM3;
-      const consumoTotalCimentoKg = consumoTotalCimentoSacos * massaSacoCimento;
+      // Cálculo do consumo de cimento por m³ de concreto (método simplificado)
+      // Baseado em um rendimento de traço que considera um fator de água/cimento de ~0.5
+      // e o volume dos agregados. É uma aproximação comum.
+      const consumoCimentoKgPorM3 = (1 * massaEspecificaCimento * 1000) / (cimento / massaEspecificaCimento + areia / massaEspecificaAreia + brita / massaEspecificaBrita) * somaTraco / cimento;
+      const consumoCimentoKgPorM3Ajustado = consumoCimentoKgPorM3 * 0.25; // Fator de ajuste prático
 
-      // Consumo de agregados (m³) por m³ de concreto
-      const consumoAreiaM3 = (areia * volumeLata / 1000) * consumoCimentoPorM3;
-      const consumoBritaM3 = (brita * volumeLata / 1000) * consumoCimentoPorM3;
+      // Consumo de agregados por m³ de concreto
+      const consumoAreiaM3PorM3 = (consumoCimentoKgPorM3Ajustado / massaSacoCimento) * (areia * (massaSacoCimento / (massaEspecificaAreia * 1000)));
+      const consumoBritaM3PorM3 = (consumoCimentoKgPorM3Ajustado / massaSacoCimento) * (brita * (massaSacoCimento / (massaEspecificaBrita * 1000)));
 
-      const volumeTotalAreia = volumeComPerdas * consumoAreiaM3;
-      const volumeTotalBrita = volumeComPerdas * consumoBritaM3;
-
+      // Quantidades totais
+      const cimentoTotalKg = consumoCimentoKgPorM3Ajustado * volumeTotalComPerdas;
+      const cimentoTotalSacos = Math.ceil(cimentoTotalKg / massaSacoCimento);
+      const areiaTotalM3 = consumoAreiaM3PorM3 * volumeTotalComPerdas;
+      const britaTotalM3 = consumoBritaM3PorM3 * volumeTotalComPerdas;
 
       setResults({
-        'Cimento (sacos 50kg)': Math.ceil(consumoTotalCimentoSacos),
-        'Cimento (kg)': consumoTotalCimentoKg.toFixed(2),
-        'Areia (m³)': volumeTotalAreia.toFixed(3),
-        'Brita (m³)': volumeTotalBrita.toFixed(3),
-        'Volume com Perdas (m³)': volumeComPerdas.toFixed(3),
+        'Cimento (sacos 50kg)': cimentoTotalSacos,
+        'Cimento (kg)': cimentoTotalKg.toFixed(2),
+        'Areia (m³)': areiaTotalM3.toFixed(3),
+        'Brita (m³)': britaTotalM3.toFixed(3),
+        'Volume com Perdas (m³)': volumeTotalComPerdas.toFixed(3),
       });
     }
   };
