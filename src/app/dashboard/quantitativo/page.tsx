@@ -367,9 +367,9 @@ type PilarRow = {
   tipo: string;
   bitola: string;
   quant: number;
-  comprimento: number; // m
+  comprimento: number; // m - altura do pilar
   largura: number; // cm
-  altura: number; // cm
+  altura: number; // cm - profundidade do pilar
   quantDeFerro: number;
 };
 
@@ -411,20 +411,20 @@ function PilarCalculator() {
     return rows.map(row => {
       // Convert cm to m for calculations
       const larguraM = row.largura / 100;
-      const alturaM = row.altura / 100;
-      const comprimentoM = row.comprimento; // Already in meters
+      const profundidadeM = row.altura / 100;
+      const alturaPilarM = row.comprimento; 
       
-      const volumeUnitario = larguraM * alturaM * comprimentoM;
+      const volumeUnitario = larguraM * profundidadeM * alturaPilarM;
       const volumeTotal = volumeUnitario * row.quant;
       
-      const totalLinearFerro = (comprimentoM + 0.5) * row.quantDeFerro * row.quant;
+      const totalLinearFerro = (alturaPilarM + 0.5) * row.quantDeFerro * row.quant;
       const totalBarrasFerro = totalLinearFerro / COMPRIMENTO_BARRA_FERRO;
 
       const cimentoSacos = volumeTotal > 0 ? volumeTotal / 0.16 : 0;
       const areiaM3 = (cimentoSacos * 5 * 18) / 1000;
       const britaM3 = (cimentoSacos * 6 * 18) / 1000;
 
-      const quantEstribosTotal = (comprimentoM > 0 ? comprimentoM / 0.15 : 0) * row.quant;
+      const quantEstribosTotal = (alturaPilarM > 0 ? alturaPilarM / 0.15 : 0) * row.quant;
       const tamEstriboCm = ((row.largura - 3) + (row.altura - 3)) * 2 + 5;
       const tamEstriboM = tamEstriboCm / 100;
       const totalLinearEstribos = tamEstriboM * quantEstribosTotal;
@@ -718,9 +718,6 @@ function AlvenariaCalculator() {
       const H = row.alturaBloco / 100; // m
       const j = row.junta / 100; // m
 
-      // Consumo de argamassa por m² (exemplo para bloco 39x19, pode ser ajustado)
-      const v_m2 = 0.015; // m³/m²
-
       // Fatores de consumo para traço 1:4
       const Cc = 340; // kg/m³
       const Ca = 1.05; // m³/m³
@@ -729,7 +726,7 @@ function AlvenariaCalculator() {
       const N_blocos = areaBlocoComJunta > 0 ? A / areaBlocoComJunta : 0;
       const N_final = N_blocos * (1 + 0.05); // 5% de perda
       
-      const V_arg = A * v_m2;
+      const V_arg = A * j; // Area da parede x espessura da junta
       const V_final = V_arg * (1 + 0.10); // 10% de perda
       
       const Q_cimento = V_final * Cc;
