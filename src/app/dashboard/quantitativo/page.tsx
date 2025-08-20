@@ -674,7 +674,7 @@ type AlvenariaRow = {
   id: string;
   pav: string;
   descricao: string;
-  area: number; // m
+  area: number; // m²
 };
 
 const initialAlvenariaRow: Omit<AlvenariaRow, 'id'> = {
@@ -685,8 +685,7 @@ const initialAlvenariaRow: Omit<AlvenariaRow, 'id'> = {
 
 function AlvenariaCalculator() {
   const [rows, setRows] = useState<AlvenariaRow[]>([{ ...initialAlvenariaRow, id: crypto.randomUUID() }]);
-  const [blockLength, setBlockLength] = useState(29);
-  const [blockHeight, setBlockHeight] = useState(19);
+  const [blocksPerSqM, setBlocksPerSqM] = useState(12.5);
   const [mortarJoint, setMortarJoint] = useState(1); // cm
 
   const handleAddRow = () => {
@@ -709,11 +708,9 @@ function AlvenariaCalculator() {
   };
   
   const calculatedRows = useMemo(() => {
-    const blockAreaWithMortar = ((blockLength / 100) + (mortarJoint / 100)) * ((blockHeight / 100) + (mortarJoint / 100));
-    
     return rows.map(row => {
       const wallArea = row.area;
-      const blocksNeeded = wallArea > 0 ? (wallArea / blockAreaWithMortar) * 1.10 : 0; // 10% loss
+      const blocksNeeded = wallArea > 0 ? wallArea * blocksPerSqM * 1.10 : 0; // 10% loss
       const mortarVolume = wallArea > 0 ? wallArea * (mortarJoint / 100) : 0;
       const cementSacks = mortarVolume > 0 ? (mortarVolume / 0.18) * 0.25 : 0; // Simplified mortar calc
       const sandM3 = cementSacks > 0 ? (cementSacks * 8 * 18) / 1000 : 0;
@@ -727,7 +724,7 @@ function AlvenariaCalculator() {
         sandM3,
       };
     });
-  }, [rows, blockLength, blockHeight, mortarJoint]);
+  }, [rows, blocksPerSqM, mortarJoint]);
 
   const totals = useMemo(() => {
     return calculatedRows.reduce((acc, row) => {
@@ -752,12 +749,8 @@ function AlvenariaCalculator() {
       <CardContent>
          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 p-4 border rounded-lg">
             <div className="space-y-2">
-                <Label htmlFor="block-length">Compr. Bloco (cm)</Label>
-                <Input id="block-length" type="number" value={blockLength} onChange={(e) => setBlockLength(parseFloat(e.target.value) || 0)} />
-            </div>
-             <div className="space-y-2">
-                <Label htmlFor="block-height">Altura Bloco (cm)</Label>
-                <Input id="block-height" type="number" value={blockHeight} onChange={(e) => setBlockHeight(parseFloat(e.target.value) || 0)} />
+                <Label htmlFor="blocks-per-sqm">Blocos por m²</Label>
+                <Input id="blocks-per-sqm" type="number" value={blocksPerSqM} onChange={(e) => setBlocksPerSqM(parseFloat(e.target.value) || 0)} />
             </div>
              <div className="space-y-2">
                 <Label htmlFor="mortar-joint">Junta Argamassa (cm)</Label>
