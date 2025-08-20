@@ -71,7 +71,7 @@ function SapataCalculator() {
       const volumeUnitario = larguraM * comprimentoM * alturaM;
       const volumeTotal = volumeUnitario * row.quant;
       
-      const totalLinearFerro = (((larguraComDobraM + alturaComDobraM) * 2 * row.elosVert) + ((comprimentoComDobraM + alturaComDobraM) * 2 * row.elosHoriz)) * row.quant;
+      const totalLinearFerro = (((larguraComDobraM + alturaComDobraM) * 2 * row.elosVert) + ((comprimentoComDobraM + larguraComDobraM) * 2 * row.elosHoriz)) * row.quant;
       const totalBarrasFerro = (totalLinearFerro / COMPRIMENTO_BARRA_FERRO) * 1.1;
 
       const cimentoSacos = volumeTotal > 0 ? volumeTotal / 0.16 : 0;
@@ -186,6 +186,7 @@ type VigamentoRow = {
   id: string;
   pav: string;
   tipo: string;
+  bitola: string;
   quant: number;
   comprimento: number; // m
   largura: number; // cm
@@ -196,6 +197,7 @@ type VigamentoRow = {
 const initialVigamentoRow: Omit<VigamentoRow, 'id'> = {
   pav: 'Térreo',
   tipo: 'V1',
+  bitola: '3/8',
   quant: 1,
   comprimento: 5,
   largura: 20,
@@ -218,7 +220,7 @@ function VigamentoCalculator() {
   const handleInputChange = (id: string, field: keyof VigamentoRow, value: string) => {
     const newRows = rows.map(row => {
       if (row.id === id) {
-        const parsedValue = field === 'pav' || field === 'tipo' ? value : parseFloat(value) || 0;
+        const parsedValue = field === 'pav' || field === 'tipo' || field === 'bitola' ? value : parseFloat(value) || 0;
         return { ...row, [field]: parsedValue };
       }
       return row;
@@ -282,6 +284,7 @@ function VigamentoCalculator() {
               <TableRow>
                 <TableHead>Pav.</TableHead>
                 <TableHead>Tipo</TableHead>
+                <TableHead>Bitola do ferro</TableHead>
                 <TableHead>Quant.</TableHead>
                 <TableHead>Compr. (m)</TableHead>
                 <TableHead>Largura (cm)</TableHead>
@@ -301,6 +304,7 @@ function VigamentoCalculator() {
                 <TableRow key={row.id}>
                   <TableCell><Input value={row.pav} onChange={(e) => handleInputChange(row.id, 'pav', e.target.value)} /></TableCell>
                   <TableCell><Input value={row.tipo} onChange={(e) => handleInputChange(row.id, 'tipo', e.target.value)} /></TableCell>
+                  <TableCell><Input value={row.bitola} onChange={(e) => handleInputChange(row.id, 'bitola', e.target.value)} /></TableCell>
                   <TableCell><Input type="number" value={row.quant} onChange={(e) => handleInputChange(row.id, 'quant', e.target.value)} /></TableCell>
                   <TableCell><Input type="number" step="0.1" value={row.comprimento} onChange={(e) => handleInputChange(row.id, 'comprimento', e.target.value)} /></TableCell>
                   <TableCell><Input type="number" step="1" value={row.largura} onChange={(e) => handleInputChange(row.id, 'largura', e.target.value)} /></TableCell>
@@ -322,7 +326,7 @@ function VigamentoCalculator() {
             </TableBody>
             <TableFooter>
               <TableRow>
-                  <TableCell colSpan={7} className="font-bold text-right">Totais</TableCell>
+                  <TableCell colSpan={8} className="font-bold text-right">Totais</TableCell>
                   <TableCell className="font-bold">{totals.volume.toFixed(3)}</TableCell>
                   <TableCell className="font-bold">{totals.totalLinear.toFixed(2)}</TableCell>
                   <TableCell className="font-bold">{totals.totalBarras.toFixed(2)}</TableCell>
