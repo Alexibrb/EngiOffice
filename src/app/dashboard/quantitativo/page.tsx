@@ -126,20 +126,20 @@ export default function QuantitativoPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="min-w-[120px]">Pav.</TableHead>
-                  <TableHead className="min-w-[100px]">Tipo</TableHead>
-                  <TableHead className="min-w-[100px]">Quant.</TableHead>
-                  <TableHead className="min-w-[150px]">Largura (cm)</TableHead>
-                  <TableHead className="min-w-[150px]">Compr. (cm)</TableHead>
-                  <TableHead className="min-w-[150px]">Altura (cm)</TableHead>
-                  <TableHead className="min-w-[150px]">Volume (m³)</TableHead>
-                  <TableHead className="min-w-[150px]">Elos Horiz.</TableHead>
-                  <TableHead className="min-w-[150px]">Elos Vert.</TableHead>
-                  <TableHead className="min-w-[180px]">Total Linear (m)</TableHead>
-                  <TableHead className="min-w-[180px]">Total de Ferros (kg)</TableHead>
-                  <TableHead className="min-w-[150px]">Cimento (kg)</TableHead>
-                  <TableHead className="min-w-[150px]">Areia (m³)</TableHead>
-                  <TableHead className="min-w-[150px]">Brita (m³)</TableHead>
+                  <TableHead>Pav.</TableHead>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead>Quant.</TableHead>
+                  <TableHead>Largura (cm)</TableHead>
+                  <TableHead>Compr. (cm)</TableHead>
+                  <TableHead>Altura (cm)</TableHead>
+                  <TableHead>Volume (m³)</TableHead>
+                  <TableHead>Elos Horiz.</TableHead>
+                  <TableHead>Elos Vert.</TableHead>
+                  <TableHead>Total Linear (m)</TableHead>
+                  <TableHead>Total de Ferros (kg)</TableHead>
+                  <TableHead>Cimento (kg)</TableHead>
+                  <TableHead>Areia (m³)</TableHead>
+                  <TableHead>Brita (m³)</TableHead>
                    <TableHead className="w-[50px]"></TableHead>
                 </TableRow>
               </TableHeader>
