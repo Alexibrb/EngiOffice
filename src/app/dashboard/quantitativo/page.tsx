@@ -74,7 +74,7 @@ export default function QuantitativoPage() {
       const totalLinearFerro = (((alturaM + larguraM) * 2 * row.elosVert) + ((comprimentoM + larguraM) * 2 * row.elosHoriz)) * row.quant;
       const totalBarrasFerro = (totalLinearFerro / COMPRIMENTO_BARRA_FERRO) * 1.1;
 
-      const cimentoKg = volumeTotal * CIMENTO_POR_M3;
+      const cimentoKg = (volumeTotal * CIMENTO_POR_M3) * 1.1;
       const areiaM3 = volumeTotal * PROPORCAO_AREIA;
       const britaM3 = volumeTotal * PROPORCAO_BRITA;
 
