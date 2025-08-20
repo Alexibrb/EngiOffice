@@ -192,7 +192,6 @@ type VigamentoRow = {
   largura: number; // cm
   altura: number; // cm
   quantDeFerro: number;
-  quantEstribos: number; // por metro
 };
 
 const initialVigamentoRow: Omit<VigamentoRow, 'id'> = {
@@ -204,7 +203,6 @@ const initialVigamentoRow: Omit<VigamentoRow, 'id'> = {
   largura: 20,
   altura: 40,
   quantDeFerro: 4,
-  quantEstribos: 5, // 5 estribos por metro (a cada 20cm)
 };
 
 
@@ -247,10 +245,10 @@ function VigamentoCalculator() {
       const areiaM3 = (cimentoSacos * 5 * 18) / 1000;
       const britaM3 = (cimentoSacos * 6 * 18) / 1000;
 
-      const tamEstriboCm = (row.largura - 5) + (row.altura - 5);
+      const quantEstribos = (comprimentoM > 0 ? comprimentoM / 0.15 : 0) * row.quant;
+      const tamEstriboCm = ((row.largura - 3) + (row.altura - 3)) * 2 + 5;
       const tamEstriboM = tamEstriboCm / 100;
-      const quantTotalEstribos = row.quantEstribos * comprimentoM * row.quant;
-      const totalLinearEstribos = tamEstriboM * quantTotalEstribos;
+      const totalLinearEstribos = tamEstriboM * quantEstribos;
       const totalBarrasEstribos = totalLinearEstribos / COMPRIMENTO_BARRA_FERRO;
 
       return {
@@ -261,8 +259,9 @@ function VigamentoCalculator() {
         cimento: cimentoSacos,
         areia: areiaM3,
         brita: britaM3,
+        quantEstribos: quantEstribos,
         tamEstribos: tamEstriboCm,
-        quantFerro3_16: totalBarrasEstribos
+        quantFerro3_16: totalBarrasEstribos,
       };
     });
   }, [rows]);
@@ -307,7 +306,7 @@ function VigamentoCalculator() {
                 <TableHead>Cimento (sacos 50kg)</TableHead>
                 <TableHead>Areia (m³)</TableHead>
                 <TableHead>Brita (m³)</TableHead>
-                <TableHead>Quant. Estribos (/m)</TableHead>
+                <TableHead>Quant. Estribos</TableHead>
                 <TableHead>Tam. Estribos (cm)</TableHead>
                 <TableHead>Ferro 3/16 (barras)</TableHead>
                  <TableHead className="w-[50px]"></TableHead>
@@ -330,7 +329,7 @@ function VigamentoCalculator() {
                   <TableCell>{row.cimento.toFixed(2)}</TableCell>
                   <TableCell>{row.areia.toFixed(3)}</TableCell>
                   <TableCell>{row.brita.toFixed(3)}</TableCell>
-                  <TableCell><Input type="number" value={row.quantEstribos} onChange={(e) => handleInputChange(row.id, 'quantEstribos', e.target.value)} /></TableCell>
+                  <TableCell>{row.quantEstribos.toFixed(2)}</TableCell>
                   <TableCell>{row.tamEstribos.toFixed(2)}</TableCell>
                   <TableCell>{row.quantFerro3_16.toFixed(2)}</TableCell>
                   <TableCell>
