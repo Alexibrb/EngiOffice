@@ -81,7 +81,7 @@ function SapataCalculator({ pavimentoFilter }: { pavimentoFilter: string }) {
   };
   
   const filteredRows = useMemo(() => {
-    if (!pavimentoFilter) return rows;
+    if (!pavimentoFilter || pavimentoFilter === 'todos') return rows;
     return rows.filter(row => row.pav === pavimentoFilter);
   }, [rows, pavimentoFilter]);
 
@@ -265,7 +265,7 @@ function VigamentoCalculator({ pavimentoFilter }: { pavimentoFilter: string }) {
   };
   
   const filteredRows = useMemo(() => {
-    if (!pavimentoFilter) return rows;
+    if (!pavimentoFilter || pavimentoFilter === 'todos') return rows;
     return rows.filter(row => row.pav === pavimentoFilter);
   }, [rows, pavimentoFilter]);
 
@@ -454,7 +454,7 @@ function PilarCalculator({ pavimentoFilter }: { pavimentoFilter: string }) {
   };
   
   const filteredRows = useMemo(() => {
-    if (!pavimentoFilter) return rows;
+    if (!pavimentoFilter || pavimentoFilter === 'todos') return rows;
     return rows.filter(row => row.pav === pavimentoFilter);
   }, [rows, pavimentoFilter]);
 
@@ -634,7 +634,7 @@ function LajeCalculator({ pavimentoFilter }: { pavimentoFilter: string }) {
   };
   
   const filteredRows = useMemo(() => {
-    if (!pavimentoFilter) return rows;
+    if (!pavimentoFilter || pavimentoFilter === 'todos') return rows;
     return rows.filter(row => row.pav === pavimentoFilter);
   }, [rows, pavimentoFilter]);
 
@@ -781,7 +781,7 @@ function AlvenariaCalculator({ pavimentoFilter }: { pavimentoFilter: string }) {
   };
   
   const filteredRows = useMemo(() => {
-    if (!pavimentoFilter) return rows;
+    if (!pavimentoFilter || pavimentoFilter === 'todos') return rows;
     return rows.filter(row => row.pav === pavimentoFilter);
   }, [rows, pavimentoFilter]);
   
@@ -946,7 +946,7 @@ function RebocoCalculator({ pavimentoFilter }: { pavimentoFilter: string }) {
   };
   
   const filteredRows = useMemo(() => {
-    if (!pavimentoFilter) return rows;
+    if (!pavimentoFilter || pavimentoFilter === 'todos') return rows;
     return rows.filter(row => row.pav === pavimentoFilter);
   }, [rows, pavimentoFilter]);
   
@@ -1076,7 +1076,7 @@ export default function QuantitativoPage() {
     reboco: false,
   });
   
-  const [pavimentoFilter, setPavimentoFilter] = useState<string>('');
+  const [pavimentoFilter, setPavimentoFilter] = useState<string>('todos');
 
 
   const handleVisibilityChange = (key: CalculatorType, checked: boolean) => {
@@ -1105,7 +1105,7 @@ export default function QuantitativoPage() {
                     <SelectValue placeholder="Filtrar por Pavimento" />
                 </SelectTrigger>
                 <SelectContent>
-                    <SelectItem value="">Todos os Pavimentos</SelectItem>
+                    <SelectItem value="todos">Todos os Pavimentos</SelectItem>
                     {pavimentoOptions.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
                 </SelectContent>
             </Select>
