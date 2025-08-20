@@ -295,9 +295,9 @@ function IrregularAreaCalculator() {
     setArea(calculatedArea);
   };
 
-  const svgPoints = useMemo(() => {
+  const svgData = useMemo(() => {
     const numericPoints = points.map(p => ({ x: parseFloat(p.x) || 0, y: parseFloat(p.y) || 0 }));
-    if (numericPoints.length < 3) return { path: '', viewBox: '0 0 300 200' };
+    if (numericPoints.length < 3) return { path: '', viewBox: '0 0 300 200', points: [] };
 
     const allX = numericPoints.map(p => p.x);
     const allY = numericPoints.map(p => p.y);
@@ -309,7 +309,7 @@ function IrregularAreaCalculator() {
     const width = maxX - minX;
     const height = maxY - minY;
 
-    if (width === 0 || height === 0) return { path: '', viewBox: '0 0 300 200' };
+    if (width === 0 || height === 0) return { path: '', viewBox: '0 0 300 200', points: [] };
 
     const padding = 20;
     const svgWidth = 300;
@@ -319,12 +319,13 @@ function IrregularAreaCalculator() {
 
     const translatedPoints = numericPoints.map(p => ({
         x: (p.x - minX) * scale + padding,
-        y: (p.y - minY) * scale + padding,
+        y: svgHeight - ((p.y - minY) * scale + padding), // Flip Y-axis for correct display
     }));
     
     return {
         path: translatedPoints.map(p => `${p.x},${p.y}`).join(' '),
-        viewBox: `0 0 ${svgWidth} ${svgHeight}`
+        viewBox: `0 0 ${svgWidth} ${svgHeight}`,
+        points: translatedPoints
     };
   }, [points]);
 
@@ -378,9 +379,17 @@ function IrregularAreaCalculator() {
         <div className="space-y-4">
             <Label>Desenho do Terreno (escala)</Label>
             <div className="w-full h-56 bg-muted rounded-md flex items-center justify-center overflow-hidden">
-                {svgPoints.path ? (
-                    <svg viewBox={svgPoints.viewBox} className="w-full h-full">
-                      <polygon points={svgPoints.path} className="fill-primary/20 stroke-primary stroke-2" />
+                {svgData.path ? (
+                    <svg viewBox={svgData.viewBox} className="w-full h-full">
+                      <polygon points={svgData.path} className="fill-primary/20 stroke-primary stroke-2" />
+                       {svgData.points.map((p, index) => (
+                        <g key={index}>
+                            <circle cx={p.x} cy={p.y} r="3" className="fill-destructive" />
+                            <text x={p.x + 5} y={p.y + 5} className="text-xs font-bold fill-foreground">
+                                P{index + 1}
+                            </text>
+                        </g>
+                       ))}
                     </svg>
                  ) : (
                     <p className="text-sm text-muted-foreground p-4 text-center">Insira pelo menos 3 pontos com coordenadas válidas para ver o desenho.</p>
@@ -412,5 +421,3 @@ export default function CalculadoraPage() {
     </div>
   );
 }
-
-    
