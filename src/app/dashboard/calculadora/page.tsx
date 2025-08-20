@@ -455,30 +455,29 @@ function MaterialQuantifier() {
       
       const volumeTotalComPerdas = volume * (1 + (perda / 100));
 
-      // Dados de referência (valores médios)
-      const massaEspecificaCimento = 1.4; // g/cm³ ou t/m³
-      const massaEspecificaAreia = 1.6;   // g/cm³ ou t/m³
-      const massaEspecificaBrita = 1.5;   // g/cm³ ou t/m³
-      const massaSacoCimento = 50;        // kg
+      // Fator de rendimento (prático): O volume seco é cerca de 1.5 a 1.6 vezes o volume úmido. Usamos 1.55 como média.
+      const fatorRendimento = 1.55; 
+      
+      // Volume seco total por m³ de concreto
+      const volumeSecoTotal = fatorRendimento;
 
       // Soma das proporções do traço
       const somaTraco = cimento + areia + brita;
 
-      // Cálculo do consumo de cimento por m³ de concreto (método simplificado)
-      // Baseado em um rendimento de traço que considera um fator de água/cimento de ~0.5
-      // e o volume dos agregados. É uma aproximação comum.
-      const consumoCimentoKgPorM3 = (1 * massaEspecificaCimento * 1000) / (cimento / massaEspecificaCimento + areia / massaEspecificaAreia + brita / massaEspecificaBrita) * somaTraco / cimento;
-      const consumoCimentoKgPorM3Ajustado = consumoCimentoKgPorM3 * 0.25; // Fator de ajuste prático
+      // Consumo de materiais por m³ de concreto
+      const consumoCimentoM3 = (volumeSecoTotal * cimento) / somaTraco;
+      const consumoAreiaM3 = (volumeSecoTotal * areia) / somaTraco;
+      const consumoBritaM3 = (volumeSecoTotal * brita) / somaTraco;
 
-      // Consumo de agregados por m³ de concreto
-      const consumoAreiaM3PorM3 = (consumoCimentoKgPorM3Ajustado / massaSacoCimento) * (areia * (massaSacoCimento / (massaEspecificaAreia * 1000)));
-      const consumoBritaM3PorM3 = (consumoCimentoKgPorM3Ajustado / massaSacoCimento) * (brita * (massaSacoCimento / (massaEspecificaBrita * 1000)));
+      // Densidade do cimento em saco (aproximadamente) para converter de m³ para kg
+      const densidadeCimentoKgPorM3 = 1400; // kg/m³
+      const massaSacoCimento = 50; // kg
 
-      // Quantidades totais
-      const cimentoTotalKg = consumoCimentoKgPorM3Ajustado * volumeTotalComPerdas;
+      const cimentoTotalKg = consumoCimentoM3 * densidadeCimentoKgPorM3 * volumeTotalComPerdas;
       const cimentoTotalSacos = Math.ceil(cimentoTotalKg / massaSacoCimento);
-      const areiaTotalM3 = consumoAreiaM3PorM3 * volumeTotalComPerdas;
-      const britaTotalM3 = consumoBritaM3PorM3 * volumeTotalComPerdas;
+      const areiaTotalM3 = consumoAreiaM3 * volumeTotalComPerdas;
+      const britaTotalM3 = consumoBritaM3 * volumeTotalComPerdas;
+
 
       setResults({
         'Cimento (sacos 50kg)': cimentoTotalSacos,
