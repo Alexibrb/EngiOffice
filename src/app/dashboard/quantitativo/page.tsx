@@ -192,6 +192,7 @@ type VigamentoRow = {
   largura: number; // cm
   altura: number; // cm
   quantDeFerro: number;
+  quantEstribos: number; // por metro
 };
 
 const initialVigamentoRow: Omit<VigamentoRow, 'id'> = {
@@ -203,6 +204,7 @@ const initialVigamentoRow: Omit<VigamentoRow, 'id'> = {
   largura: 20,
   altura: 40,
   quantDeFerro: 4,
+  quantEstribos: 5, // 5 estribos por metro (a cada 20cm)
 };
 
 
@@ -245,6 +247,12 @@ function VigamentoCalculator() {
       const areiaM3 = (cimentoSacos * 5 * 18) / 1000;
       const britaM3 = (cimentoSacos * 6 * 18) / 1000;
 
+      const tamEstriboCm = (row.largura - 5) + (row.altura - 5);
+      const tamEstriboM = tamEstriboCm / 100;
+      const quantTotalEstribos = row.quantEstribos * comprimentoM * row.quant;
+      const totalLinearEstribos = tamEstriboM * quantTotalEstribos;
+      const totalBarrasEstribos = totalLinearEstribos / COMPRIMENTO_BARRA_FERRO;
+
       return {
         ...row,
         volume: volumeTotal,
@@ -253,6 +261,8 @@ function VigamentoCalculator() {
         cimento: cimentoSacos,
         areia: areiaM3,
         brita: britaM3,
+        tamEstribos: tamEstriboCm,
+        quantFerro3_16: totalBarrasEstribos
       };
     });
   }, [rows]);
@@ -265,8 +275,9 @@ function VigamentoCalculator() {
       acc.cimento += row.cimento;
       acc.areia += row.areia;
       acc.brita += row.brita;
+      acc.quantFerro3_16 += row.quantFerro3_16;
       return acc;
-    }, { volume: 0, totalLinear: 0, totalBarras: 0, cimento: 0, areia: 0, brita: 0 });
+    }, { volume: 0, totalLinear: 0, totalBarras: 0, cimento: 0, areia: 0, brita: 0, quantFerro3_16: 0 });
   }, [calculatedRows]);
 
   return (
@@ -296,6 +307,9 @@ function VigamentoCalculator() {
                 <TableHead>Cimento (sacos 50kg)</TableHead>
                 <TableHead>Areia (m³)</TableHead>
                 <TableHead>Brita (m³)</TableHead>
+                <TableHead>Quant. Estribos (/m)</TableHead>
+                <TableHead>Tam. Estribos (cm)</TableHead>
+                <TableHead>Ferro 3/16 (barras)</TableHead>
                  <TableHead className="w-[50px]"></TableHead>
               </TableRow>
             </TableHeader>
@@ -316,6 +330,9 @@ function VigamentoCalculator() {
                   <TableCell>{row.cimento.toFixed(2)}</TableCell>
                   <TableCell>{row.areia.toFixed(3)}</TableCell>
                   <TableCell>{row.brita.toFixed(3)}</TableCell>
+                  <TableCell><Input type="number" value={row.quantEstribos} onChange={(e) => handleInputChange(row.id, 'quantEstribos', e.target.value)} /></TableCell>
+                  <TableCell>{row.tamEstribos.toFixed(2)}</TableCell>
+                  <TableCell>{row.quantFerro3_16.toFixed(2)}</TableCell>
                   <TableCell>
                       <Button variant="ghost" size="icon" onClick={() => handleRemoveRow(row.id)} disabled={rows.length <= 1}>
                           <Trash2 className="h-4 w-4 text-destructive" />
@@ -333,6 +350,9 @@ function VigamentoCalculator() {
                   <TableCell className="font-bold">{totals.cimento.toFixed(2)}</TableCell>
                   <TableCell className="font-bold">{totals.areia.toFixed(3)}</TableCell>
                   <TableCell className="font-bold">{totals.brita.toFixed(3)}</TableCell>
+                  <TableCell></TableCell>
+                  <TableCell></TableCell>
+                  <TableCell className="font-bold">{totals.quantFerro3_16.toFixed(2)}</TableCell>
                   <TableCell></TableCell>
               </TableRow>
             </TableFooter>
