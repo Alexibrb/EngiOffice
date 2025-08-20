@@ -600,7 +600,7 @@ function LajeCalculator() {
   const [rows, setRows] = useState<LajeRow[]>([{ ...initialLajeRow, id: crypto.randomUUID() }]);
 
   const handleAddRow = () => {
-    setRows([...rows, { ...initialLajeRow, id: crypto.randomUUID(), descricao: `Laje ${rows.length + 1}` }]);
+    setRows([...rows, { ...initialLajeRow, id: crypto.randomUUID(), descricao: `Item ${rows.length + 1}` }]);
   };
 
   const handleRemoveRow = (id: string) => {
@@ -735,7 +735,7 @@ const initialAlvenariaRow: Omit<AlvenariaRow, 'id'> = {
   area: 0,
   larguraBloco: 0,
   alturaBloco: 0,
-  junta: 0,
+  junta: 1.5,
 };
 
 function AlvenariaCalculator() {
@@ -1039,11 +1039,11 @@ function RebocoCalculator() {
 export default function QuantitativoPage() {
   const [visibleCalculators, setVisibleCalculators] = useState<Record<CalculatorType, boolean>>({
     sapatas: true,
-    vigamentos: true,
-    pilares: true,
-    lajes: true,
-    alvenaria: true,
-    reboco: true,
+    vigamentos: false,
+    pilares: false,
+    lajes: false,
+    alvenaria: false,
+    reboco: false,
   });
 
   const handleVisibilityChange = (key: CalculatorType, checked: boolean) => {
@@ -1068,7 +1068,7 @@ export default function QuantitativoPage() {
         />
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="ml-auto">
+                <Button variant="destructive" className="ml-auto">
                     <Settings2 className="mr-2 h-4 w-4" />
                     Exibir Calculadoras
                 </Button>
