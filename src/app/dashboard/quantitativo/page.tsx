@@ -232,8 +232,8 @@ function VigamentoCalculator() {
     return rows.map(row => {
       // Convert cm to m for calculations
       const larguraM = row.largura / 100;
-      const comprimentoM = row.comprimento; // Already in meters
       const alturaM = row.altura / 100;
+      const comprimentoM = row.comprimento; // Already in meters
       
       const volumeUnitario = larguraM * alturaM * comprimentoM;
       const volumeTotal = volumeUnitario * row.quant;
