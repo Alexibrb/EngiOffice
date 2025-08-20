@@ -385,7 +385,7 @@ const initialPilarRow: Omit<PilarRow, 'id'> = {
   tipo: 'P1',
   bitola: '3/8',
   quant: 1,
-  comprimento: 3, // Altura do pilar
+  comprimento: 3,
   largura: 20,
   altura: 20,
   quantDeFerro: 4,
@@ -416,20 +416,26 @@ function PilarCalculator() {
 
   const calculatedRows = useMemo(() => {
     return rows.map(row => {
+      // Convert cm to m for calculations
       const larguraM = row.largura / 100;
       const alturaM = row.altura / 100;
-      const comprimentoM = row.comprimento; // Já está em metros (representa a altura do pilar)
+      const comprimentoM = row.comprimento; // Already in meters
       
       const volumeUnitario = larguraM * alturaM * comprimentoM;
       const volumeTotal = volumeUnitario * row.quant;
       
-      // A fórmula do ferro para pilares pode ser diferente (incluindo estribos), mas mantemos a de vigas por enquanto
       const totalLinearFerro = (comprimentoM + 0.5) * row.quantDeFerro * row.quant;
       const totalBarrasFerro = totalLinearFerro / COMPRIMENTO_BARRA_FERRO;
 
       const cimentoSacos = volumeTotal > 0 ? volumeTotal / 0.16 : 0;
       const areiaM3 = (cimentoSacos * 5 * 18) / 1000;
       const britaM3 = (cimentoSacos * 6 * 18) / 1000;
+
+      const quantEstribos = (comprimentoM > 0 ? comprimentoM / 0.15 : 0) * row.quant;
+      const tamEstriboCm = ((row.largura - 3) + (row.altura - 3)) * 2 + 5;
+      const tamEstriboM = tamEstriboCm / 100;
+      const totalLinearEstribos = tamEstriboM * quantEstribos;
+      const totalBarrasEstribos = totalLinearEstribos / COMPRIMENTO_BARRA_FERRO;
 
       return {
         ...row,
@@ -439,6 +445,9 @@ function PilarCalculator() {
         cimento: cimentoSacos,
         areia: areiaM3,
         brita: britaM3,
+        quantEstribos: quantEstribos,
+        tamEstribos: tamEstriboCm,
+        quantFerro3_16: totalBarrasEstribos,
       };
     });
   }, [rows]);
@@ -451,8 +460,9 @@ function PilarCalculator() {
       acc.cimento += row.cimento;
       acc.areia += row.areia;
       acc.brita += row.brita;
+      acc.quantFerro3_16 += row.quantFerro3_16;
       return acc;
-    }, { volume: 0, totalLinear: 0, totalBarras: 0, cimento: 0, areia: 0, brita: 0 });
+    }, { volume: 0, totalLinear: 0, totalBarras: 0, cimento: 0, areia: 0, brita: 0, quantFerro3_16: 0 });
   }, [calculatedRows]);
 
   return (
@@ -482,6 +492,9 @@ function PilarCalculator() {
                 <TableHead>Cimento (sacos 50kg)</TableHead>
                 <TableHead>Areia (m³)</TableHead>
                 <TableHead>Brita (m³)</TableHead>
+                <TableHead>Quant. Estribos</TableHead>
+                <TableHead>Tam. Estribos (cm)</TableHead>
+                <TableHead>Ferro 3/16 (barras)</TableHead>
                  <TableHead className="w-[50px]"></TableHead>
               </TableRow>
             </TableHeader>
@@ -502,6 +515,9 @@ function PilarCalculator() {
                   <TableCell>{row.cimento.toFixed(2)}</TableCell>
                   <TableCell>{row.areia.toFixed(3)}</TableCell>
                   <TableCell>{row.brita.toFixed(3)}</TableCell>
+                  <TableCell>{row.quantEstribos.toFixed(2)}</TableCell>
+                  <TableCell>{row.tamEstribos.toFixed(2)}</TableCell>
+                  <TableCell>{row.quantFerro3_16.toFixed(2)}</TableCell>
                   <TableCell>
                       <Button variant="ghost" size="icon" onClick={() => handleRemoveRow(row.id)} disabled={rows.length <= 1}>
                           <Trash2 className="h-4 w-4 text-destructive" />
@@ -520,6 +536,9 @@ function PilarCalculator() {
                   <TableCell className="font-bold">{totals.areia.toFixed(3)}</TableCell>
                   <TableCell className="font-bold">{totals.brita.toFixed(3)}</TableCell>
                   <TableCell></TableCell>
+                  <TableCell></TableCell>
+                  <TableCell className="font-bold">{totals.quantFerro3_16.toFixed(2)}</TableCell>
+                  <TableCell></TableCell>
               </TableRow>
             </TableFooter>
           </Table>
@@ -534,6 +553,7 @@ function PilarCalculator() {
     </Card>
   );
 }
+
 
 export default function QuantitativoPage() {
 
