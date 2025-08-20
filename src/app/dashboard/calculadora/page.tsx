@@ -453,50 +453,105 @@ function MaterialQuantifier() {
         return;
       }
       
-      const volumeTotalComPerdas = volume * (1 + (perda / 100));
+      const volumeComPerdas = volume * (1 + perda / 100);
 
-      // Fator de rendimento (prático): O volume seco é cerca de 1.5 a 1.6 vezes o volume úmido. Usamos 1.55 como média.
-      const fatorRendimento = 1.55; 
+      const consumoCimento = 350; // kg/m³ para um traço médio
+      const consumoAreia = 0.5; // m³/m³
+      const consumoBrita = 0.8; // m³/m³
       
-      // Volume seco total por m³ de concreto
-      const volumeSecoTotal = fatorRendimento;
-
-      // Soma das proporções do traço
-      const somaTraco = cimento + areia + brita;
-
-      // Consumo de materiais por m³ de concreto
-      const consumoCimentoM3 = (volumeSecoTotal * cimento) / somaTraco;
-      const consumoAreiaM3 = (volumeSecoTotal * areia) / somaTraco;
-      const consumoBritaM3 = (volumeSecoTotal * brita) / somaTraco;
-
-      // Densidade do cimento em saco (aproximadamente) para converter de m³ para kg
-      const densidadeCimentoKgPorM3 = 1400; // kg/m³
-      const massaSacoCimento = 50; // kg
-
-      const cimentoTotalKg = consumoCimentoM3 * densidadeCimentoKgPorM3 * volumeTotalComPerdas;
-      const cimentoTotalSacos = Math.ceil(cimentoTotalKg / massaSacoCimento);
-      const areiaTotalM3 = consumoAreiaM3 * volumeTotalComPerdas;
-      const britaTotalM3 = consumoBritaM3 * volumeTotalComPerdas;
+      const proporcaoTotal = cimento + areia + brita;
+      
+      // Ajuste simples baseado no traço. O consumo base é para 1:2:4, ajustamos linearmente.
+      // Isso é uma aproximação, mas mais intuitiva.
+      const fatorAjuste = (1+2+4) / proporcaoTotal;
+      
+      const cimentoTotalKg = consumoCimento * fatorAjuste * volumeComPerdas;
+      const cimentoTotalSacos = Math.ceil(cimentoTotalKg / 50);
+      const areiaTotalM3 = consumoAreia * fatorAjuste * volumeComPerdas;
+      const britaTotalM3 = consumoBrita * fatorAjuste * volumeComPerdas;
 
 
       setResults({
         'Cimento (sacos 50kg)': cimentoTotalSacos,
-        'Cimento (kg)': cimentoTotalKg.toFixed(2),
         'Areia (m³)': areiaTotalM3.toFixed(3),
         'Brita (m³)': britaTotalM3.toFixed(3),
-        'Volume com Perdas (m³)': volumeTotalComPerdas.toFixed(3),
+        'Volume com Perdas (m³)': volumeComPerdas.toFixed(3),
       });
+    } else if (serviceType === 'alvenaria') {
+        const { area, tipoTijolo, espessuraJunta, perda } = parsedInputs;
+        if (!area || !tipoTijolo || tipoTijolo <= 0) {
+            setResults(null);
+            return;
+        }
+
+        // Dimensões do tijolo em metros [comprimento, altura]
+        const dimensoes = [[0.19, 0.19], [0.29, 0.19], [0.39, 0.19]];
+        const [comp, alt] = dimensoes[tipoTijolo -1];
+        const junta = espessuraJunta / 100; // cm para m
+        
+        const areaTijoloComJunta = (comp + junta) * (alt + junta);
+        const tijolosPorM2 = Math.ceil(1 / areaTijoloComJunta);
+        const tijolosTotal = Math.ceil(tijolosPorM2 * area * (1 + perda / 100));
+
+        // Volume de argamassa (simplificado)
+        const volArgamassaM2 = (1 - (tijolosPorM2 * comp * alt)) * (junta * 10); // A largura do tijolo é ~9cm
+        const volArgamassaTotal = volArgamassaM2 * area * (1 + perda / 100);
+
+        setResults({
+            'Tijolos/Blocos (un)': tijolosTotal,
+            'Volume de Argamassa (m³)': volArgamassaTotal.toFixed(3),
+        });
+
+    } else if (serviceType === 'piso') {
+        const { area, larguraPiso, comprimentoPiso, espessuraArgamassa, perda } = parsedInputs;
+        if (!area || !larguraPiso || !comprimentoPiso || !espessuraArgamassa) {
+            setResults(null);
+            return;
+        }
+        
+        const areaPecaM2 = (larguraPiso / 100) * (comprimentoPiso / 100);
+        const pecasTotal = Math.ceil((area / areaPecaM2) * (1 + perda / 100));
+
+        const volArgamassa = area * (espessuraArgamassa / 100) * (1 + (perda/100) + 0.1); // Adiciona perda + fator de empolamento
+        
+        setResults({
+            'Peças de Piso (un)': pecasTotal,
+            'Argamassa de Assentamento (m³)': volArgamassa.toFixed(3),
+        });
+
+    } else if (serviceType === 'pintura') {
+        const { area, rendimentoTinta, numeroDemaos, perda } = parsedInputs;
+         if (!area || !rendimentoTinta || !numeroDemaos) {
+            setResults(null);
+            return;
+        }
+
+        const areaTotalPintura = area * numeroDemaos;
+        const litrosNecessarios = (areaTotalPintura / rendimentoTinta) * (1 + perda / 100);
+
+        setResults({
+            'Tinta Necessária (litros)': litrosNecessarios.toFixed(2),
+        });
     }
   };
   
   useEffect(() => {
-    setInputs(serviceType === 'concreto' ? {
-        volume: '1.0',
-        perda: '5',
-        cimento: '1',
-        areia: '2',
-        brita: '3',
-      } : {});
+    let defaultInputs = {};
+    switch(serviceType) {
+      case 'concreto':
+        defaultInputs = { volume: '1.0', perda: '5', cimento: '1', areia: '2', brita: '3' };
+        break;
+      case 'alvenaria':
+        defaultInputs = { area: '10', tipoTijolo: '1', espessuraJunta: '1', perda: '10' };
+        break;
+      case 'piso':
+        defaultInputs = { area: '20', larguraPiso: '60', comprimentoPiso: '60', espessuraArgamassa: '1', perda: '10' };
+        break;
+      case 'pintura':
+        defaultInputs = { area: '50', rendimentoTinta: '10', numeroDemaos: '2', perda: '15' };
+        break;
+    }
+    setInputs(defaultInputs);
     setResults(null);
   }, [serviceType]);
 
@@ -532,6 +587,88 @@ function MaterialQuantifier() {
             </div>
           </div>
         );
+      case 'alvenaria':
+        return (
+           <div className="space-y-4">
+            <div className="space-y-2">
+                <Label htmlFor="alvenaria-area">Área da Parede (m²)</Label>
+                <Input id="alvenaria-area" type="number" placeholder="Ex: 10" value={inputs.area || ''} onChange={(e) => handleInputChange('area', e.target.value)} />
+            </div>
+            <div className="space-y-2">
+                <Label htmlFor="alvenaria-tijolo">Tipo de Tijolo/Bloco</Label>
+                <Select value={inputs.tipoTijolo} onValueChange={(v) => handleInputChange('tipoTijolo', v)}>
+                    <SelectTrigger><SelectValue/></SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="1">Tijolo 6 furos (9x19x19 cm)</SelectItem>
+                        <SelectItem value="2">Tijolo 8 furos (9x19x29 cm)</SelectItem>
+                        <SelectItem value="3">Bloco de concreto (9x19x39 cm)</SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                    <Label htmlFor="alvenaria-junta">Espessura Junta (cm)</Label>
+                    <Input id="alvenaria-junta" type="number" placeholder="Ex: 1" value={inputs.espessuraJunta || ''} onChange={(e) => handleInputChange('espessuraJunta', e.target.value)} />
+                </div>
+                 <div className="space-y-2">
+                    <Label htmlFor="alvenaria-perda">Perda (%)</Label>
+                    <Input id="alvenaria-perda" type="number" placeholder="Ex: 10" value={inputs.perda || ''} onChange={(e) => handleInputChange('perda', e.target.value)} />
+                </div>
+            </div>
+           </div>
+        );
+    case 'piso':
+        return (
+            <div className="space-y-4">
+                <div className="space-y-2">
+                    <Label htmlFor="piso-area">Área do Piso (m²)</Label>
+                    <Input id="piso-area" type="number" placeholder="Ex: 20" value={inputs.area || ''} onChange={(e) => handleInputChange('area', e.target.value)} />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="piso-largura">Largura Peça (cm)</Label>
+                        <Input id="piso-largura" type="number" placeholder="Ex: 60" value={inputs.larguraPiso || ''} onChange={(e) => handleInputChange('larguraPiso', e.target.value)} />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="piso-comprimento">Comprimento Peça (cm)</Label>
+                        <Input id="piso-comprimento" type="number" placeholder="Ex: 60" value={inputs.comprimentoPiso || ''} onChange={(e) => handleInputChange('comprimentoPiso', e.target.value)} />
+                    </div>
+                </div>
+                 <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="piso-argamassa">Espessura Argamassa (cm)</Label>
+                        <Input id="piso-argamassa" type="number" placeholder="Ex: 1" value={inputs.espessuraArgamassa || ''} onChange={(e) => handleInputChange('espessuraArgamassa', e.target.value)} />
+                    </div>
+                     <div className="space-y-2">
+                        <Label htmlFor="piso-perda">Perda (%)</Label>
+                        <Input id="piso-perda" type="number" placeholder="Ex: 10" value={inputs.perda || ''} onChange={(e) => handleInputChange('perda', e.target.value)} />
+                    </div>
+                </div>
+            </div>
+        );
+    case 'pintura':
+        return (
+            <div className="space-y-4">
+                <div className="space-y-2">
+                    <Label htmlFor="pintura-area">Área de Pintura (m²)</Label>
+                    <Input id="pintura-area" type="number" placeholder="Ex: 50" value={inputs.area || ''} onChange={(e) => handleInputChange('area', e.target.value)} />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="pintura-rendimento">Rendimento da Tinta (m²/L)</Label>
+                        <Input id="pintura-rendimento" type="number" placeholder="Ex: 10" value={inputs.rendimentoTinta || ''} onChange={(e) => handleInputChange('rendimentoTinta', e.target.value)} />
+                    </div>
+                     <div className="space-y-2">
+                        <Label htmlFor="pintura-demaos">Nº de Demãos</Label>
+                        <Input id="pintura-demaos" type="number" placeholder="Ex: 2" value={inputs.numeroDemaos || ''} onChange={(e) => handleInputChange('numeroDemaos', e.target.value)} />
+                    </div>
+                </div>
+                 <div className="space-y-2">
+                    <Label htmlFor="pintura-perda">Perda (%)</Label>
+                    <Input id="pintura-perda" type="number" placeholder="Ex: 15" value={inputs.perda || ''} onChange={(e) => handleInputChange('perda', e.target.value)} />
+                </div>
+            </div>
+        );
       default:
         return null;
     }
@@ -555,9 +692,9 @@ function MaterialQuantifier() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="concreto">Concreto</SelectItem>
-                <SelectItem value="alvenaria" disabled>Alvenaria (em breve)</SelectItem>
-                <SelectItem value="piso" disabled>Piso (em breve)</SelectItem>
-                <SelectItem value="pintura" disabled>Pintura (em breve)</SelectItem>
+                <SelectItem value="alvenaria">Alvenaria</SelectItem>
+                <SelectItem value="piso">Piso</SelectItem>
+                <SelectItem value="pintura">Pintura</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -614,3 +751,5 @@ export default function CalculadoraPage() {
     </div>
   );
 }
+
+    
