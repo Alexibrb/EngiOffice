@@ -260,8 +260,6 @@ function VigamentoCalculator() {
         areia: areiaM3,
         brita: britaM3,
         quantFerro3_16: totalBarrasEstribos,
-        quantEstribos: quantEstribosTotal,
-        tamEstribo: tamEstriboCm,
       };
     });
   }, [rows]);
@@ -826,6 +824,140 @@ function AlvenariaCalculator() {
   )
 }
 
+type RebocoRow = {
+  id: string;
+  pav: string;
+  descricao: string;
+  area: number; // m²
+  espessura: number; // cm
+};
+
+const initialRebocoRow: Omit<RebocoRow, 'id'> = {
+  pav: 'Térreo',
+  descricao: 'Parede 1',
+  area: 20,
+  espessura: 2,
+};
+
+function RebocoCalculator() {
+  const [rows, setRows] = useState<RebocoRow[]>([{ ...initialRebocoRow, id: crypto.randomUUID() }]);
+
+  const handleAddRow = () => {
+    setRows([...rows, { ...initialRebocoRow, id: crypto.randomUUID(), descricao: `Parede ${rows.length + 1}` }]);
+  };
+
+  const handleRemoveRow = (id: string) => {
+    setRows(rows.filter(row => row.id !== id));
+  };
+
+  const handleInputChange = (id: string, field: keyof RebocoRow, value: string) => {
+    const newRows = rows.map(row => {
+      if (row.id === id) {
+        const parsedValue = field === 'descricao' || field === 'pav' ? value : parseFloat(value) || 0;
+        return { ...row, [field]: parsedValue };
+      }
+      return row;
+    });
+    setRows(newRows);
+  };
+  
+  const calculatedRows = useMemo(() => {
+    return rows.map(row => {
+      const A = row.area;
+      const e = row.espessura / 100; // m
+
+      const Cc = 430; // kg/m³
+      const Ca = 1.2; // m³/m³
+
+      const V_arg = A * e; 
+      const V_final = V_arg * (1 + 0.10); // 10% de perda
+      
+      const Q_cimento = V_final * Cc;
+      const Sacos = Q_cimento > 0 ? Q_cimento / 50 : 0;
+      const Q_areia = V_final * Ca;
+      
+      return {
+        ...row,
+        mortarVolume: V_final,
+        cementSacks: Sacos,
+        sandM3: Q_areia,
+      };
+    });
+  }, [rows]);
+
+  const totals = useMemo(() => {
+    return calculatedRows.reduce((acc, row) => {
+      acc.mortarVolume += row.mortarVolume;
+      acc.cementSacks += row.cementSacks;
+      acc.sandM3 += row.sandM3;
+      return acc;
+    }, { mortarVolume: 0, cementSacks: 0, sandM3: 0 });
+  }, [calculatedRows]);
+
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Calculadora de Quantitativos de Reboco</CardTitle>
+        <CardDescription>
+          Calcule a quantidade de argamassa para o reboco das paredes.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="border rounded-lg overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Pav.</TableHead>
+                <TableHead>Descrição da Parede</TableHead>
+                <TableHead>Área Parede (m²)</TableHead>
+                <TableHead>Espessura (cm)</TableHead>
+                <TableHead className="font-bold bg-primary/10">Argamassa (m³)</TableHead>
+                <TableHead className="font-bold bg-primary/10">Cimento (sacos 50kg)</TableHead>
+                <TableHead className="font-bold bg-primary/10">Areia (m³)</TableHead>
+                <TableHead className="w-[50px]"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {calculatedRows.map((row) => (
+                <TableRow key={row.id}>
+                  <TableCell><Input value={row.pav} onChange={(e) => handleInputChange(row.id, 'pav', e.target.value)} /></TableCell>
+                  <TableCell><Input value={row.descricao} onChange={(e) => handleInputChange(row.id, 'descricao', e.target.value)} /></TableCell>
+                  <TableCell><Input type="number" step="0.1" value={row.area} onChange={(e) => handleInputChange(row.id, 'area', e.target.value)} /></TableCell>
+                  <TableCell><Input type="number" step="0.1" value={row.espessura} onChange={(e) => handleInputChange(row.id, 'espessura', e.target.value)} /></TableCell>
+                  <TableCell className="font-bold bg-primary/10">{row.mortarVolume.toFixed(3)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{row.cementSacks.toFixed(2)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{row.sandM3.toFixed(3)}</TableCell>
+                  <TableCell>
+                      <Button variant="ghost" size="icon" onClick={() => handleRemoveRow(row.id)} disabled={rows.length <= 1}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+            <TableFooter>
+              <TableRow>
+                  <TableCell colSpan={4} className="font-bold text-right">Totais</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{totals.mortarVolume.toFixed(3)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{totals.cementSacks.toFixed(2)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{totals.sandM3.toFixed(3)}</TableCell>
+                  <TableCell></TableCell>
+              </TableRow>
+            </TableFooter>
+          </Table>
+        </div>
+      </CardContent>
+      <CardFooter>
+          <Button onClick={handleAddRow} variant="outline">
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Adicionar Parede
+          </Button>
+      </CardFooter>
+    </Card>
+  )
+}
+
 export default function QuantitativoPage() {
 
   return (
@@ -839,6 +971,9 @@ export default function QuantitativoPage() {
       <PilarCalculator />
       <LajeCalculator />
       <AlvenariaCalculator />
+      <RebocoCalculator />
     </div>
   );
 }
+
+    
