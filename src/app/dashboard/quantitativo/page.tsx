@@ -259,6 +259,8 @@ function VigamentoCalculator() {
         cimento: cimentoSacos,
         areia: areiaM3,
         brita: britaM3,
+        quantEstribos: quantEstribosTotal,
+        tamEstribo: tamEstriboM,
         quantFerro3_16: totalBarrasEstribos,
       };
     });
@@ -606,9 +608,9 @@ function LajeCalculator() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Calculadora de Quantitativos de Lajes</CardTitle>
+        <CardTitle>Calculadora de Quantitativos de Lajes e Contrapiso</CardTitle>
         <CardDescription>
-          Adicione as lajes do seu projeto para calcular a quantidade de materiais necessários.
+          Adicione as lajes ou áreas de contrapiso do seu projeto para calcular a quantidade de materiais necessários.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -662,7 +664,7 @@ function LajeCalculator() {
       <CardFooter>
           <Button onClick={handleAddRow} variant="outline">
               <PlusCircle className="mr-2 h-4 w-4" />
-              Adicionar Laje
+              Adicionar Item
           </Button>
       </CardFooter>
     </Card>
