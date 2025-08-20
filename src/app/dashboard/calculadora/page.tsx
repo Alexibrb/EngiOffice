@@ -354,7 +354,7 @@ function IrregularAreaCalculator() {
       </CardHeader>
       <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <div className="space-y-4">
-            <div className="max-h-60 overflow-y-auto pr-2 border rounded-md">
+            <div className="pr-2 border rounded-md">
              <Table>
                 <TableHeader>
                     <TableRow>
