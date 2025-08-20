@@ -7,9 +7,29 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { PlusCircle, Trash2 } from 'lucide-react';
+import { PlusCircle, Trash2, Settings2 } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+
+const CALCULATOR_OPTIONS = {
+  sapatas: 'Sapatas',
+  vigamentos: 'Vigamentos',
+  pilares: 'Pilares',
+  lajes: 'Lajes e Contrapiso',
+  alvenaria: 'Alvenaria',
+  reboco: 'Reboco',
+};
+
+type CalculatorType = keyof typeof CALCULATOR_OPTIONS;
+
 
 type SapataRow = {
   id: string;
@@ -27,11 +47,11 @@ const initialSapataRow: Omit<SapataRow, 'id'> = {
   pav: 'Térreo',
   tipo: 'S1',
   quant: 1,
-  largura: 80,
-  comprimento: 80,
-  altura: 30,
-  elosHoriz: 4,
-  elosVert: 4,
+  largura: 0,
+  comprimento: 0,
+  altura: 0,
+  elosHoriz: 0,
+  elosVert: 0,
 };
 
 const COMPRIMENTO_BARRA_FERRO = 12; // metros
@@ -210,10 +230,10 @@ const initialVigamentoRow: Omit<VigamentoRow, 'id'> = {
   tipo: 'V1',
   bitola: '3/8',
   quant: 1,
-  comprimento: 5,
-  largura: 20,
-  altura: 40,
-  quantDeFerro: 4,
+  comprimento: 0,
+  largura: 0,
+  altura: 0,
+  quantDeFerro: 0,
 };
 
 
@@ -394,10 +414,10 @@ const initialPilarRow: Omit<PilarRow, 'id'> = {
   tipo: 'P1',
   bitola: '3/8',
   quant: 1,
-  comprimento: 3,
-  largura: 20,
-  altura: 20,
-  quantDeFerro: 4,
+  comprimento: 0,
+  largura: 0,
+  altura: 0,
+  quantDeFerro: 0,
 };
 
 
@@ -572,8 +592,8 @@ type LajeRow = {
 const initialLajeRow: Omit<LajeRow, 'id'> = {
   pav: 'Térreo',
   descricao: 'Laje 1',
-  espessuraConcreto: 10,
-  area: 50,
+  espessuraConcreto: 0,
+  area: 0,
 };
 
 function LajeCalculator() {
@@ -712,10 +732,10 @@ type AlvenariaRow = {
 const initialAlvenariaRow: Omit<AlvenariaRow, 'id'> = {
   pav: 'Térreo',
   descricao: 'Parede 1',
-  area: 20,
-  larguraBloco: 39,
-  alturaBloco: 19,
-  junta: 1.5,
+  area: 0,
+  larguraBloco: 0,
+  alturaBloco: 0,
+  junta: 0,
 };
 
 function AlvenariaCalculator() {
@@ -873,8 +893,8 @@ type RebocoRow = {
 const initialRebocoRow: Omit<RebocoRow, 'id'> = {
   pav: 'Térreo',
   descricao: 'Parede 1',
-  area: 20,
-  espessura: 2,
+  area: 0,
+  espessura: 0,
   lados: 1,
 };
 
@@ -1017,19 +1037,61 @@ function RebocoCalculator() {
 }
 
 export default function QuantitativoPage() {
+  const [visibleCalculators, setVisibleCalculators] = useState<Record<CalculatorType, boolean>>({
+    sapatas: true,
+    vigamentos: true,
+    pilares: true,
+    lajes: true,
+    alvenaria: true,
+    reboco: true,
+  });
+
+  const handleVisibilityChange = (key: CalculatorType, checked: boolean) => {
+    setVisibleCalculators(prev => ({ ...prev, [key]: checked }));
+  };
+  
+  const calculators: { key: CalculatorType; component: React.ComponentType }[] = [
+    { key: 'sapatas', component: SapataCalculator },
+    { key: 'vigamentos', component: VigamentoCalculator },
+    { key: 'pilares', component: PilarCalculator },
+    { key: 'lajes', component: LajeCalculator },
+    { key: 'alvenaria', component: AlvenariaCalculator },
+    { key: 'reboco', component: RebocoCalculator },
+  ];
 
   return (
     <div className="flex flex-col gap-8">
-      <PageHeader
-        title="Quantitativo"
-        description="Crie orçamentos detalhados para seus projetos."
-      />
-      <SapataCalculator />
-      <VigamentoCalculator />
-      <PilarCalculator />
-      <LajeCalculator />
-      <AlvenariaCalculator />
-      <RebocoCalculator />
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <PageHeader
+          title="Quantitativo"
+          description="Crie orçamentos detalhados para seus projetos."
+        />
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="ml-auto">
+                    <Settings2 className="mr-2 h-4 w-4" />
+                    Exibir Calculadoras
+                </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-56">
+                <DropdownMenuLabel>Selecione as calculadoras</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {Object.entries(CALCULATOR_OPTIONS).map(([key, label]) => (
+                     <DropdownMenuCheckboxItem
+                        key={key}
+                        checked={visibleCalculators[key as CalculatorType]}
+                        onCheckedChange={(checked) => handleVisibilityChange(key as CalculatorType, !!checked)}
+                     >
+                        {label}
+                     </DropdownMenuCheckboxItem>
+                ))}
+            </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      {calculators.map(({ key, component: Component }) =>
+        visibleCalculators[key] ? <Component key={key} /> : null
+      )}
     </div>
   );
 }
