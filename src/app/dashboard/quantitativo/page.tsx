@@ -231,10 +231,9 @@ function VigamentoCalculator() {
 
   const calculatedRows = useMemo(() => {
     return rows.map(row => {
-      // Convert cm to m for calculations
       const larguraM = row.largura / 100;
       const alturaM = row.altura / 100;
-      const comprimentoM = row.comprimento; // Already in meters
+      const comprimentoM = row.comprimento;
       
       const volumeUnitario = larguraM * alturaM * comprimentoM;
       const volumeTotal = volumeUnitario * row.quant;
@@ -409,22 +408,21 @@ function PilarCalculator() {
 
   const calculatedRows = useMemo(() => {
     return rows.map(row => {
-      // Convert cm to m for calculations
       const larguraM = row.largura / 100;
-      const profundidadeM = row.altura / 100;
-      const alturaPilarM = row.comprimento; 
+      const alturaM = row.altura / 100;
+      const comprimentoM = row.comprimento;
       
-      const volumeUnitario = larguraM * profundidadeM * alturaPilarM;
+      const volumeUnitario = larguraM * alturaM * comprimentoM;
       const volumeTotal = volumeUnitario * row.quant;
       
-      const totalLinearFerro = (alturaPilarM + 0.5) * row.quantDeFerro * row.quant;
+      const totalLinearFerro = (comprimentoM + 0.5) * row.quantDeFerro * row.quant;
       const totalBarrasFerro = totalLinearFerro / COMPRIMENTO_BARRA_FERRO;
 
       const cimentoSacos = volumeTotal > 0 ? volumeTotal / 0.16 : 0;
       const areiaM3 = (cimentoSacos * 5 * 18) / 1000;
       const britaM3 = (cimentoSacos * 6 * 18) / 1000;
 
-      const quantEstribosTotal = (alturaPilarM > 0 ? alturaPilarM / 0.15 : 0) * row.quant;
+      const quantEstribosTotal = (comprimentoM > 0 ? comprimentoM / 0.15 : 0) * row.quant;
       const tamEstriboCm = ((row.largura - 3) + (row.altura - 3)) * 2 + 5;
       const tamEstriboM = tamEstriboCm / 100;
       const totalLinearEstribos = tamEstriboM * quantEstribosTotal;
@@ -720,7 +718,7 @@ function AlvenariaCalculator() {
       const j_m = j_cm / 100; // m
 
       // Fatores de consumo para traço 1:4
-      const Cc = 340; // kg/m³
+      const Cc = 430; // kg/m³
       const Ca = 1.05; // m³/m³
 
       const areaBlocoComJunta = (L > 0 && H > 0) ? (L + j_m) * (H + j_m) : 0;
