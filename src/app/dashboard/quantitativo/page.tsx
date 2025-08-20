@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useMemo, useCallback, forwardRef, useImperativeHandle, useRef } from 'react';
+import { useState, useMemo, useCallback, forwardRef, useImperativeHandle, useRef, useEffect } from 'react';
 import { PageHeader } from '@/components/page-header';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
@@ -1416,13 +1416,13 @@ export default function QuantitativoPage() {
         }
 
         if (Object.keys(consolidatedTotals).length > 0) {
+            doc.addPage();
             const summaryBody = Object.entries(consolidatedTotals).map(([item, data]) => {
                 const formattedValue = item.includes('Blocos') || item.includes('barras') ? Math.ceil(data.value) : data.value.toFixed(2);
                 return [item, `${formattedValue} ${data.unit}`];
             });
 
              autoTable(doc, {
-                startY: currentY,
                 head: [['Resumo Geral de Materiais', 'Quantidade Total']],
                 body: summaryBody,
                 theme: 'grid',
