@@ -71,7 +71,7 @@ function SapataCalculator() {
       const volumeUnitario = larguraM * comprimentoM * alturaM;
       const volumeTotal = volumeUnitario * row.quant;
       
-      const totalLinearFerro = (((alturaComDobraM + larguraComDobraM) * 2 * row.elosVert) + ((larguraComDobraM + comprimentoComDobraM) * 2 * row.elosHoriz)) * row.quant;
+      const totalLinearFerro = (((larguraComDobraM + alturaComDobraM) * 2 * row.elosVert) + ((larguraComDobraM + comprimentoComDobraM) * 2 * row.elosHoriz)) * row.quant;
       const totalBarrasFerro = (totalLinearFerro / COMPRIMENTO_BARRA_FERRO) * 1.1;
 
       const cimentoSacos = volumeTotal > 0 ? volumeTotal / 0.16 : 0;
@@ -187,9 +187,9 @@ type VigamentoRow = {
   pav: string;
   tipo: string;
   quant: number;
-  largura: number;
-  comprimento: number;
-  altura: number;
+  comprimento: number; // m
+  largura: number; // cm
+  altura: number; // cm
   quantDeFerro: number;
 };
 
@@ -197,8 +197,8 @@ const initialVigamentoRow: Omit<VigamentoRow, 'id'> = {
   pav: 'Térreo',
   tipo: 'V1',
   quant: 1,
+  comprimento: 5,
   largura: 20,
-  comprimento: 500,
   altura: 40,
   quantDeFerro: 4,
 };
@@ -228,21 +228,15 @@ function VigamentoCalculator() {
 
   const calculatedRows = useMemo(() => {
     return rows.map(row => {
-      const dobraCm = 7;
       // Convert cm to m for calculations
       const larguraM = row.largura / 100;
-      const comprimentoM = row.comprimento / 100;
+      const comprimentoM = row.comprimento; // Already in meters
       const alturaM = row.altura / 100;
-      
-      const larguraComDobraM = (row.largura + dobraCm) / 100;
-      const comprimentoComDobraM = (row.comprimento + dobraCm) / 100;
-      const alturaComDobraM = (row.altura + dobraCm) / 100;
       
       const volumeUnitario = larguraM * comprimentoM * alturaM;
       const volumeTotal = volumeUnitario * row.quant;
       
-      // TODO: This calculation is a placeholder and needs to be updated for beams.
-      const totalLinearFerro = (((alturaComDobraM + larguraComDobraM) * 2 * row.quantDeFerro)) * row.quant;
+      const totalLinearFerro = (comprimentoM + 0.5) * row.quantDeFerro * row.quant;
       const totalBarrasFerro = (totalLinearFerro / COMPRIMENTO_BARRA_FERRO) * 1.1;
 
       const cimentoSacos = volumeTotal > 0 ? volumeTotal / 0.16 : 0;
@@ -289,8 +283,8 @@ function VigamentoCalculator() {
                 <TableHead>Pav.</TableHead>
                 <TableHead>Tipo</TableHead>
                 <TableHead>Quant.</TableHead>
+                <TableHead>Compr. (m)</TableHead>
                 <TableHead>Largura (cm)</TableHead>
-                <TableHead>Compr. (cm)</TableHead>
                 <TableHead>Altura (cm)</TableHead>
                 <TableHead>Quant. de Ferro</TableHead>
                 <TableHead>Volume (m³)</TableHead>
@@ -308,8 +302,8 @@ function VigamentoCalculator() {
                   <TableCell><Input value={row.pav} onChange={(e) => handleInputChange(row.id, 'pav', e.target.value)} /></TableCell>
                   <TableCell><Input value={row.tipo} onChange={(e) => handleInputChange(row.id, 'tipo', e.target.value)} /></TableCell>
                   <TableCell><Input type="number" value={row.quant} onChange={(e) => handleInputChange(row.id, 'quant', e.target.value)} /></TableCell>
+                  <TableCell><Input type="number" step="0.1" value={row.comprimento} onChange={(e) => handleInputChange(row.id, 'comprimento', e.target.value)} /></TableCell>
                   <TableCell><Input type="number" step="1" value={row.largura} onChange={(e) => handleInputChange(row.id, 'largura', e.target.value)} /></TableCell>
-                  <TableCell><Input type="number" step="1" value={row.comprimento} onChange={(e) => handleInputChange(row.id, 'comprimento', e.target.value)} /></TableCell>
                   <TableCell><Input type="number" step="1" value={row.altura} onChange={(e) => handleInputChange(row.id, 'altura', e.target.value)} /></TableCell>
                   <TableCell><Input type="number" value={row.quantDeFerro} onChange={(e) => handleInputChange(row.id, 'quantDeFerro', e.target.value)} /></TableCell>
                   <TableCell>{row.volume.toFixed(3)}</TableCell>
