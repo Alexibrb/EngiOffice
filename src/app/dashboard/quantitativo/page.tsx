@@ -1,13 +1,13 @@
 
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { PageHeader } from '@/components/page-header';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { PlusCircle, Trash2, Settings2 } from 'lucide-react';
+import { PlusCircle, Trash2, Settings2, Download } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
@@ -18,6 +18,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { useCompanyData } from '../layout';
+
 
 const CALCULATOR_OPTIONS = {
   sapatas: 'Sapatas',
@@ -57,8 +61,17 @@ const initialSapataRow: Omit<SapataRow, 'id'> = {
 const COMPRIMENTO_BARRA_FERRO = 12; // metros
 const pavimentoOptions = ['Térreo', 'Pav1', 'Pav2', 'Pav3', 'Pav4', 'Pav5', 'Pav6', 'Pav7', 'Pav8', 'Pav9', 'Pav10'];
 
+type Totals = {
+    [key: string]: number;
+};
 
-function SapataCalculator({ pavimentoFilter }: { pavimentoFilter: string }) {
+type SapataCalculatorProps = {
+    pavimentoFilter: string;
+    onTotalsChange: (totals: Totals) => void;
+};
+
+
+function SapataCalculator({ pavimentoFilter, onTotalsChange }: SapataCalculatorProps) {
   const [rows, setRows] = useState<SapataRow[]>([{ ...initialSapataRow, id: crypto.randomUUID() }]);
 
   const handleAddRow = () => {
@@ -88,7 +101,6 @@ function SapataCalculator({ pavimentoFilter }: { pavimentoFilter: string }) {
   const calculatedRows = useMemo(() => {
     return filteredRows.map(row => {
       const dobraCm = 7;
-      // Convert cm to m for calculations
       const larguraM = row.largura / 100;
       const comprimentoM = row.comprimento / 100;
       const alturaM = row.altura / 100;
@@ -130,6 +142,10 @@ function SapataCalculator({ pavimentoFilter }: { pavimentoFilter: string }) {
       return acc;
     }, { volume: 0, totalLinear: 0, totalBarras: 0, cimento: 0, areia: 0, brita: 0 });
   }, [calculatedRows]);
+
+  useEffect(() => {
+    onTotalsChange(totals);
+  }, [totals, onTotalsChange]);
 
   return (
     <Card>
@@ -241,8 +257,13 @@ const initialVigamentoRow: Omit<VigamentoRow, 'id'> = {
   quantDeFerro: 0,
 };
 
+type VigamentoCalculatorProps = {
+    pavimentoFilter: string;
+    onTotalsChange: (totals: Totals) => void;
+};
 
-function VigamentoCalculator({ pavimentoFilter }: { pavimentoFilter: string }) {
+
+function VigamentoCalculator({ pavimentoFilter, onTotalsChange }: VigamentoCalculatorProps) {
   const [rows, setRows] = useState<VigamentoRow[]>([{ ...initialVigamentoRow, id: crypto.randomUUID() }]);
 
   const handleAddRow = () => {
@@ -316,6 +337,11 @@ function VigamentoCalculator({ pavimentoFilter }: { pavimentoFilter: string }) {
       return acc;
     }, { volume: 0, totalLinear: 0, totalBarras: 0, cimento: 0, areia: 0, brita: 0, quantFerro3_16: 0 });
   }, [calculatedRows]);
+  
+  useEffect(() => {
+    onTotalsChange(totals);
+  }, [totals, onTotalsChange]);
+
 
   return (
     <Card>
@@ -430,8 +456,13 @@ const initialPilarRow: Omit<PilarRow, 'id'> = {
   quantDeFerro: 0,
 };
 
+type PilarCalculatorProps = {
+    pavimentoFilter: string;
+    onTotalsChange: (totals: Totals) => void;
+};
 
-function PilarCalculator({ pavimentoFilter }: { pavimentoFilter: string }) {
+
+function PilarCalculator({ pavimentoFilter, onTotalsChange }: PilarCalculatorProps) {
   const [rows, setRows] = useState<PilarRow[]>([{ ...initialPilarRow, id: crypto.randomUUID() }]);
 
   const handleAddRow = () => {
@@ -505,6 +536,10 @@ function PilarCalculator({ pavimentoFilter }: { pavimentoFilter: string }) {
       return acc;
     }, { volume: 0, totalLinear: 0, totalBarras: 0, cimento: 0, areia: 0, brita: 0, quantFerro3_16: 0 });
   }, [calculatedRows]);
+
+  useEffect(() => {
+    onTotalsChange(totals);
+  }, [totals, onTotalsChange]);
 
   return (
     <Card>
@@ -611,7 +646,12 @@ const initialLajeRow: Omit<LajeRow, 'id'> = {
   area: 0,
 };
 
-function LajeCalculator({ pavimentoFilter }: { pavimentoFilter: string }) {
+type LajeCalculatorProps = {
+    pavimentoFilter: string;
+    onTotalsChange: (totals: Totals) => void;
+};
+
+function LajeCalculator({ pavimentoFilter, onTotalsChange }: LajeCalculatorProps) {
   const [rows, setRows] = useState<LajeRow[]>([{ ...initialLajeRow, id: crypto.randomUUID() }]);
 
   const handleAddRow = () => {
@@ -665,6 +705,11 @@ function LajeCalculator({ pavimentoFilter }: { pavimentoFilter: string }) {
       return acc;
     }, { volume: 0, cimento: 0, areia: 0, brita: 0 });
   }, [calculatedRows]);
+
+  useEffect(() => {
+    onTotalsChange(totals);
+  }, [totals, onTotalsChange]);
+
 
   return (
     <Card>
@@ -758,7 +803,13 @@ const initialAlvenariaRow: Omit<AlvenariaRow, 'id'> = {
   junta: 1.5,
 };
 
-function AlvenariaCalculator({ pavimentoFilter }: { pavimentoFilter: string }) {
+type AlvenariaCalculatorProps = {
+    pavimentoFilter: string;
+    onTotalsChange: (totals: Totals) => void;
+};
+
+
+function AlvenariaCalculator({ pavimentoFilter, onTotalsChange }: AlvenariaCalculatorProps) {
   const [rows, setRows] = useState<AlvenariaRow[]>([{ ...initialAlvenariaRow, id: crypto.randomUUID() }]);
 
   const handleAddRow = () => {
@@ -791,17 +842,16 @@ function AlvenariaCalculator({ pavimentoFilter }: { pavimentoFilter: string }) {
       const L = row.larguraBloco / 100; // m
       const H = row.alturaBloco / 100; // m
       const j_cm = row.junta;
-      const j_m = j_cm / 100;
-
-      const Cc = 430; // kg/m³
-      const Ca = 1.2; // m³/m³
-
-      const areaBlocoComJunta = (L > 0 && H > 0) ? (L + j_m) * (H + j_m) : 0;
+      
+      const areaBlocoComJunta = (L > 0 && H > 0) ? (L + (j_cm / 100)) * (H + (j_cm / 100)) : 0;
       const N_blocos = areaBlocoComJunta > 0 ? A / areaBlocoComJunta : 0;
       const N_final = N_blocos * (1 + 0.05); // 5% de perda
       
       const V_arg = A * (0.02 * j_cm); 
       const V_final = V_arg * (1 + 0.10); // 10% de perda
+      
+      const Cc = 430; // kg/m³
+      const Ca = 1.2; // m³/m³
       
       const Q_cimento = V_final * Cc;
       const Sacos = Q_cimento > 0 ? Q_cimento / 50 : 0;
@@ -827,6 +877,10 @@ function AlvenariaCalculator({ pavimentoFilter }: { pavimentoFilter: string }) {
       return acc;
     }, { blocksNeeded: 0, mortarVolume: 0, cementSacks: 0, sandM3: 0 });
   }, [calculatedRows]);
+
+  useEffect(() => {
+    onTotalsChange(totals);
+  }, [totals, onTotalsChange]);
 
 
   return (
@@ -923,7 +977,13 @@ const initialRebocoRow: Omit<RebocoRow, 'id'> = {
   lados: 1,
 };
 
-function RebocoCalculator({ pavimentoFilter }: { pavimentoFilter: string }) {
+type RebocoCalculatorProps = {
+    pavimentoFilter: string;
+    onTotalsChange: (totals: Totals) => void;
+};
+
+
+function RebocoCalculator({ pavimentoFilter, onTotalsChange }: RebocoCalculatorProps) {
   const [rows, setRows] = useState<RebocoRow[]>([{ ...initialRebocoRow, id: crypto.randomUUID() }]);
 
   const handleAddRow = () => {
@@ -982,6 +1042,10 @@ function RebocoCalculator({ pavimentoFilter }: { pavimentoFilter: string }) {
       return acc;
     }, { mortarVolume: 0, cementSacks: 0, sandM3: 0 });
   }, [calculatedRows]);
+
+  useEffect(() => {
+    onTotalsChange(totals);
+  }, [totals, onTotalsChange]);
 
 
   return (
@@ -1077,13 +1141,29 @@ export default function QuantitativoPage() {
   });
   
   const [pavimentoFilter, setPavimentoFilter] = useState<string>('todos');
+  const [allTotals, setAllTotals] = useState<Record<CalculatorType, Totals>>({
+    sapatas: {},
+    vigamentos: {},
+    pilares: {},
+    lajes: {},
+    alvenaria: {},
+    reboco: {},
+  });
+  const companyData = useCompanyData();
+
+  const handleTotalsChange = useCallback((calculatorKey: CalculatorType, totals: Totals) => {
+    setAllTotals(prev => ({
+        ...prev,
+        [calculatorKey]: totals
+    }));
+  }, []);
 
 
   const handleVisibilityChange = (key: CalculatorType, checked: boolean) => {
     setVisibleCalculators(prev => ({ ...prev, [key]: checked }));
   };
   
-  const calculators: { key: CalculatorType; component: React.ComponentType<{ pavimentoFilter: string }> }[] = [
+  const calculators: { key: CalculatorType; component: React.ComponentType<any> }[] = [
     { key: 'sapatas', component: SapataCalculator },
     { key: 'vigamentos', component: VigamentoCalculator },
     { key: 'pilares', component: PilarCalculator },
@@ -1091,6 +1171,98 @@ export default function QuantitativoPage() {
     { key: 'alvenaria', component: AlvenariaCalculator },
     { key: 'reboco', component: RebocoCalculator },
   ];
+
+  const generatePdf = () => {
+        const doc = new jsPDF();
+        const pageWidth = doc.internal.pageSize.getWidth();
+        let currentY = 20;
+
+        // Cabeçalho
+        doc.setFontSize(18);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Relatório de Quantitativos', pageWidth / 2, currentY, { align: 'center' });
+        currentY += 8;
+
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        if (companyData?.companyName) {
+            doc.text(`Empresa: ${companyData.companyName}`, pageWidth / 2, currentY, { align: 'center' });
+            currentY += 5;
+        }
+        doc.text(`Filtro de Pavimento Aplicado: ${pavimentoFilter === 'todos' ? 'Todos' : pavimentoFilter}`, pageWidth / 2, currentY, { align: 'center' });
+        currentY += 10;
+        
+        const consolidatedTotals: Record<string, { value: number; unit: string }> = {};
+
+        // Seção Detalhada por Calculadora
+        Object.entries(allTotals).forEach(([key, totals]) => {
+            if (!visibleCalculators[key as CalculatorType] || Object.keys(totals).length === 0) return;
+            
+            const body: (string | number)[][] = [];
+
+            if (totals.cimento > 0) {
+                const value = totals.cimento;
+                body.push(['Cimento (sacos 50kg)', value.toFixed(2)]);
+                consolidatedTotals['Cimento (sacos 50kg)'] = { value: (consolidatedTotals['Cimento (sacos 50kg)']?.value || 0) + value, unit: 'sacos' };
+            }
+            if (totals.areia > 0) {
+                 const value = totals.areia;
+                body.push(['Areia (m³)', value.toFixed(3)]);
+                consolidatedTotals['Areia (m³)'] = { value: (consolidatedTotals['Areia (m³)']?.value || 0) + value, unit: 'm³' };
+            }
+            if (totals.brita > 0) {
+                 const value = totals.brita;
+                body.push(['Brita (m³)', value.toFixed(3)]);
+                consolidatedTotals['Brita (m³)'] = { value: (consolidatedTotals['Brita (m³)']?.value || 0) + value, unit: 'm³' };
+            }
+             if (totals.totalBarras > 0) {
+                 const value = totals.totalBarras;
+                body.push(['Barras de Ferro (12m)', value.toFixed(2)]);
+                consolidatedTotals['Barras de Ferro (12m)'] = { value: (consolidatedTotals['Barras de Ferro (12m)']?.value || 0) + value, unit: 'un' };
+            }
+            if (totals.quantFerro3_16 > 0) {
+                 const value = totals.quantFerro3_16;
+                body.push(['Ferro 3/16 (barras)', value.toFixed(2)]);
+                consolidatedTotals['Ferro 3/16 (barras)'] = { value: (consolidatedTotals['Ferro 3/16 (barras)']?.value || 0) + value, unit: 'un' };
+            }
+             if (totals.blocksNeeded > 0) {
+                 const value = totals.blocksNeeded;
+                body.push(['Blocos (un)', Math.ceil(value)]);
+                consolidatedTotals['Blocos (un)'] = { value: (consolidatedTotals['Blocos (un)']?.value || 0) + value, unit: 'un' };
+            }
+
+
+            if (body.length > 0) {
+                autoTable(doc, {
+                    startY: currentY,
+                    head: [[CALCULATOR_OPTIONS[key as CalculatorType], 'Total']],
+                    body: body,
+                    theme: 'striped',
+                    headStyles: { fillColor: [34, 139, 34] },
+                });
+                currentY = (doc as any).lastAutoTable.finalY + 10;
+            }
+        });
+
+        // Resumo Geral
+        if (Object.keys(consolidatedTotals).length > 0) {
+            const summaryBody = Object.entries(consolidatedTotals).map(([item, data]) => {
+                const formattedValue = item.includes('Blocos') ? Math.ceil(data.value) : data.value.toFixed(2);
+                return [item, `${formattedValue} ${data.unit}`];
+            });
+
+             autoTable(doc, {
+                startY: currentY,
+                head: [['Resumo Geral de Materiais', 'Quantidade Total']],
+                body: summaryBody,
+                theme: 'grid',
+                headStyles: { fillColor: [22, 163, 74] },
+            });
+        }
+
+
+        doc.save('relatorio_quantitativo.pdf');
+    };
 
   return (
     <div className="flex flex-col gap-8">
@@ -1109,6 +1281,10 @@ export default function QuantitativoPage() {
                     {pavimentoOptions.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
                 </SelectContent>
             </Select>
+            <Button onClick={generatePdf} variant="outline">
+                <Download className="mr-2 h-4 w-4"/>
+                Exportar PDF
+            </Button>
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                     <Button variant="destructive">
@@ -1134,8 +1310,9 @@ export default function QuantitativoPage() {
       </div>
 
       {calculators.map(({ key, component: Component }) =>
-        visibleCalculators[key] ? <Component key={key} pavimentoFilter={pavimentoFilter} /> : null
+        visibleCalculators[key] ? <Component key={key} pavimentoFilter={pavimentoFilter} onTotalsChange={(totals: Totals) => handleTotalsChange(key, totals)} /> : null
       )}
     </div>
   );
 }
+
