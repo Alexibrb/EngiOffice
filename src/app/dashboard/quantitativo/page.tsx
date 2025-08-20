@@ -13,7 +13,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
-  DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -23,6 +22,9 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useCompanyData } from '../layout';
 import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import type { Client } from '@/lib/types';
 
 
 const CALCULATOR_OPTIONS = {
@@ -67,7 +69,7 @@ const pavimentoOptions = ['Térreo', 'Pav1', 'Pav2', 'Pav3', 'Pav4', 'Pav5', 'Pa
 const bitolaOptions = ['1/4', '5/16', '3/8', '1/2', '5/8'];
 
 type Totals = {
-    [key: string]: number | Record<string, number>;
+    [key: string]: number | Record<string, number> | any[];
 };
 
 
@@ -1267,6 +1269,8 @@ const RebocoCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimento
 RebocoCalculator.displayName = "RebocoCalculator";
 
 export default function QuantitativoPage() {
+  const [clients, setClients] = useState<Client[]>([]);
+  const [selectedClientId, setSelectedClientId] = useState<string>('');
   const [visibleCalculators, setVisibleCalculators] = useState<Record<CalculatorType, boolean>>({
     sapatas: true,
     vigamentos: false,
@@ -1278,6 +1282,28 @@ export default function QuantitativoPage() {
   
   const [pavimentoFilter, setPavimentoFilter] = useState<string>('todos');
   const companyData = useCompanyData();
+
+  useEffect(() => {
+    const fetchClients = async () => {
+      try {
+        const querySnapshot = await getDocs(collection(db, "clientes"));
+        const clientsData = querySnapshot.docs.map(doc => ({
+          ...doc.data(),
+          codigo_cliente: doc.id,
+        })) as Client[];
+        clientsData.sort((a, b) => a.nome_completo.localeCompare(b.nome_completo));
+        setClients(clientsData);
+      } catch (error) {
+        console.error("Erro ao buscar clientes: ", error);
+        // Optionally, show a toast message here
+      }
+    };
+    fetchClients();
+  }, []);
+
+  const selectedClient = useMemo(() => {
+    return clients.find(c => c.codigo_cliente === selectedClientId);
+  }, [clients, selectedClientId]);
 
   const calculatorRefs = {
     sapatas: useRef<CalculatorRef>(null),
@@ -1312,21 +1338,45 @@ export default function QuantitativoPage() {
   const generatePdf = () => {
         const doc = new jsPDF();
         const pageWidth = doc.internal.pageSize.getWidth();
-        let currentY = 20;
+        let currentY = 15;
 
-        // Cabeçalho
+        // Cabeçalho Empresa
         doc.setFontSize(18);
         doc.setFont('helvetica', 'bold');
-        doc.text('Relatório de Quantitativos', pageWidth / 2, currentY, { align: 'center' });
+        doc.text(companyData?.companyName || 'EngiOffice', pageWidth / 2, currentY, { align: 'center' });
         currentY += 8;
 
-        doc.setFontSize(10);
+        // Título Relatório
+        doc.setFontSize(14);
         doc.setFont('helvetica', 'normal');
-        if (companyData?.companyName) {
-            doc.text(`Empresa: ${companyData.companyName}`, pageWidth / 2, currentY, { align: 'center' });
+        doc.text('Relatório de Quantitativos', pageWidth / 2, currentY, { align: 'center' });
+        currentY += 10;
+
+        // Dados do Cliente
+        if (selectedClient) {
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Cliente:', 14, currentY);
+            doc.setFont('helvetica', 'normal');
+            doc.text(selectedClient.nome_completo, 30, currentY);
             currentY += 5;
+
+            const obra = selectedClient.endereco_obra;
+            if (obra && obra.street) {
+                doc.setFont('helvetica', 'bold');
+                doc.text('Obra:', 14, currentY);
+                doc.setFont('helvetica', 'normal');
+                const address = `${obra.street}, ${obra.number} - ${obra.neighborhood}, ${obra.city} - ${obra.state}`;
+                doc.text(address, 30, currentY);
+                currentY += 5;
+            }
         }
-        doc.text(`Filtro de Pavimento Aplicado: ${pavimentoFilter === 'todos' ? 'Todos' : pavimentoFilter}`, pageWidth / 2, currentY, { align: 'center' });
+        
+        doc.setFont('helvetica', 'bold');
+        doc.text('Filtro de Pavimento Aplicado:', 14, currentY);
+        doc.setFont('helvetica', 'normal');
+        doc.text(pavimentoFilter === 'todos' ? 'Todos' : pavimentoFilter, 65, currentY);
+
         currentY += 10;
         
         const consolidatedTotals: Record<string, { value: number; unit: string }> = {};
@@ -1346,19 +1396,19 @@ export default function QuantitativoPage() {
             const body: (string | number)[][] = [];
             const ferroTotals = totals.ferro as Record<string, number> | undefined;
 
-            if (totals.cimento > 0) {
+            if ((totals.cimento as number) > 0) {
                 const value = totals.cimento as number;
                 body.push(['Cimento (sacos 50kg)', value.toFixed(2)]);
                 consolidatedTotals['Cimento (sacos 50kg)'] = { value: (consolidatedTotals['Cimento (sacos 50kg)']?.value || 0) + value, unit: 'sacos' };
             }
             
-            if (totals.areia > 0) {
+            if ((totals.areia as number) > 0) {
                  const value = totals.areia as number;
                 body.push(['Areia (m³)', value.toFixed(3)]);
                 consolidatedTotals['Areia (m³)'] = { value: (consolidatedTotals['Areia (m³)']?.value || 0) + value, unit: 'm³' };
             }
             
-            if (totals.brita > 0) {
+            if ((totals.brita as number) > 0) {
                  const value = totals.brita as number;
                 body.push(['Brita (m³)', value.toFixed(3)]);
                 consolidatedTotals['Brita (m³)'] = { value: (consolidatedTotals['Brita (m³)']?.value || 0) + value, unit: 'm³' };
@@ -1372,21 +1422,21 @@ export default function QuantitativoPage() {
               })
             }
 
-            if (totals.quantFerro3_16 > 0) {
+            if ((totals.quantFerro3_16 as number) > 0) {
                  const value = totals.quantFerro3_16 as number;
                  const itemName = `Ferro 3/16 (barras)`;
                 body.push([itemName, value.toFixed(2)]);
                 consolidatedTotals[itemName] = { value: (consolidatedTotals[itemName]?.value || 0) + value, unit: 'un' };
             }
 
-             if (totals.blocos > 0) {
+             if ((totals.blocos as number) > 0) {
                  const value = totals.blocos as number;
                  const itemName = 'Blocos (un)';
                 body.push([itemName, Math.ceil(value)]);
                 consolidatedTotals[itemName] = { value: (consolidatedTotals[itemName]?.value || 0) + value, unit: 'un' };
             }
 
-            if (totals.argamassa > 0) {
+            if ((totals.argamassa as number) > 0) {
                  const value = totals.argamassa as number;
                  body.push(['Argamassa (m³)', value.toFixed(3)]);
             }
@@ -1409,14 +1459,15 @@ export default function QuantitativoPage() {
             }
         });
 
-        if (allTotals.lajes && allTotals.lajes.area > 0) {
+        if (allTotals.lajes && (allTotals.lajes.area as number) > 0) {
              const value = allTotals.lajes.area as number;
              const itemName = 'Área de Laje (m²)';
              consolidatedTotals[itemName] = { value: (consolidatedTotals[itemName]?.value || 0) + value, unit: 'm²' };
         }
-
+        
+        doc.addPage();
+        
         if (Object.keys(consolidatedTotals).length > 0) {
-            doc.addPage();
             const summaryBody = Object.entries(consolidatedTotals).map(([item, data]) => {
                 const formattedValue = item.includes('Blocos') || item.includes('barras') ? Math.ceil(data.value) : data.value.toFixed(2);
                 return [item, `${formattedValue} ${data.unit}`];
@@ -1447,7 +1498,7 @@ export default function QuantitativoPage() {
         const allVisible = Object.values(visibleCalculators).every(Boolean);
 
         return (
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
                 <Select value={pavimentoFilter} onValueChange={setPavimentoFilter}>
                     <SelectTrigger className="w-full sm:w-[200px]">
                         <SelectValue placeholder="Filtrar por Pavimento" />
@@ -1516,6 +1567,40 @@ export default function QuantitativoPage() {
         />
         {renderFilterControls()}
       </div>
+
+       <Card>
+        <CardHeader>
+          <CardTitle>Identificação do Projeto</CardTitle>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="client-select">Cliente</Label>
+            <Select value={selectedClientId} onValueChange={setSelectedClientId}>
+                <SelectTrigger id="client-select">
+                    <SelectValue placeholder="Selecione um cliente" />
+                </SelectTrigger>
+                <SelectContent>
+                    {clients.map(client => (
+                        <SelectItem key={client.codigo_cliente} value={client.codigo_cliente}>
+                            {client.nome_completo}
+                        </SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>Endereço da Obra</Label>
+            <div className="min-h-[40px] p-2 border rounded-md bg-muted text-sm">
+                {selectedClient ? (
+                    <span>{`${selectedClient.endereco_obra.street}, ${selectedClient.endereco_obra.number} - ${selectedClient.endereco_obra.neighborhood}, ${selectedClient.endereco_obra.city} - ${selectedClient.endereco_obra.state}`}</span>
+                ) : (
+                    <span className="text-muted-foreground">Selecione um cliente para ver o endereço</span>
+                )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
 
       {calculators.map(({ key, component: Component }) =>
         visibleCalculators[key] ? <Component key={key} pavimentoFilter={pavimentoFilter} ref={calculatorRefs[key]} /> : null
