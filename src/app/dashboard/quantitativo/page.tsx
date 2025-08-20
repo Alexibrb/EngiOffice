@@ -260,8 +260,6 @@ function VigamentoCalculator() {
         cimento: cimentoSacos,
         areia: areiaM3,
         brita: britaM3,
-        quantEstribos: quantEstribosTotal,
-        tamEstribo: tamEstriboM,
         quantFerro3_16: totalBarrasEstribos,
       };
     });
@@ -674,15 +672,15 @@ function LajeCalculator() {
 
 type AlvenariaRow = {
   id: string;
+  pav: string;
   descricao: string;
-  comprimento: number; // m
-  altura: number; // m
+  area: number; // m
 };
 
 const initialAlvenariaRow: Omit<AlvenariaRow, 'id'> = {
+  pav: 'Térreo',
   descricao: 'Parede 1',
-  comprimento: 5,
-  altura: 2.8,
+  area: 14,
 };
 
 function AlvenariaCalculator() {
@@ -702,7 +700,7 @@ function AlvenariaCalculator() {
   const handleInputChange = (id: string, field: keyof AlvenariaRow, value: string) => {
     const newRows = rows.map(row => {
       if (row.id === id) {
-        const parsedValue = field === 'descricao' ? value : parseFloat(value) || 0;
+        const parsedValue = field === 'descricao' || field === 'pav' ? value : parseFloat(value) || 0;
         return { ...row, [field]: parsedValue };
       }
       return row;
@@ -714,7 +712,7 @@ function AlvenariaCalculator() {
     const blockAreaWithMortar = ((blockLength / 100) + (mortarJoint / 100)) * ((blockHeight / 100) + (mortarJoint / 100));
     
     return rows.map(row => {
-      const wallArea = row.comprimento * row.altura;
+      const wallArea = row.area;
       const blocksNeeded = wallArea > 0 ? (wallArea / blockAreaWithMortar) * 1.10 : 0; // 10% loss
       const mortarVolume = wallArea > 0 ? wallArea * (mortarJoint / 100) : 0;
       const cementSacks = mortarVolume > 0 ? (mortarVolume / 0.18) * 0.25 : 0; // Simplified mortar calc
@@ -770,9 +768,8 @@ function AlvenariaCalculator() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>Pav.</TableHead>
                 <TableHead>Descrição da Parede</TableHead>
-                <TableHead>Comprimento (m)</TableHead>
-                <TableHead>Altura (m)</TableHead>
                 <TableHead>Área Parede (m²)</TableHead>
                 <TableHead className="font-bold bg-primary/10">Quant. Blocos (un)</TableHead>
                 <TableHead className="font-bold bg-primary/10">Argamassa (m³)</TableHead>
@@ -784,10 +781,9 @@ function AlvenariaCalculator() {
             <TableBody>
               {calculatedRows.map((row) => (
                 <TableRow key={row.id}>
+                  <TableCell><Input value={row.pav} onChange={(e) => handleInputChange(row.id, 'pav', e.target.value)} /></TableCell>
                   <TableCell><Input value={row.descricao} onChange={(e) => handleInputChange(row.id, 'descricao', e.target.value)} /></TableCell>
-                  <TableCell><Input type="number" step="0.1" value={row.comprimento} onChange={(e) => handleInputChange(row.id, 'comprimento', e.target.value)} /></TableCell>
-                  <TableCell><Input type="number" step="0.1" value={row.altura} onChange={(e) => handleInputChange(row.id, 'altura', e.target.value)} /></TableCell>
-                  <TableCell>{row.wallArea.toFixed(2)}</TableCell>
+                  <TableCell><Input type="number" step="0.1" value={row.area} onChange={(e) => handleInputChange(row.id, 'area', e.target.value)} /></TableCell>
                   <TableCell className="font-bold bg-primary/10">{Math.ceil(row.blocksNeeded)}</TableCell>
                   <TableCell className="font-bold bg-primary/10">{row.mortarVolume.toFixed(3)}</TableCell>
                   <TableCell className="font-bold bg-primary/10">{row.cementSacks.toFixed(2)}</TableCell>
@@ -802,7 +798,7 @@ function AlvenariaCalculator() {
             </TableBody>
             <TableFooter>
               <TableRow>
-                  <TableCell colSpan={3} className="font-bold text-right">Totais</TableCell>
+                  <TableCell colSpan={2} className="font-bold text-right">Totais</TableCell>
                   <TableCell className="font-bold">{totals.wallArea.toFixed(2)}</TableCell>
                   <TableCell className="font-bold bg-primary/10">{Math.ceil(totals.blocksNeeded)}</TableCell>
                   <TableCell className="font-bold bg-primary/10">{totals.mortarVolume.toFixed(3)}</TableCell>
