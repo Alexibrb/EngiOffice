@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -37,7 +38,7 @@ const prompt = ai.definePrompt({
   name: 'suggestTimelinePrompt',
   input: {schema: SuggestTimelineInputSchema},
   output: {schema: SuggestTimelineOutputSchema},
-  prompt: `You are an AI assistant that helps project managers estimate project timelines.
+  prompt: `You are an AI assistant that helps project managers estimate project timelines. Your response must be in Brazilian Portuguese.
 
   Based on the following service description, suggest a project timeline with estimated start and end dates and key milestones:
 
