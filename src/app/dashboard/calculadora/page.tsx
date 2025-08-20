@@ -456,12 +456,13 @@ function BeamReinforcementCalculator() {
         }
 
         // --- Simplified concrete beam design formulas (NBR 6118) ---
-        const fcd = fckValue / 1.4; 
-        const d = h - c; // Effective depth
-        const Md = Mk * 1.4; // Design moment
+        // units: kN and cm
+        const fcd = (fckValue / 1.4) * 0.1; // Convert MPa to kN/cm²
+        const d = h - c; // Effective depth in cm
+        const Md = Mk * 1.4 * 100; // Design moment in kN.cm
         
         // K calculation
-        const k = Md / (bw * Math.pow(d, 2) * 0.85 * fcd / 100); // 100 to convert kNm to kNcm
+        const k = Md / (bw * Math.pow(d, 2) * 0.85 * fcd);
         
         let As;
         if (k > 0.297) { // Domain 3 limit for CA-50
@@ -470,7 +471,8 @@ function BeamReinforcementCalculator() {
         } else {
              const kz = 0.5 * (1 + Math.sqrt(1 - 2 * k));
              const z = kz * d; // Lever arm
-             As = Md / (z * (50 / 1.15)); // fyd = 50kN/cm^2 / 1.15
+             const fyd = (50 / 1.15); // Steel yield strength in kN/cm²
+             As = Md / (z * fyd); 
         }
 
         // Minimum reinforcement area
