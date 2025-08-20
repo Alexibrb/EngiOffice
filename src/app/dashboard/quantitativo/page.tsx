@@ -71,7 +71,7 @@ function SapataCalculator() {
       const volumeUnitario = larguraM * comprimentoM * alturaM;
       const volumeTotal = volumeUnitario * row.quant;
       
-      const totalLinearFerro = (((larguraComDobraM + alturaComDobraM) * 2 * row.elosVert) + ((larguraComDobraM + comprimentoComDobraM) * 2 * row.elosHoriz)) * row.quant;
+      const totalLinearFerro = (((larguraComDobraM + alturaComDobraM) * 2 * row.elosVert) + ((comprimentoComDobraM + alturaComDobraM) * 2 * row.elosHoriz)) * row.quant;
       const totalBarrasFerro = (totalLinearFerro / COMPRIMENTO_BARRA_FERRO) * 1.1;
 
       const cimentoSacos = volumeTotal > 0 ? volumeTotal / 0.16 : 0;
@@ -237,7 +237,7 @@ function VigamentoCalculator() {
       const volumeTotal = volumeUnitario * row.quant;
       
       const totalLinearFerro = (comprimentoM + 0.5) * row.quantDeFerro * row.quant;
-      const totalBarrasFerro = (totalLinearFerro / COMPRIMENTO_BARRA_FERRO) * 1.1;
+      const totalBarrasFerro = totalLinearFerro / COMPRIMENTO_BARRA_FERRO;
 
       const cimentoSacos = volumeTotal > 0 ? volumeTotal / 0.16 : 0;
       const areiaM3 = (cimentoSacos * 5 * 18) / 1000;
