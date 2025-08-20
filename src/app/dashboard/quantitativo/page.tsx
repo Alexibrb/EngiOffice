@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PlusCircle, Trash2 } from 'lucide-react';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 type SapataRow = {
   id: string;
@@ -717,7 +718,6 @@ function AlvenariaCalculator() {
       const j_cm = row.junta; // cm
       const j_m = j_cm / 100; // m
 
-      // Fatores de consumo para traço ~1:4
       const Cc = 430; // kg/m³
       const Ca = 1.2; // m³/m³
 
@@ -830,6 +830,7 @@ type RebocoRow = {
   descricao: string;
   area: number; // m²
   espessura: number; // cm
+  lados: 1 | 2;
 };
 
 const initialRebocoRow: Omit<RebocoRow, 'id'> = {
@@ -837,6 +838,7 @@ const initialRebocoRow: Omit<RebocoRow, 'id'> = {
   descricao: 'Parede 1',
   area: 20,
   espessura: 2,
+  lados: 1,
 };
 
 function RebocoCalculator() {
@@ -850,10 +852,10 @@ function RebocoCalculator() {
     setRows(rows.filter(row => row.id !== id));
   };
 
-  const handleInputChange = (id: string, field: keyof RebocoRow, value: string) => {
+  const handleInputChange = (id: string, field: keyof RebocoRow, value: string | number) => {
     const newRows = rows.map(row => {
       if (row.id === id) {
-        const parsedValue = field === 'descricao' || field === 'pav' ? value : parseFloat(value) || 0;
+        const parsedValue = typeof value === 'string' && (field === 'descricao' || field === 'pav') ? value : parseFloat(String(value)) || 0;
         return { ...row, [field]: parsedValue };
       }
       return row;
@@ -863,11 +865,11 @@ function RebocoCalculator() {
   
   const calculatedRows = useMemo(() => {
     return rows.map(row => {
-      const A = row.area;
+      const A = row.area * row.lados;
       const e = row.espessura / 100; // m
 
-      const Cc = 430; // kg/m³
-      const Ca = 1.2; // m³/m³
+      const Cc = 430;
+      const Ca = 1.2;
 
       const V_arg = A * e; 
       const V_final = V_arg * (1 + 0.10); // 10% de perda
@@ -912,6 +914,7 @@ function RebocoCalculator() {
                 <TableHead>Descrição da Parede</TableHead>
                 <TableHead>Área Parede (m²)</TableHead>
                 <TableHead>Espessura (cm)</TableHead>
+                <TableHead>Lados</TableHead>
                 <TableHead className="font-bold bg-primary/10">Argamassa (m³)</TableHead>
                 <TableHead className="font-bold bg-primary/10">Cimento (sacos 50kg)</TableHead>
                 <TableHead className="font-bold bg-primary/10">Areia (m³)</TableHead>
@@ -925,6 +928,17 @@ function RebocoCalculator() {
                   <TableCell><Input value={row.descricao} onChange={(e) => handleInputChange(row.id, 'descricao', e.target.value)} /></TableCell>
                   <TableCell><Input type="number" step="0.1" value={row.area} onChange={(e) => handleInputChange(row.id, 'area', e.target.value)} /></TableCell>
                   <TableCell><Input type="number" step="0.1" value={row.espessura} onChange={(e) => handleInputChange(row.id, 'espessura', e.target.value)} /></TableCell>
+                  <TableCell>
+                     <Select value={String(row.lados)} onValueChange={(value) => handleInputChange(row.id, 'lados', value)}>
+                        <SelectTrigger className="w-[80px]">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="1">1</SelectItem>
+                            <SelectItem value="2">2</SelectItem>
+                        </SelectContent>
+                    </Select>
+                  </TableCell>
                   <TableCell className="font-bold bg-primary/10">{row.mortarVolume.toFixed(3)}</TableCell>
                   <TableCell className="font-bold bg-primary/10">{row.cementSacks.toFixed(2)}</TableCell>
                   <TableCell className="font-bold bg-primary/10">{row.sandM3.toFixed(3)}</TableCell>
@@ -938,7 +952,7 @@ function RebocoCalculator() {
             </TableBody>
             <TableFooter>
               <TableRow>
-                  <TableCell colSpan={4} className="font-bold text-right">Totais</TableCell>
+                  <TableCell colSpan={5} className="font-bold text-right">Totais</TableCell>
                   <TableCell className="font-bold bg-primary/10">{totals.mortarVolume.toFixed(3)}</TableCell>
                   <TableCell className="font-bold bg-primary/10">{totals.cementSacks.toFixed(2)}</TableCell>
                   <TableCell className="font-bold bg-primary/10">{totals.sandM3.toFixed(3)}</TableCell>
@@ -975,5 +989,3 @@ export default function QuantitativoPage() {
     </div>
   );
 }
-
-    
