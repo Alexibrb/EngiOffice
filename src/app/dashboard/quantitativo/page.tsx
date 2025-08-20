@@ -1473,7 +1473,7 @@ export default function QuantitativoPage() {
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleResetAll} variant="destructive">Sim, limpar tudo</AlertDialogAction>
+                        <AlertDialogAction onClick={handleResetAll}>Sim, limpar tudo</AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
