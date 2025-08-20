@@ -73,7 +73,7 @@ function SapataCalculator() {
       const volumeTotal = volumeUnitario * row.quant;
       
       const totalLinearFerro = (((alturaComDobraM + larguraComDobraM) * 2 * row.elosVert) + ((comprimentoComDobraM + larguraComDobraM) * 2 * row.elosHoriz)) * row.quant;
-      const totalBarrasFerro = (totalLinearFerro / COMPRIMENTO_BARRA_FERRO) * 1.1;
+      const totalBarrasFerro = totalLinearFerro / COMPRIMENTO_BARRA_FERRO;
 
       const cimentoSacos = volumeTotal > 0 ? volumeTotal / 0.16 : 0;
       const areiaM3 = (cimentoSacos * 5 * 18) / 1000;
@@ -675,18 +675,20 @@ type AlvenariaRow = {
   pav: string;
   descricao: string;
   area: number; // m²
+  blocksPerSqM: number;
+  mortarJoint: number; // cm
 };
 
 const initialAlvenariaRow: Omit<AlvenariaRow, 'id'> = {
   pav: 'Térreo',
   descricao: 'Parede 1',
   area: 14,
+  blocksPerSqM: 12.5,
+  mortarJoint: 1,
 };
 
 function AlvenariaCalculator() {
   const [rows, setRows] = useState<AlvenariaRow[]>([{ ...initialAlvenariaRow, id: crypto.randomUUID() }]);
-  const [blocksPerSqM, setBlocksPerSqM] = useState(12.5);
-  const [mortarJoint, setMortarJoint] = useState(1); // cm
 
   const handleAddRow = () => {
     setRows([...rows, { ...initialAlvenariaRow, id: crypto.randomUUID(), descricao: `Parede ${rows.length + 1}` }]);
@@ -710,8 +712,8 @@ function AlvenariaCalculator() {
   const calculatedRows = useMemo(() => {
     return rows.map(row => {
       const wallArea = row.area;
-      const blocksNeeded = wallArea > 0 ? wallArea * blocksPerSqM * 1.10 : 0; // 10% loss
-      const mortarVolume = wallArea > 0 ? wallArea * (mortarJoint / 100) : 0;
+      const blocksNeeded = wallArea > 0 ? wallArea * row.blocksPerSqM * 1.10 : 0; // 10% loss
+      const mortarVolume = wallArea > 0 ? wallArea * (row.mortarJoint / 100) : 0;
       const cementSacks = mortarVolume > 0 ? (mortarVolume / 0.18) * 0.25 : 0; // Simplified mortar calc
       const sandM3 = cementSacks > 0 ? (cementSacks * 8 * 18) / 1000 : 0;
 
@@ -724,7 +726,7 @@ function AlvenariaCalculator() {
         sandM3,
       };
     });
-  }, [rows, blocksPerSqM, mortarJoint]);
+  }, [rows]);
 
   const totals = useMemo(() => {
     return calculatedRows.reduce((acc, row) => {
@@ -747,16 +749,6 @@ function AlvenariaCalculator() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 p-4 border rounded-lg">
-            <div className="space-y-2">
-                <Label htmlFor="blocks-per-sqm">Blocos por m²</Label>
-                <Input id="blocks-per-sqm" type="number" value={blocksPerSqM} onChange={(e) => setBlocksPerSqM(parseFloat(e.target.value) || 0)} />
-            </div>
-             <div className="space-y-2">
-                <Label htmlFor="mortar-joint">Junta Argamassa (cm)</Label>
-                <Input id="mortar-joint" type="number" value={mortarJoint} onChange={(e) => setMortarJoint(parseFloat(e.target.value) || 0)} />
-            </div>
-         </div>
         <div className="border rounded-lg overflow-x-auto">
           <Table>
             <TableHeader>
@@ -764,6 +756,8 @@ function AlvenariaCalculator() {
                 <TableHead>Pav.</TableHead>
                 <TableHead>Descrição da Parede</TableHead>
                 <TableHead>Área Parede (m²)</TableHead>
+                <TableHead>Blocos/m²</TableHead>
+                <TableHead>Junta (cm)</TableHead>
                 <TableHead className="font-bold bg-primary/10">Quant. Blocos (un)</TableHead>
                 <TableHead className="font-bold bg-primary/10">Argamassa (m³)</TableHead>
                 <TableHead className="font-bold bg-primary/10">Cimento (sacos 50kg)</TableHead>
@@ -777,6 +771,8 @@ function AlvenariaCalculator() {
                   <TableCell><Input value={row.pav} onChange={(e) => handleInputChange(row.id, 'pav', e.target.value)} /></TableCell>
                   <TableCell><Input value={row.descricao} onChange={(e) => handleInputChange(row.id, 'descricao', e.target.value)} /></TableCell>
                   <TableCell><Input type="number" step="0.1" value={row.area} onChange={(e) => handleInputChange(row.id, 'area', e.target.value)} /></TableCell>
+                  <TableCell><Input type="number" value={row.blocksPerSqM} onChange={(e) => handleInputChange(row.id, 'blocksPerSqM', e.target.value)} /></TableCell>
+                  <TableCell><Input type="number" value={row.mortarJoint} onChange={(e) => handleInputChange(row.id, 'mortarJoint', e.target.value)} /></TableCell>
                   <TableCell className="font-bold bg-primary/10">{Math.ceil(row.blocksNeeded)}</TableCell>
                   <TableCell className="font-bold bg-primary/10">{row.mortarVolume.toFixed(3)}</TableCell>
                   <TableCell className="font-bold bg-primary/10">{row.cementSacks.toFixed(2)}</TableCell>
@@ -791,8 +787,7 @@ function AlvenariaCalculator() {
             </TableBody>
             <TableFooter>
               <TableRow>
-                  <TableCell colSpan={2} className="font-bold text-right">Totais</TableCell>
-                  <TableCell className="font-bold">{totals.wallArea.toFixed(2)}</TableCell>
+                  <TableCell colSpan={5} className="font-bold text-right">Totais</TableCell>
                   <TableCell className="font-bold bg-primary/10">{Math.ceil(totals.blocksNeeded)}</TableCell>
                   <TableCell className="font-bold bg-primary/10">{totals.mortarVolume.toFixed(3)}</TableCell>
                   <TableCell className="font-bold bg-primary/10">{totals.cementSacks.toFixed(2)}</TableCell>
