@@ -126,20 +126,20 @@ export default function QuantitativoPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[100px]">Pav.</TableHead>
-                  <TableHead className="w-[80px]">Tipo</TableHead>
-                  <TableHead className="w-[80px]">Quant.</TableHead>
-                  <TableHead className="w-[100px]">Largura (cm)</TableHead>
-                  <TableHead className="w-[100px]">Compr. (cm)</TableHead>
-                  <TableHead className="w-[100px]">Altura (cm)</TableHead>
-                  <TableHead className="w-[120px]">Volume (m³)</TableHead>
-                  <TableHead className="w-[80px]">Elos Horiz.</TableHead>
-                  <TableHead className="w-[80px]">Elos Vert.</TableHead>
-                  <TableHead className="w-[120px]">Total Linear (m)</TableHead>
-                  <TableHead className="w-[120px]">Total de Ferros (kg)</TableHead>
-                  <TableHead className="w-[120px]">Cimento (kg)</TableHead>
-                  <TableHead className="w-[120px]">Areia (m³)</TableHead>
-                  <TableHead className="w-[120px]">Brita (m³)</TableHead>
+                  <TableHead className="min-w-[120px]">Pav.</TableHead>
+                  <TableHead className="min-w-[100px]">Tipo</TableHead>
+                  <TableHead className="min-w-[100px]">Quant.</TableHead>
+                  <TableHead className="min-w-[150px]">Largura (cm)</TableHead>
+                  <TableHead className="min-w-[150px]">Compr. (cm)</TableHead>
+                  <TableHead className="min-w-[150px]">Altura (cm)</TableHead>
+                  <TableHead className="min-w-[150px]">Volume (m³)</TableHead>
+                  <TableHead className="min-w-[150px]">Elos Horiz.</TableHead>
+                  <TableHead className="min-w-[150px]">Elos Vert.</TableHead>
+                  <TableHead className="min-w-[180px]">Total Linear (m)</TableHead>
+                  <TableHead className="min-w-[180px]">Total de Ferros (kg)</TableHead>
+                  <TableHead className="min-w-[150px]">Cimento (kg)</TableHead>
+                  <TableHead className="min-w-[150px]">Areia (m³)</TableHead>
+                  <TableHead className="min-w-[150px]">Brita (m³)</TableHead>
                    <TableHead className="w-[50px]"></TableHead>
                 </TableRow>
               </TableHeader>
