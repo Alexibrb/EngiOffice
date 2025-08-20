@@ -258,6 +258,7 @@ function IrregularAreaCalculator() {
     const newPoints = [...points];
     newPoints[index][axis] = value;
     setPoints(newPoints);
+    setArea(null); // Recalculate on change
   };
 
   const addPoint = () => {
@@ -268,6 +269,7 @@ function IrregularAreaCalculator() {
     if (points.length <= 3) return; // Need at least 3 points for a polygon
     const newPoints = points.filter((_, i) => i !== index);
     setPoints(newPoints);
+    setArea(null);
   };
   
   const handleReset = () => {
@@ -295,7 +297,7 @@ function IrregularAreaCalculator() {
 
   const svgPoints = useMemo(() => {
     const numericPoints = points.map(p => ({ x: parseFloat(p.x) || 0, y: parseFloat(p.y) || 0 }));
-    if (numericPoints.length === 0) return { path: '', viewBox: '0 0 300 200' };
+    if (numericPoints.length < 3) return { path: '', viewBox: '0 0 300 200' };
 
     const allX = numericPoints.map(p => p.x);
     const allY = numericPoints.map(p => p.y);
@@ -337,27 +339,27 @@ function IrregularAreaCalculator() {
       </CardHeader>
       <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <div className="space-y-4">
-            <div className="max-h-60 overflow-y-auto pr-2">
+            <div className="max-h-60 overflow-y-auto pr-2 border rounded-md">
              <Table>
                 <TableHeader>
                     <TableRow>
-                        <TableHead className="w-1/3">Ponto</TableHead>
-                        <TableHead className="w-1/3">Eixo X (m)</TableHead>
-                        <TableHead className="w-1/3">Eixo Y (m)</TableHead>
-                        <TableHead className="w-[40px]"></TableHead>
+                        <TableHead className="w-1/4 p-2">Ponto</TableHead>
+                        <TableHead className="w-1/3 p-2">Eixo X (m)</TableHead>
+                        <TableHead className="w-1/3 p-2">Eixo Y (m)</TableHead>
+                        <TableHead className="w-[40px] p-2"></TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
                     {points.map((point, index) => (
                         <TableRow key={index}>
-                            <TableCell className="font-medium">P{index + 1}</TableCell>
-                            <TableCell>
+                            <TableCell className="font-medium p-2">P{index + 1}</TableCell>
+                            <TableCell className="p-2">
                                 <Input type="number" value={point.x} onChange={e => handlePointChange(index, 'x', e.target.value)} />
                             </TableCell>
-                            <TableCell>
+                            <TableCell className="p-2">
                                 <Input type="number" value={point.y} onChange={e => handlePointChange(index, 'y', e.target.value)} />
                             </TableCell>
-                             <TableCell>
+                             <TableCell className="p-2">
                                 <Button variant="ghost" size="icon" onClick={() => removePoint(index)} disabled={points.length <= 3}>
                                     <Trash2 className="h-4 w-4 text-destructive" />
                                 </Button>
@@ -410,3 +412,5 @@ export default function CalculadoraPage() {
     </div>
   );
 }
+
+    
