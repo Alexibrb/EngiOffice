@@ -70,13 +70,10 @@ export default function QuantitativoPage() {
       const volumeUnitario = larguraM * comprimentoM * alturaM;
       const volumeTotal = volumeUnitario * row.quant;
       
-      const perimetroHorizontal = (2 * larguraM) + (2 * comprimentoM);
-      const perimetroVertical = (2 * larguraM) + (2 * alturaM);
-
-      const totalLinearHorizontal = perimetroHorizontal * row.elosHoriz;
-      const totalLinearVertical = perimetroVertical * row.elosVert;
+      const totalLinearVertical = (larguraM + alturaM) * 2 * row.elosVert;
+      const totalLinearHorizontal = (larguraM + comprimentoM) * 2 * row.elosHoriz;
       
-      const totalLinearFerro = (totalLinearHorizontal + totalLinearVertical) * row.quant;
+      const totalLinearFerro = (totalLinearVertical + totalLinearHorizontal) * row.quant;
 
       const totalPesoFerro = totalLinearFerro * PESO_FERRO_POR_METRO;
       const cimentoKg = volumeTotal * CIMENTO_POR_M3;
@@ -122,8 +119,8 @@ export default function QuantitativoPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="border rounded-lg overflow-auto">
-            <Table>
+          <div className="border rounded-lg overflow-x-auto">
+            <Table className="min-w-max">
               <TableHeader>
                 <TableRow>
                   <TableHead>Pav.</TableHead>
@@ -132,11 +129,11 @@ export default function QuantitativoPage() {
                   <TableHead>Largura (cm)</TableHead>
                   <TableHead>Compr. (cm)</TableHead>
                   <TableHead>Altura (cm)</TableHead>
-                  <TableHead>Volume (m³)</TableHead>
                   <TableHead>Elos Horiz.</TableHead>
                   <TableHead>Elos Vert.</TableHead>
+                  <TableHead>Volume (m³)</TableHead>
                   <TableHead>Total Linear (m)</TableHead>
-                  <TableHead>Total de Ferros (kg)</TableHead>
+                  <TableHead>Total Ferros (kg)</TableHead>
                   <TableHead>Cimento (kg)</TableHead>
                   <TableHead>Areia (m³)</TableHead>
                   <TableHead>Brita (m³)</TableHead>
@@ -146,15 +143,15 @@ export default function QuantitativoPage() {
               <TableBody>
                 {calculatedRows.map((row) => (
                   <TableRow key={row.id}>
-                    <TableCell><Input value={row.pav} onChange={(e) => handleInputChange(row.id, 'pav', e.target.value)} /></TableCell>
-                    <TableCell><Input value={row.tipo} onChange={(e) => handleInputChange(row.id, 'tipo', e.target.value)} /></TableCell>
-                    <TableCell><Input type="number" value={row.quant} onChange={(e) => handleInputChange(row.id, 'quant', e.target.value)} /></TableCell>
-                    <TableCell><Input type="number" step="1" value={row.largura} onChange={(e) => handleInputChange(row.id, 'largura', e.target.value)} /></TableCell>
-                    <TableCell><Input type="number" step="1" value={row.comprimento} onChange={(e) => handleInputChange(row.id, 'comprimento', e.target.value)} /></TableCell>
-                    <TableCell><Input type="number" step="1" value={row.altura} onChange={(e) => handleInputChange(row.id, 'altura', e.target.value)} /></TableCell>
+                    <TableCell><Input className="w-24" value={row.pav} onChange={(e) => handleInputChange(row.id, 'pav', e.target.value)} /></TableCell>
+                    <TableCell><Input className="w-20" value={row.tipo} onChange={(e) => handleInputChange(row.id, 'tipo', e.target.value)} /></TableCell>
+                    <TableCell><Input className="w-20" type="number" value={row.quant} onChange={(e) => handleInputChange(row.id, 'quant', e.target.value)} /></TableCell>
+                    <TableCell><Input className="w-24" type="number" step="1" value={row.largura} onChange={(e) => handleInputChange(row.id, 'largura', e.target.value)} /></TableCell>
+                    <TableCell><Input className="w-24" type="number" step="1" value={row.comprimento} onChange={(e) => handleInputChange(row.id, 'comprimento', e.target.value)} /></TableCell>
+                    <TableCell><Input className="w-24" type="number" step="1" value={row.altura} onChange={(e) => handleInputChange(row.id, 'altura', e.target.value)} /></TableCell>
+                    <TableCell><Input className="w-24" type="number" value={row.elosHoriz} onChange={(e) => handleInputChange(row.id, 'elosHoriz', e.target.value)} /></TableCell>
+                    <TableCell><Input className="w-24" type="number" value={row.elosVert} onChange={(e) => handleInputChange(row.id, 'elosVert', e.target.value)} /></TableCell>
                     <TableCell>{row.volume.toFixed(3)}</TableCell>
-                    <TableCell><Input type="number" value={row.elosHoriz} onChange={(e) => handleInputChange(row.id, 'elosHoriz', e.target.value)} /></TableCell>
-                    <TableCell><Input type="number" value={row.elosVert} onChange={(e) => handleInputChange(row.id, 'elosVert', e.target.value)} /></TableCell>
                     <TableCell>{row.totalLinear.toFixed(2)}</TableCell>
                     <TableCell>{row.totalFerro.toFixed(2)}</TableCell>
                     <TableCell>{row.cimento.toFixed(2)}</TableCell>
@@ -170,9 +167,8 @@ export default function QuantitativoPage() {
               </TableBody>
               <TableFooter>
                 <TableRow>
-                    <TableCell colSpan={6} className="font-bold text-right">Totais</TableCell>
+                    <TableCell colSpan={8} className="font-bold text-right">Totais</TableCell>
                     <TableCell className="font-bold">{totals.volume.toFixed(3)}</TableCell>
-                    <TableCell colSpan={2}></TableCell>
                     <TableCell className="font-bold">{totals.totalLinear.toFixed(2)}</TableCell>
                     <TableCell className="font-bold">{totals.totalFerro.toFixed(2)}</TableCell>
                     <TableCell className="font-bold">{totals.cimento.toFixed(2)}</TableCell>
