@@ -74,7 +74,7 @@ function SapataCalculator() {
       const totalLinearFerro = (((alturaComDobraM + larguraComDobraM) * 2 * row.elosVert) + ((comprimentoComDobraM + larguraComDobraM) * 2 * row.elosHoriz)) * row.quant;
       const totalBarrasFerro = (totalLinearFerro / COMPRIMENTO_BARRA_FERRO) * 1.1;
 
-      const cimentoSacos = volumeTotal / 0.16;
+      const cimentoSacos = volumeTotal > 0 ? volumeTotal / 0.16 : 0;
       const areiaM3 = (cimentoSacos * 5 * 18) / 1000;
       const britaM3 = (cimentoSacos * 6 * 18) / 1000;
 
@@ -245,11 +245,11 @@ function VigamentoCalculator() {
       const areiaM3 = (cimentoSacos * 5 * 18) / 1000;
       const britaM3 = (cimentoSacos * 6 * 18) / 1000;
 
-      const quantEstribos = (comprimentoM > 0 ? comprimentoM / 0.15 : 0) * row.quant;
+      const quantEstribosTotal = (comprimentoM > 0 ? comprimentoM / 0.15 : 0) * row.quant;
       const tamEstriboCm = ((row.largura - 3) + (row.altura - 3)) * 2 + 5;
       const tamEstriboM = tamEstriboCm / 100;
-      const totalLinearEstribos = tamEstriboM * quantEstribos;
-      const totalBarrasEstribos = totalLinearEstribos / COMPRIMENTO_BARRA_FERRO;
+      const totalLinearEstribos = tamEstriboM * quantEstribosTotal;
+      const totalBarrasEstribos = totalLinearEstribos > 0 ? totalLinearEstribos / COMPRIMENTO_BARRA_FERRO : 0;
 
       return {
         ...row,
@@ -259,8 +259,6 @@ function VigamentoCalculator() {
         cimento: cimentoSacos,
         areia: areiaM3,
         brita: britaM3,
-        quantEstribos: quantEstribos,
-        tamEstribos: tamEstriboCm,
         quantFerro3_16: totalBarrasEstribos,
       };
     });
@@ -425,11 +423,11 @@ function PilarCalculator() {
       const areiaM3 = (cimentoSacos * 5 * 18) / 1000;
       const britaM3 = (cimentoSacos * 6 * 18) / 1000;
 
-      const quantEstribos = (comprimentoM > 0 ? comprimentoM / 0.15 : 0) * row.quant;
+      const quantEstribosTotal = (comprimentoM > 0 ? comprimentoM / 0.15 : 0) * row.quant;
       const tamEstriboCm = ((row.largura - 3) + (row.altura - 3)) * 2 + 5;
       const tamEstriboM = tamEstriboCm / 100;
-      const totalLinearEstribos = tamEstriboM * quantEstribos;
-      const totalBarrasEstribos = totalLinearEstribos / COMPRIMENTO_BARRA_FERRO;
+      const totalLinearEstribos = tamEstriboM * quantEstribosTotal;
+      const totalBarrasEstribos = totalLinearEstribos > 0 ? totalLinearEstribos / COMPRIMENTO_BARRA_FERRO : 0;
 
       return {
         ...row,
@@ -439,8 +437,6 @@ function PilarCalculator() {
         cimento: cimentoSacos,
         areia: areiaM3,
         brita: britaM3,
-        quantEstribos: quantEstribos,
-        tamEstribos: tamEstriboCm,
         quantFerro3_16: totalBarrasEstribos,
       };
     });
@@ -542,6 +538,137 @@ function PilarCalculator() {
   );
 }
 
+type LajeRow = {
+  id: string;
+  pav: string;
+  descricao: string;
+  espessuraConcreto: number; // cm
+  area: number; // m²
+};
+
+const initialLajeRow: Omit<LajeRow, 'id'> = {
+  pav: 'Térreo',
+  descricao: 'Laje 1',
+  espessuraConcreto: 10,
+  area: 50,
+};
+
+function LajeCalculator() {
+  const [rows, setRows] = useState<LajeRow[]>([{ ...initialLajeRow, id: crypto.randomUUID() }]);
+
+  const handleAddRow = () => {
+    setRows([...rows, { ...initialLajeRow, id: crypto.randomUUID(), descricao: `Laje ${rows.length + 1}` }]);
+  };
+
+  const handleRemoveRow = (id: string) => {
+    setRows(rows.filter(row => row.id !== id));
+  };
+
+  const handleInputChange = (id: string, field: keyof LajeRow, value: string) => {
+    const newRows = rows.map(row => {
+      if (row.id === id) {
+        const parsedValue = field === 'pav' || field === 'descricao' ? value : parseFloat(value) || 0;
+        return { ...row, [field]: parsedValue };
+      }
+      return row;
+    });
+    setRows(newRows);
+  };
+
+  const calculatedRows = useMemo(() => {
+    return rows.map(row => {
+      const espessuraM = row.espessuraConcreto / 100;
+      const volumeTotal = row.area * espessuraM;
+      const cimentoSacos = volumeTotal > 0 ? volumeTotal / 0.14 : 0;
+      const areiaM3 = cimentoSacos > 0 ? (cimentoSacos * 4 * 18) / 1000 : 0;
+      const britaM3 = cimentoSacos > 0 ? (cimentoSacos * 5 * 18) / 1000 : 0;
+
+      return {
+        ...row,
+        volume: volumeTotal,
+        cimento: cimentoSacos,
+        areia: areiaM3,
+        brita: britaM3,
+      };
+    });
+  }, [rows]);
+
+  const totals = useMemo(() => {
+    return calculatedRows.reduce((acc, row) => {
+      acc.volume += row.volume;
+      acc.cimento += row.cimento;
+      acc.areia += row.areia;
+      acc.brita += row.brita;
+      return acc;
+    }, { volume: 0, cimento: 0, areia: 0, brita: 0 });
+  }, [calculatedRows]);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Calculadora de Quantitativos de Lajes</CardTitle>
+        <CardDescription>
+          Adicione as lajes do seu projeto para calcular a quantidade de materiais necessários.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="border rounded-lg overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Pav.</TableHead>
+                <TableHead>Descrição</TableHead>
+                <TableHead>Espessura Concreto (cm)</TableHead>
+                <TableHead>Área (m²)</TableHead>
+                <TableHead className="font-bold bg-primary/10">Volume (m³)</TableHead>
+                <TableHead className="font-bold bg-primary/10">Cimento (sacos 50kg)</TableHead>
+                <TableHead className="font-bold bg-primary/10">Areia (m³)</TableHead>
+                <TableHead className="font-bold bg-primary/10">Brita (m³)</TableHead>
+                <TableHead className="w-[50px]"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {calculatedRows.map((row) => (
+                <TableRow key={row.id}>
+                  <TableCell><Input value={row.pav} onChange={(e) => handleInputChange(row.id, 'pav', e.target.value)} /></TableCell>
+                  <TableCell><Input value={row.descricao} onChange={(e) => handleInputChange(row.id, 'descricao', e.target.value)} /></TableCell>
+                  <TableCell><Input type="number" step="1" value={row.espessuraConcreto} onChange={(e) => handleInputChange(row.id, 'espessuraConcreto', e.target.value)} /></TableCell>
+                  <TableCell><Input type="number" step="1" value={row.area} onChange={(e) => handleInputChange(row.id, 'area', e.target.value)} /></TableCell>
+                  <TableCell className="font-bold bg-primary/10">{row.volume.toFixed(3)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{row.cimento.toFixed(2)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{row.areia.toFixed(3)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{row.brita.toFixed(3)}</TableCell>
+                  <TableCell>
+                      <Button variant="ghost" size="icon" onClick={() => handleRemoveRow(row.id)} disabled={rows.length <= 1}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+            <TableFooter>
+              <TableRow>
+                  <TableCell colSpan={4} className="font-bold text-right">Totais</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{totals.volume.toFixed(3)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{totals.cimento.toFixed(2)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{totals.areia.toFixed(3)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{totals.brita.toFixed(3)}</TableCell>
+                  <TableCell></TableCell>
+              </TableRow>
+            </TableFooter>
+          </Table>
+        </div>
+      </CardContent>
+      <CardFooter>
+          <Button onClick={handleAddRow} variant="outline">
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Adicionar Laje
+          </Button>
+      </CardFooter>
+    </Card>
+  );
+}
+
 
 export default function QuantitativoPage() {
 
@@ -554,6 +681,7 @@ export default function QuantitativoPage() {
       <SapataCalculator />
       <VigamentoCalculator />
       <PilarCalculator />
+      <LajeCalculator />
     </div>
   );
 }
