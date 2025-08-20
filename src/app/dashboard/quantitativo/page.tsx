@@ -7,7 +7,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { PlusCircle, Trash2, Settings2, Download } from 'lucide-react';
+import { PlusCircle, Trash2, Settings2, Download, RotateCcw } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
@@ -21,6 +21,7 @@ import {
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useCompanyData } from '../layout';
+import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
 
 
 const CALCULATOR_OPTIONS = {
@@ -71,15 +72,44 @@ type Totals = {
 
 type CalculatorProps = {
     pavimentoFilter: string;
+    onReset: () => void;
 };
 
 export type CalculatorRef = {
     getTotals: () => Totals;
 };
 
+function usePersistentState<T>(key: string, initialState: T): [T, (value: T) => void] {
+    const [state, setState] = useState<T>(() => {
+        try {
+            if (typeof window !== 'undefined') {
+                const item = window.localStorage.getItem(key);
+                return item ? JSON.parse(item) : initialState;
+            }
+        } catch (error) {
+            console.error(error);
+        }
+        return initialState;
+    });
 
-const SapataCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoFilter }, ref) => {
-  const [rows, setRows] = useState<SapataRow[]>([{ ...initialSapataRow, id: crypto.randomUUID() }]);
+    const setPersistentState = (value: T) => {
+        try {
+            if (typeof window !== 'undefined') {
+                const valueToStore = value instanceof Function ? value(state) : value;
+                setState(valueToStore);
+                window.localStorage.setItem(key, JSON.stringify(valueToStore));
+            }
+        } catch (error) {
+            console.error(error);
+        }
+    };
+
+    return [state, setPersistentState];
+}
+
+
+const SapataCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoFilter, onReset }, ref) => {
+  const [rows, setRows] = usePersistentState<SapataRow[]>('sapatasData', [{ ...initialSapataRow, id: crypto.randomUUID() }]);
 
   const handleAddRow = () => {
     setRows([...rows, { ...initialSapataRow, id: crypto.randomUUID(), tipo: `S${rows.length + 1}` }]);
@@ -99,6 +129,10 @@ const SapataCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimento
     });
     setRows(newRows);
   };
+  
+  useEffect(() => {
+    onReset && onReset();
+  }, [onReset]);
   
   const filteredRows = useMemo(() => {
     if (!pavimentoFilter || pavimentoFilter === 'todos') return rows;
@@ -169,11 +203,14 @@ const SapataCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimento
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Calculadora de Quantitativos de Sapatas</CardTitle>
-        <CardDescription>
-          Adicione as sapatas do seu projeto para calcular a quantidade de materiais necessários.
-        </CardDescription>
+      <CardHeader className="flex-row items-center justify-between">
+        <div>
+            <CardTitle>Calculadora de Quantitativos de Sapatas</CardTitle>
+            <CardDescription>
+              Adicione as sapatas do seu projeto para calcular a quantidade de materiais necessários.
+            </CardDescription>
+        </div>
+        <Button variant="outline" size="sm" onClick={() => setRows([{ ...initialSapataRow, id: crypto.randomUUID() }])}><RotateCcw className="mr-2 h-4 w-4"/>Limpar</Button>
       </CardHeader>
       <CardContent>
         <div className="border rounded-lg overflow-x-auto">
@@ -287,8 +324,8 @@ const initialVigamentoRow: Omit<VigamentoRow, 'id'> = {
   quantDeFerro: 0,
 };
 
-const VigamentoCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoFilter }, ref) => {
-  const [rows, setRows] = useState<VigamentoRow[]>([{ ...initialVigamentoRow, id: crypto.randomUUID() }]);
+const VigamentoCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoFilter, onReset }, ref) => {
+  const [rows, setRows] = usePersistentState<VigamentoRow[]>('vigamentosData', [{ ...initialVigamentoRow, id: crypto.randomUUID() }]);
 
   const handleAddRow = () => {
     setRows([...rows, { ...initialVigamentoRow, id: crypto.randomUUID(), tipo: `V${rows.length + 1}` }]);
@@ -308,6 +345,10 @@ const VigamentoCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavime
     });
     setRows(newRows);
   };
+  
+  useEffect(() => {
+    onReset && onReset();
+  }, [onReset]);
   
   const filteredRows = useMemo(() => {
     if (!pavimentoFilter || pavimentoFilter === 'todos') return rows;
@@ -382,11 +423,14 @@ const VigamentoCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavime
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Calculadora de Quantitativos de Vigamentos</CardTitle>
-        <CardDescription>
-          Adicione os vigamentos do seu projeto para calcular a quantidade de materiais necessários.
-        </CardDescription>
+      <CardHeader className="flex-row items-center justify-between">
+        <div>
+            <CardTitle>Calculadora de Quantitativos de Vigamentos</CardTitle>
+            <CardDescription>
+              Adicione os vigamentos do seu projeto para calcular a quantidade de materiais necessários.
+            </CardDescription>
+        </div>
+        <Button variant="outline" size="sm" onClick={() => setRows([{ ...initialVigamentoRow, id: crypto.randomUUID() }])}><RotateCcw className="mr-2 h-4 w-4"/>Limpar</Button>
       </CardHeader>
       <CardContent>
         <div className="border rounded-lg overflow-x-auto">
@@ -501,8 +545,8 @@ const initialPilarRow: Omit<PilarRow, 'id'> = {
   quantDeFerro: 0,
 };
 
-const PilarCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoFilter }, ref) => {
-  const [rows, setRows] = useState<PilarRow[]>([{ ...initialPilarRow, id: crypto.randomUUID() }]);
+const PilarCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoFilter, onReset }, ref) => {
+  const [rows, setRows] = usePersistentState<PilarRow[]>('pilaresData', [{ ...initialPilarRow, id: crypto.randomUUID() }]);
 
   const handleAddRow = () => {
     setRows([...rows, { ...initialPilarRow, id: crypto.randomUUID(), tipo: `P${rows.length + 1}` }]);
@@ -522,6 +566,10 @@ const PilarCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoF
     });
     setRows(newRows);
   };
+  
+  useEffect(() => {
+    onReset && onReset();
+  }, [onReset]);
   
   const filteredRows = useMemo(() => {
     if (!pavimentoFilter || pavimentoFilter === 'todos') return rows;
@@ -595,11 +643,14 @@ const PilarCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoF
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Calculadora de Quantitativos de Pilares</CardTitle>
-        <CardDescription>
-          Adicione os pilares do seu projeto para calcular a quantidade de materiais necessários.
-        </CardDescription>
+      <CardHeader className="flex-row items-center justify-between">
+        <div>
+            <CardTitle>Calculadora de Quantitativos de Pilares</CardTitle>
+            <CardDescription>
+              Adicione os pilares do seu projeto para calcular a quantidade de materiais necessários.
+            </CardDescription>
+        </div>
+        <Button variant="outline" size="sm" onClick={() => setRows([{ ...initialPilarRow, id: crypto.randomUUID() }])}><RotateCcw className="mr-2 h-4 w-4"/>Limpar</Button>
       </CardHeader>
       <CardContent>
         <div className="border rounded-lg overflow-x-auto">
@@ -706,8 +757,8 @@ const initialLajeRow: Omit<LajeRow, 'id'> = {
   area: 0,
 };
 
-const LajeCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoFilter }, ref) => {
-  const [rows, setRows] = useState<LajeRow[]>([{ ...initialLajeRow, id: crypto.randomUUID() }]);
+const LajeCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoFilter, onReset }, ref) => {
+  const [rows, setRows] = usePersistentState<LajeRow[]>('lajesData', [{ ...initialLajeRow, id: crypto.randomUUID() }]);
 
   const handleAddRow = () => {
     setRows([...rows, { ...initialLajeRow, id: crypto.randomUUID(), descricao: `Item ${rows.length + 1}` }]);
@@ -727,6 +778,10 @@ const LajeCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoFi
     });
     setRows(newRows);
   };
+  
+  useEffect(() => {
+    onReset && onReset();
+  }, [onReset]);
   
   const filteredRows = useMemo(() => {
     if (!pavimentoFilter || pavimentoFilter === 'todos') return rows;
@@ -770,11 +825,14 @@ const LajeCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoFi
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Calculadora de Quantitativos de Lajes e Contrapiso</CardTitle>
-        <CardDescription>
-          Adicione as lajes ou áreas de contrapiso do seu projeto para calcular a quantidade de materiais necessários.
-        </CardDescription>
+      <CardHeader className="flex-row items-center justify-between">
+        <div>
+            <CardTitle>Calculadora de Quantitativos de Lajes e Contrapiso</CardTitle>
+            <CardDescription>
+              Adicione as lajes ou áreas de contrapiso para calcular os materiais.
+            </CardDescription>
+        </div>
+        <Button variant="outline" size="sm" onClick={() => setRows([{ ...initialLajeRow, id: crypto.randomUUID() }])}><RotateCcw className="mr-2 h-4 w-4"/>Limpar</Button>
       </CardHeader>
       <CardContent>
         <div className="border rounded-lg overflow-x-auto">
@@ -862,8 +920,8 @@ const initialAlvenariaRow: Omit<AlvenariaRow, 'id'> = {
   junta: 1.5,
 };
 
-const AlvenariaCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoFilter }, ref) => {
-  const [rows, setRows] = useState<AlvenariaRow[]>([{ ...initialAlvenariaRow, id: crypto.randomUUID() }]);
+const AlvenariaCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoFilter, onReset }, ref) => {
+  const [rows, setRows] = usePersistentState<AlvenariaRow[]>('alvenariaData', [{ ...initialAlvenariaRow, id: crypto.randomUUID() }]);
 
   const handleAddRow = () => {
     setRows([...rows, { ...initialAlvenariaRow, id: crypto.randomUUID(), descricao: `Parede ${rows.length + 1}` }]);
@@ -883,6 +941,10 @@ const AlvenariaCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavime
     });
     setRows(newRows);
   };
+  
+  useEffect(() => {
+    onReset && onReset();
+  }, [onReset]);
   
   const filteredRows = useMemo(() => {
     if (!pavimentoFilter || pavimentoFilter === 'todos') return rows;
@@ -939,11 +1001,14 @@ const AlvenariaCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavime
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Calculadora de Quantitativos de Alvenaria</CardTitle>
-        <CardDescription>
-          Calcule a quantidade de blocos e argamassa para as paredes do seu projeto.
-        </CardDescription>
+      <CardHeader className="flex-row items-center justify-between">
+        <div>
+            <CardTitle>Calculadora de Quantitativos de Alvenaria</CardTitle>
+            <CardDescription>
+              Calcule a quantidade de blocos e argamassa para as paredes do seu projeto.
+            </CardDescription>
+        </div>
+        <Button variant="outline" size="sm" onClick={() => setRows([{ ...initialAlvenariaRow, id: crypto.randomUUID() }])}><RotateCcw className="mr-2 h-4 w-4"/>Limpar</Button>
       </CardHeader>
       <CardContent>
         <div className="border rounded-lg overflow-x-auto">
@@ -1033,8 +1098,8 @@ const initialRebocoRow: Omit<RebocoRow, 'id'> = {
   lados: 1,
 };
 
-const RebocoCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoFilter }, ref) => {
-  const [rows, setRows] = useState<RebocoRow[]>([{ ...initialRebocoRow, id: crypto.randomUUID() }]);
+const RebocoCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoFilter, onReset }, ref) => {
+  const [rows, setRows] = usePersistentState<RebocoRow[]>('rebocoData', [{ ...initialRebocoRow, id: crypto.randomUUID() }]);
 
   const handleAddRow = () => {
     setRows([...rows, { ...initialRebocoRow, id: crypto.randomUUID(), descricao: `Parede ${rows.length + 1}` }]);
@@ -1054,6 +1119,10 @@ const RebocoCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimento
     });
     setRows(newRows);
   };
+  
+  useEffect(() => {
+    onReset && onReset();
+  }, [onReset]);
   
   const filteredRows = useMemo(() => {
     if (!pavimentoFilter || pavimentoFilter === 'todos') return rows;
@@ -1102,11 +1171,14 @@ const RebocoCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimento
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Calculadora de Quantitativos de Reboco</CardTitle>
-        <CardDescription>
-          Calcule a quantidade de argamassa para o reboco das paredes.
-        </CardDescription>
+      <CardHeader className="flex-row items-center justify-between">
+        <div>
+            <CardTitle>Calculadora de Quantitativos de Reboco</CardTitle>
+            <CardDescription>
+              Calcule a quantidade de argamassa para o reboco das paredes.
+            </CardDescription>
+        </div>
+        <Button variant="outline" size="sm" onClick={() => setRows([{ ...initialRebocoRow, id: crypto.randomUUID() }])}><RotateCcw className="mr-2 h-4 w-4"/>Limpar</Button>
       </CardHeader>
       <CardContent>
         <div className="border rounded-lg overflow-x-auto">
@@ -1204,6 +1276,31 @@ export default function QuantitativoPage() {
     alvenaria: useRef<CalculatorRef>(null),
     reboco: useRef<CalculatorRef>(null),
   };
+  
+  const [resetCounters, setResetCounters] = useState<Record<CalculatorType, number>>({
+    sapatas: 0,
+    vigamentos: 0,
+    pilares: 0,
+    lajes: 0,
+    alvenaria: 0,
+    reboco: 0,
+  });
+
+  const handleResetAll = () => {
+    Object.keys(CALCULATOR_OPTIONS).forEach(key => {
+      localStorage.removeItem(`${key}Data`);
+    });
+    const newCounters = { ...resetCounters };
+    (Object.keys(newCounters) as CalculatorType[]).forEach(key => {
+        newCounters[key]++;
+    });
+    setResetCounters(newCounters);
+  };
+  
+  const handleResetCalculator = useCallback((key: CalculatorType) => {
+     localStorage.removeItem(`${key}Data`);
+     setResetCounters(prev => ({...prev, [key]: prev[key] + 1}));
+  }, []);
 
 
   const handleVisibilityChange = (key: CalculatorType, checked: boolean) => {
@@ -1299,7 +1396,6 @@ export default function QuantitativoPage() {
             if (totals.argamassa > 0) {
                  const value = totals.argamassa as number;
                  body.push(['Argamassa (m³)', value.toFixed(3)]);
-                 // Argamassa é um total composto, não adicionamos ao consolidado
             }
 
 
@@ -1307,7 +1403,6 @@ export default function QuantitativoPage() {
                 autoTable(doc, {
                     startY: currentY,
                     head: [[CALCULATOR_OPTIONS[key as CalculatorType], 'Total']],
-                    body: body,
                     theme: 'striped',
                     headStyles: { fillColor: [34, 139, 34] },
                 });
@@ -1315,7 +1410,6 @@ export default function QuantitativoPage() {
             }
         });
 
-        // Resumo Geral
         if (Object.keys(consolidatedTotals).length > 0) {
             const summaryBody = Object.entries(consolidatedTotals).map(([item, data]) => {
                 const formattedValue = item.includes('Blocos') || item.includes('barras') ? Math.ceil(data.value) : data.value.toFixed(2);
@@ -1352,6 +1446,23 @@ export default function QuantitativoPage() {
                     {pavimentoOptions.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
                 </SelectContent>
             </Select>
+             <AlertDialog>
+                <AlertDialogTrigger asChild>
+                    <Button variant="outline"><RotateCcw className="mr-2 h-4 w-4"/>Limpar Tudo</Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Limpar todos os dados?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Esta ação não pode ser desfeita. Todos os dados inseridos em todas as calculadoras serão permanentemente apagados.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleResetAll} variant="destructive">Sim, limpar tudo</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
             <Button onClick={generatePdf} variant="outline">
                 <Download className="mr-2 h-4 w-4"/>
                 Exportar PDF
@@ -1381,7 +1492,7 @@ export default function QuantitativoPage() {
       </div>
 
       {calculators.map(({ key, component: Component }) =>
-        visibleCalculators[key] ? <Component key={key} pavimentoFilter={pavimentoFilter} ref={calculatorRefs[key]} /> : null
+        visibleCalculators[key] ? <Component key={`${key}-${resetCounters[key]}`} pavimentoFilter={pavimentoFilter} ref={calculatorRefs[key]} onReset={() => handleResetCalculator(key)} /> : null
       )}
     </div>
   );
