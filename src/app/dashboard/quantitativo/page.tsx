@@ -716,17 +716,18 @@ function AlvenariaCalculator() {
       const A = row.area;
       const L = row.larguraBloco / 100; // m
       const H = row.alturaBloco / 100; // m
-      const j = row.junta / 100; // m
+      const j_cm = row.junta; // cm
+      const j_m = j_cm / 100; // m
 
       // Fatores de consumo para traço 1:4
       const Cc = 340; // kg/m³
       const Ca = 1.05; // m³/m³
 
-      const areaBlocoComJunta = (L > 0 && H > 0) ? (L + j) * (H + j) : 0;
+      const areaBlocoComJunta = (L > 0 && H > 0) ? (L + j_m) * (H + j_m) : 0;
       const N_blocos = areaBlocoComJunta > 0 ? A / areaBlocoComJunta : 0;
       const N_final = N_blocos * (1 + 0.05); // 5% de perda
       
-      const V_arg = A * j; // Area da parede x espessura da junta
+      const V_arg = A * (0.02 * j_cm); // area * (0.02 * junta_em_cm)
       const V_final = V_arg * (1 + 0.10); // 10% de perda
       
       const Q_cimento = V_final * Cc;
