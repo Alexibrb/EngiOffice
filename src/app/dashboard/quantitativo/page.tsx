@@ -58,7 +58,7 @@ const COMPRIMENTO_BARRA_FERRO = 12; // metros
 const pavimentoOptions = ['Térreo', 'Pav1', 'Pav2', 'Pav3', 'Pav4', 'Pav5', 'Pav6', 'Pav7', 'Pav8', 'Pav9', 'Pav10'];
 
 
-function SapataCalculator() {
+function SapataCalculator({ pavimentoFilter }: { pavimentoFilter: string }) {
   const [rows, setRows] = useState<SapataRow[]>([{ ...initialSapataRow, id: crypto.randomUUID() }]);
 
   const handleAddRow = () => {
@@ -79,9 +79,14 @@ function SapataCalculator() {
     });
     setRows(newRows);
   };
+  
+  const filteredRows = useMemo(() => {
+    if (!pavimentoFilter) return rows;
+    return rows.filter(row => row.pav === pavimentoFilter);
+  }, [rows, pavimentoFilter]);
 
   const calculatedRows = useMemo(() => {
-    return rows.map(row => {
+    return filteredRows.map(row => {
       const dobraCm = 7;
       // Convert cm to m for calculations
       const larguraM = row.largura / 100;
@@ -112,7 +117,7 @@ function SapataCalculator() {
         brita: britaM3,
       };
     });
-  }, [rows]);
+  }, [filteredRows]);
 
   const totals = useMemo(() => {
     return calculatedRows.reduce((acc, row) => {
@@ -237,7 +242,7 @@ const initialVigamentoRow: Omit<VigamentoRow, 'id'> = {
 };
 
 
-function VigamentoCalculator() {
+function VigamentoCalculator({ pavimentoFilter }: { pavimentoFilter: string }) {
   const [rows, setRows] = useState<VigamentoRow[]>([{ ...initialVigamentoRow, id: crypto.randomUUID() }]);
 
   const handleAddRow = () => {
@@ -258,9 +263,14 @@ function VigamentoCalculator() {
     });
     setRows(newRows);
   };
+  
+  const filteredRows = useMemo(() => {
+    if (!pavimentoFilter) return rows;
+    return rows.filter(row => row.pav === pavimentoFilter);
+  }, [rows, pavimentoFilter]);
 
   const calculatedRows = useMemo(() => {
-    return rows.map(row => {
+    return filteredRows.map(row => {
       const larguraM = row.largura / 100;
       const alturaM = row.altura / 100;
       const comprimentoM = row.comprimento;
@@ -292,7 +302,7 @@ function VigamentoCalculator() {
         quantFerro3_16: totalBarrasEstribos,
       };
     });
-  }, [rows]);
+  }, [filteredRows]);
 
   const totals = useMemo(() => {
     return calculatedRows.reduce((acc, row) => {
@@ -421,7 +431,7 @@ const initialPilarRow: Omit<PilarRow, 'id'> = {
 };
 
 
-function PilarCalculator() {
+function PilarCalculator({ pavimentoFilter }: { pavimentoFilter: string }) {
   const [rows, setRows] = useState<PilarRow[]>([{ ...initialPilarRow, id: crypto.randomUUID() }]);
 
   const handleAddRow = () => {
@@ -442,9 +452,14 @@ function PilarCalculator() {
     });
     setRows(newRows);
   };
+  
+  const filteredRows = useMemo(() => {
+    if (!pavimentoFilter) return rows;
+    return rows.filter(row => row.pav === pavimentoFilter);
+  }, [rows, pavimentoFilter]);
 
   const calculatedRows = useMemo(() => {
-    return rows.map(row => {
+    return filteredRows.map(row => {
       const larguraM = row.largura / 100;
       const alturaM = row.altura / 100;
       const comprimentoM = row.comprimento;
@@ -476,7 +491,7 @@ function PilarCalculator() {
         quantFerro3_16: totalBarrasEstribos,
       };
     });
-  }, [rows]);
+  }, [filteredRows]);
 
   const totals = useMemo(() => {
     return calculatedRows.reduce((acc, row) => {
@@ -596,7 +611,7 @@ const initialLajeRow: Omit<LajeRow, 'id'> = {
   area: 0,
 };
 
-function LajeCalculator() {
+function LajeCalculator({ pavimentoFilter }: { pavimentoFilter: string }) {
   const [rows, setRows] = useState<LajeRow[]>([{ ...initialLajeRow, id: crypto.randomUUID() }]);
 
   const handleAddRow = () => {
@@ -617,9 +632,14 @@ function LajeCalculator() {
     });
     setRows(newRows);
   };
+  
+  const filteredRows = useMemo(() => {
+    if (!pavimentoFilter) return rows;
+    return rows.filter(row => row.pav === pavimentoFilter);
+  }, [rows, pavimentoFilter]);
 
   const calculatedRows = useMemo(() => {
-    return rows.map(row => {
+    return filteredRows.map(row => {
       const espessuraM = row.espessuraConcreto / 100;
       const volumeTotal = row.area * espessuraM;
       const cimentoSacos = volumeTotal > 0 ? volumeTotal / 0.14 : 0;
@@ -634,7 +654,7 @@ function LajeCalculator() {
         brita: britaM3,
       };
     });
-  }, [rows]);
+  }, [filteredRows]);
 
   const totals = useMemo(() => {
     return calculatedRows.reduce((acc, row) => {
@@ -738,7 +758,7 @@ const initialAlvenariaRow: Omit<AlvenariaRow, 'id'> = {
   junta: 1.5,
 };
 
-function AlvenariaCalculator() {
+function AlvenariaCalculator({ pavimentoFilter }: { pavimentoFilter: string }) {
   const [rows, setRows] = useState<AlvenariaRow[]>([{ ...initialAlvenariaRow, id: crypto.randomUUID() }]);
 
   const handleAddRow = () => {
@@ -760,8 +780,13 @@ function AlvenariaCalculator() {
     setRows(newRows);
   };
   
+  const filteredRows = useMemo(() => {
+    if (!pavimentoFilter) return rows;
+    return rows.filter(row => row.pav === pavimentoFilter);
+  }, [rows, pavimentoFilter]);
+  
   const calculatedRows = useMemo(() => {
-    return rows.map(row => {
+    return filteredRows.map(row => {
       const A = row.area;
       const L = row.larguraBloco / 100; // m
       const H = row.alturaBloco / 100; // m
@@ -791,7 +816,7 @@ function AlvenariaCalculator() {
         sandM3: Q_areia,
       };
     });
-  }, [rows]);
+  }, [filteredRows]);
 
   const totals = useMemo(() => {
     return calculatedRows.reduce((acc, row) => {
@@ -898,7 +923,7 @@ const initialRebocoRow: Omit<RebocoRow, 'id'> = {
   lados: 1,
 };
 
-function RebocoCalculator() {
+function RebocoCalculator({ pavimentoFilter }: { pavimentoFilter: string }) {
   const [rows, setRows] = useState<RebocoRow[]>([{ ...initialRebocoRow, id: crypto.randomUUID() }]);
 
   const handleAddRow = () => {
@@ -920,8 +945,13 @@ function RebocoCalculator() {
     setRows(newRows);
   };
   
+  const filteredRows = useMemo(() => {
+    if (!pavimentoFilter) return rows;
+    return rows.filter(row => row.pav === pavimentoFilter);
+  }, [rows, pavimentoFilter]);
+  
   const calculatedRows = useMemo(() => {
-    return rows.map(row => {
+    return filteredRows.map(row => {
       const A = row.area * row.lados;
       const e = row.espessura / 100; // m
 
@@ -942,7 +972,7 @@ function RebocoCalculator() {
         sandM3: Q_areia,
       };
     });
-  }, [rows]);
+  }, [filteredRows]);
 
   const totals = useMemo(() => {
     return calculatedRows.reduce((acc, row) => {
@@ -1045,12 +1075,15 @@ export default function QuantitativoPage() {
     alvenaria: false,
     reboco: false,
   });
+  
+  const [pavimentoFilter, setPavimentoFilter] = useState<string>('');
+
 
   const handleVisibilityChange = (key: CalculatorType, checked: boolean) => {
     setVisibleCalculators(prev => ({ ...prev, [key]: checked }));
   };
   
-  const calculators: { key: CalculatorType; component: React.ComponentType }[] = [
+  const calculators: { key: CalculatorType; component: React.ComponentType<{ pavimentoFilter: string }> }[] = [
     { key: 'sapatas', component: SapataCalculator },
     { key: 'vigamentos', component: VigamentoCalculator },
     { key: 'pilares', component: PilarCalculator },
@@ -1066,31 +1099,42 @@ export default function QuantitativoPage() {
           title="Quantitativo"
           description="Crie orçamentos detalhados para seus projetos."
         />
-        <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-                <Button variant="destructive" className="ml-auto">
-                    <Settings2 className="mr-2 h-4 w-4" />
-                    Exibir Calculadoras
-                </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56">
-                <DropdownMenuLabel>Selecione as calculadoras</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {Object.entries(CALCULATOR_OPTIONS).map(([key, label]) => (
-                     <DropdownMenuCheckboxItem
-                        key={key}
-                        checked={visibleCalculators[key as CalculatorType]}
-                        onCheckedChange={(checked) => handleVisibilityChange(key as CalculatorType, !!checked)}
-                     >
-                        {label}
-                     </DropdownMenuCheckboxItem>
-                ))}
-            </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="flex items-center gap-2">
+            <Select value={pavimentoFilter} onValueChange={setPavimentoFilter}>
+                <SelectTrigger className="w-full sm:w-[200px]">
+                    <SelectValue placeholder="Filtrar por Pavimento" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="">Todos os Pavimentos</SelectItem>
+                    {pavimentoOptions.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
+                </SelectContent>
+            </Select>
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button variant="destructive">
+                        <Settings2 className="mr-2 h-4 w-4" />
+                        Exibir Calculadoras
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56">
+                    <DropdownMenuLabel>Selecione as calculadoras</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {Object.entries(CALCULATOR_OPTIONS).map(([key, label]) => (
+                        <DropdownMenuCheckboxItem
+                            key={key}
+                            checked={visibleCalculators[key as CalculatorType]}
+                            onCheckedChange={(checked) => handleVisibilityChange(key as CalculatorType, !!checked)}
+                        >
+                            {label}
+                        </DropdownMenuCheckboxItem>
+                    ))}
+                </DropdownMenuContent>
+            </DropdownMenu>
+        </div>
       </div>
 
       {calculators.map(({ key, component: Component }) =>
-        visibleCalculators[key] ? <Component key={key} /> : null
+        visibleCalculators[key] ? <Component key={key} pavimentoFilter={pavimentoFilter} /> : null
       )}
     </div>
   );
