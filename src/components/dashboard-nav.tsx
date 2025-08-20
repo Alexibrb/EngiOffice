@@ -20,6 +20,7 @@ import {
   CreditCard,
   Calculator,
   LineChart,
+  ClipboardList,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -54,6 +55,7 @@ const mainLinks = [
     label: 'Comissões',
     icon: HandCoins,
   },
+  { href: '/dashboard/quantitativo', label: 'Quantitativo', icon: ClipboardList },
   { href: '/dashboard/relatorios', label: 'Relatórios', icon: FileText },
   { href: '/dashboard/calculadora', label: 'Calculadora', icon: Calculator },
 ];
