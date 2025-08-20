@@ -35,6 +35,8 @@ const initialSapataRow: Omit<SapataRow, 'id'> = {
 };
 
 const COMPRIMENTO_BARRA_FERRO = 12; // metros
+const pavimentoOptions = ['Térreo', 'Pav1', 'Pav2', 'Pav3', 'Pav4', 'Pav5', 'Pav6', 'Pav7', 'Pav8', 'Pav9', 'Pav10'];
+
 
 function SapataCalculator() {
   const [rows, setRows] = useState<SapataRow[]>([{ ...initialSapataRow, id: crypto.randomUUID() }]);
@@ -47,10 +49,10 @@ function SapataCalculator() {
     setRows(rows.filter(row => row.id !== id));
   };
 
-  const handleInputChange = (id: string, field: keyof SapataRow, value: string) => {
+  const handleInputChange = (id: string, field: keyof SapataRow, value: string | number) => {
     const newRows = rows.map(row => {
       if (row.id === id) {
-        const parsedValue = field === 'pav' || field === 'tipo' ? value : parseFloat(value) || 0;
+        const parsedValue = (typeof value === 'string' && (field === 'pav' || field === 'tipo')) ? value : parseFloat(String(value)) || 0;
         return { ...row, [field]: parsedValue };
       }
       return row;
@@ -137,7 +139,14 @@ function SapataCalculator() {
             <TableBody>
               {calculatedRows.map((row) => (
                 <TableRow key={row.id}>
-                  <TableCell><Input value={row.pav} onChange={(e) => handleInputChange(row.id, 'pav', e.target.value)} /></TableCell>
+                  <TableCell className="min-w-[150px]">
+                    <Select value={row.pav} onValueChange={(value) => handleInputChange(row.id, 'pav', value)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                            {pavimentoOptions.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                  </TableCell>
                   <TableCell><Input value={row.tipo} onChange={(e) => handleInputChange(row.id, 'tipo', e.target.value)} /></TableCell>
                   <TableCell><Input type="number" value={row.quant} onChange={(e) => handleInputChange(row.id, 'quant', e.target.value)} /></TableCell>
                   <TableCell><Input type="number" step="1" value={row.largura} onChange={(e) => handleInputChange(row.id, 'largura', e.target.value)} /></TableCell>
@@ -219,10 +228,10 @@ function VigamentoCalculator() {
     setRows(rows.filter(row => row.id !== id));
   };
 
-  const handleInputChange = (id: string, field: keyof VigamentoRow, value: string) => {
+  const handleInputChange = (id: string, field: keyof VigamentoRow, value: string | number) => {
     const newRows = rows.map(row => {
       if (row.id === id) {
-        const parsedValue = field === 'pav' || field === 'tipo' || field === 'bitola' ? value : parseFloat(value) || 0;
+        const parsedValue = (typeof value === 'string' && (field === 'pav' || field === 'tipo' || field === 'bitola')) ? value : parseFloat(String(value)) || 0;
         return { ...row, [field]: parsedValue };
       }
       return row;
@@ -312,7 +321,14 @@ function VigamentoCalculator() {
             <TableBody>
               {calculatedRows.map((row) => (
                 <TableRow key={row.id}>
-                  <TableCell><Input value={row.pav} onChange={(e) => handleInputChange(row.id, 'pav', e.target.value)} /></TableCell>
+                  <TableCell className="min-w-[150px]">
+                    <Select value={row.pav} onValueChange={(value) => handleInputChange(row.id, 'pav', value)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                            {pavimentoOptions.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                  </TableCell>
                   <TableCell><Input value={row.tipo} onChange={(e) => handleInputChange(row.id, 'tipo', e.target.value)} /></TableCell>
                   <TableCell><Input value={row.bitola} onChange={(e) => handleInputChange(row.id, 'bitola', e.target.value)} /></TableCell>
                   <TableCell><Input type="number" value={row.quant} onChange={(e) => handleInputChange(row.id, 'quant', e.target.value)} /></TableCell>
@@ -396,10 +412,10 @@ function PilarCalculator() {
     setRows(rows.filter(row => row.id !== id));
   };
 
-  const handleInputChange = (id: string, field: keyof PilarRow, value: string) => {
+  const handleInputChange = (id: string, field: keyof PilarRow, value: string | number) => {
     const newRows = rows.map(row => {
       if (row.id === id) {
-        const parsedValue = field === 'pav' || field === 'tipo' || field === 'bitola' ? value : parseFloat(value) || 0;
+        const parsedValue = (typeof value === 'string' && (field === 'pav' || field === 'tipo' || field === 'bitola')) ? value : parseFloat(String(value)) || 0;
         return { ...row, [field]: parsedValue };
       }
       return row;
@@ -489,7 +505,14 @@ function PilarCalculator() {
             <TableBody>
               {calculatedRows.map((row) => (
                 <TableRow key={row.id}>
-                  <TableCell><Input value={row.pav} onChange={(e) => handleInputChange(row.id, 'pav', e.target.value)} /></TableCell>
+                  <TableCell className="min-w-[150px]">
+                    <Select value={row.pav} onValueChange={(value) => handleInputChange(row.id, 'pav', value)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                            {pavimentoOptions.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                  </TableCell>
                   <TableCell><Input value={row.tipo} onChange={(e) => handleInputChange(row.id, 'tipo', e.target.value)} /></TableCell>
                   <TableCell><Input value={row.bitola} onChange={(e) => handleInputChange(row.id, 'bitola', e.target.value)} /></TableCell>
                   <TableCell><Input type="number" value={row.quant} onChange={(e) => handleInputChange(row.id, 'quant', e.target.value)} /></TableCell>
@@ -564,10 +587,10 @@ function LajeCalculator() {
     setRows(rows.filter(row => row.id !== id));
   };
 
-  const handleInputChange = (id: string, field: keyof LajeRow, value: string) => {
+  const handleInputChange = (id: string, field: keyof LajeRow, value: string | number) => {
     const newRows = rows.map(row => {
       if (row.id === id) {
-        const parsedValue = field === 'pav' || field === 'descricao' ? value : parseFloat(value) || 0;
+        const parsedValue = (typeof value === 'string' && (field === 'pav' || field === 'descricao')) ? value : parseFloat(String(value)) || 0;
         return { ...row, [field]: parsedValue };
       }
       return row;
@@ -630,7 +653,14 @@ function LajeCalculator() {
             <TableBody>
               {calculatedRows.map((row) => (
                 <TableRow key={row.id}>
-                  <TableCell><Input value={row.pav} onChange={(e) => handleInputChange(row.id, 'pav', e.target.value)} /></TableCell>
+                  <TableCell className="min-w-[150px]">
+                    <Select value={row.pav} onValueChange={(value) => handleInputChange(row.id, 'pav', value)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                            {pavimentoOptions.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                  </TableCell>
                   <TableCell><Input value={row.descricao} onChange={(e) => handleInputChange(row.id, 'descricao', e.target.value)} /></TableCell>
                   <TableCell><Input type="number" step="1" value={row.espessuraConcreto} onChange={(e) => handleInputChange(row.id, 'espessuraConcreto', e.target.value)} /></TableCell>
                   <TableCell><Input type="number" step="1" value={row.area} onChange={(e) => handleInputChange(row.id, 'area', e.target.value)} /></TableCell>
@@ -699,10 +729,10 @@ function AlvenariaCalculator() {
     setRows(rows.filter(row => row.id !== id));
   };
 
-  const handleInputChange = (id: string, field: keyof AlvenariaRow, value: string) => {
+  const handleInputChange = (id: string, field: keyof AlvenariaRow, value: string | number) => {
     const newRows = rows.map(row => {
       if (row.id === id) {
-        const parsedValue = field === 'descricao' || field === 'pav' ? value : parseFloat(value) || 0;
+        const parsedValue = (typeof value === 'string' && (field === 'descricao' || field === 'pav')) ? value : parseFloat(String(value)) || 0;
         return { ...row, [field]: parsedValue };
       }
       return row;
@@ -715,8 +745,8 @@ function AlvenariaCalculator() {
       const A = row.area;
       const L = row.larguraBloco / 100; // m
       const H = row.alturaBloco / 100; // m
-      const j_cm = row.junta; // cm
-      const j_m = j_cm / 100; // m
+      const j_cm = row.junta;
+      const j_m = j_cm / 100;
 
       const Cc = 430; // kg/m³
       const Ca = 1.2; // m³/m³
@@ -783,7 +813,14 @@ function AlvenariaCalculator() {
             <TableBody>
               {calculatedRows.map((row) => (
                 <TableRow key={row.id}>
-                  <TableCell><Input value={row.pav} onChange={(e) => handleInputChange(row.id, 'pav', e.target.value)} /></TableCell>
+                  <TableCell className="min-w-[150px]">
+                    <Select value={row.pav} onValueChange={(value) => handleInputChange(row.id, 'pav', value)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                            {pavimentoOptions.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                  </TableCell>
                   <TableCell><Input value={row.descricao} onChange={(e) => handleInputChange(row.id, 'descricao', e.target.value)} /></TableCell>
                   <TableCell><Input type="number" step="0.1" value={row.area} onChange={(e) => handleInputChange(row.id, 'area', e.target.value)} /></TableCell>
                   <TableCell><Input type="number" step="1" value={row.larguraBloco} onChange={(e) => handleInputChange(row.id, 'larguraBloco', e.target.value)} /></TableCell>
@@ -855,7 +892,7 @@ function RebocoCalculator() {
   const handleInputChange = (id: string, field: keyof RebocoRow, value: string | number) => {
     const newRows = rows.map(row => {
       if (row.id === id) {
-        const parsedValue = typeof value === 'string' && (field === 'descricao' || field === 'pav') ? value : parseFloat(String(value)) || 0;
+        const parsedValue = (typeof value === 'string' && (field === 'descricao' || field === 'pav')) ? value : parseFloat(String(value)) || 0;
         return { ...row, [field]: parsedValue };
       }
       return row;
@@ -924,7 +961,14 @@ function RebocoCalculator() {
             <TableBody>
               {calculatedRows.map((row) => (
                 <TableRow key={row.id}>
-                  <TableCell><Input value={row.pav} onChange={(e) => handleInputChange(row.id, 'pav', e.target.value)} /></TableCell>
+                  <TableCell className="min-w-[150px]">
+                     <Select value={row.pav} onValueChange={(value) => handleInputChange(row.id, 'pav', value)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                            {pavimentoOptions.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                  </TableCell>
                   <TableCell><Input value={row.descricao} onChange={(e) => handleInputChange(row.id, 'descricao', e.target.value)} /></TableCell>
                   <TableCell><Input type="number" step="0.1" value={row.area} onChange={(e) => handleInputChange(row.id, 'area', e.target.value)} /></TableCell>
                   <TableCell><Input type="number" step="0.1" value={row.espessura} onChange={(e) => handleInputChange(row.id, 'espessura', e.target.value)} /></TableCell>
