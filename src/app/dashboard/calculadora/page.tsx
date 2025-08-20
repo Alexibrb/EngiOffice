@@ -428,7 +428,10 @@ function MaterialQuantifier() {
   const [serviceType, setServiceType] = useState('concreto');
   const [inputs, setInputs] = useState<Record<string, string>>({
     volume: '0.18',
-    perda: '5'
+    perda: '5',
+    cimento: '1',
+    areia: '2',
+    brita: '3',
   });
   const [results, setResults] = useState<Record<string, string | number> | null>(null);
 
@@ -444,25 +447,32 @@ function MaterialQuantifier() {
     }
 
     if (serviceType === 'concreto') {
-      const { volume, perda } = parsedInputs;
-      if (!volume || volume <= 0) {
+      const { volume, perda, cimento, areia, brita } = parsedInputs;
+      if (!volume || volume <= 0 || !cimento || !areia || !brita) {
         setResults(null);
         return;
       }
       
       const volumeComPerdas = volume * (1 + (perda / 100));
 
-      // Usando um traço padrão de 1:2:3 (cimento:areia:brita)
-      // E consumos médios de mercado para um concreto de ~25MPa
-      const consumoCimentoKgM3 = 350; // kg/m³
-      const consumoAreiaM3M3 = 0.55;  // m³/m³
-      const consumoBritaM3M3 = 0.85;   // m³/m³
-      
-      const cimentoKg = volumeComPerdas * consumoCimentoKgM3;
+      // Fator Água/Cimento (exemplo, pode variar)
+      const fatorAguaCimento = 0.5;
+
+      // Massa específica dos materiais (kg/m³)
+      const massaCimento = 3150;
+      const massaAreia = 2650;
+      const massaBrita = 2700;
+
+      // Cálculo do consumo de materiais por m³ de concreto
+      const consumoCimento = (massaCimento * 1000) / (cimento + areia * (massaCimento / massaAreia) + brita * (massaCimento / massaBrita) + (fatorAguaCimento * massaCimento));
+      const consumoAreia = consumoCimento * areia / massaCimento;
+      const consumoBrita = consumoCimento * brita / massaCimento;
+
+      const cimentoKg = volumeComPerdas * consumoCimento;
       const cimentoSacos = Math.ceil(cimentoKg / 50);
 
-      const volumeAreia = volumeComPerdas * consumoAreiaM3M3;
-      const volumeBrita = volumeComPerdas * consumoBritaM3M3;
+      const volumeAreia = volumeComPerdas * consumoAreia;
+      const volumeBrita = volumeComPerdas * consumoBrita;
 
 
       setResults({
@@ -478,7 +488,10 @@ function MaterialQuantifier() {
   useEffect(() => {
     setInputs(serviceType === 'concreto' ? {
         volume: '0.18',
-        perda: '5'
+        perda: '5',
+        cimento: '1',
+        areia: '2',
+        brita: '3',
       } : {});
     setResults(null);
   }, [serviceType]);
@@ -495,6 +508,23 @@ function MaterialQuantifier() {
              <div className="space-y-2">
               <Label htmlFor="perda">Percentual de Perda (%)</Label>
               <Input id="perda" type="number" step="1" placeholder="Ex: 5" value={inputs.perda || ''} onChange={(e) => handleInputChange('perda', e.target.value)} />
+            </div>
+            <div>
+              <Label>Traço do Concreto (em volume)</Label>
+              <div className="grid grid-cols-3 gap-2 mt-2">
+                <div className="space-y-1">
+                  <Label htmlFor="traco-cimento" className="text-xs">Cimento</Label>
+                  <Input id="traco-cimento" type="number" value={inputs.cimento || ''} onChange={(e) => handleInputChange('cimento', e.target.value)} />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="traco-areia" className="text-xs">Areia</Label>
+                  <Input id="traco-areia" type="number" value={inputs.areia || ''} onChange={(e) => handleInputChange('areia', e.target.value)} />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="traco-brita" className="text-xs">Brita</Label>
+                  <Input id="traco-brita" type="number" value={inputs.brita || ''} onChange={(e) => handleInputChange('brita', e.target.value)} />
+                </div>
+              </div>
             </div>
           </div>
         );
@@ -573,6 +603,8 @@ export default function CalculadoraPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <AreaCalculator />
         <PricePerSqMCalculator />
+      </div>
+      <div className="grid grid-cols-1 gap-8 mt-8">
         <AreaAnalysisCalculator />
         <IrregularAreaCalculator />
         <MaterialQuantifier />
