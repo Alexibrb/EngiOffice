@@ -424,6 +424,125 @@ function IrregularAreaCalculator() {
   );
 }
 
+function MaterialQuantifier() {
+  const [serviceType, setServiceType] = useState('concreto');
+  const [inputs, setInputs] = useState<Record<string, string>>({ volume: '1' });
+  const [results, setResults] = useState<Record<string, string | number> | null>(null);
+
+  const handleInputChange = (field: string, value: string) => {
+    setInputs(prev => ({ ...prev, [field]: value }));
+    setResults(null); // Reset results on input change
+  };
+
+  const calculate = () => {
+    const parsedInputs: Record<string, number> = {};
+    for (const key in inputs) {
+      parsedInputs[key] = parseFloat(inputs[key]) || 0;
+    }
+
+    if (serviceType === 'concreto') {
+      const { volume } = parsedInputs;
+      if (!volume || volume <= 0) {
+        setResults(null);
+        return;
+      }
+      
+      // Proporção 1:2:3 (cimento:areia:brita) - comum para concreto de 25 MPa
+      const cimentoVolume = volume * (1/6) * 1.5; // Fator de correção para volume seco
+      const cimentoSacos = Math.ceil((cimentoVolume * 1440) / 50); // densidade cimento ~1440 kg/m³
+      const areiaVolume = volume * (2/6);
+      const britaVolume = volume * (3/6);
+      
+      setResults({
+        'Cimento (sacos de 50kg)': cimentoSacos,
+        'Areia (m³)': areiaVolume.toFixed(2),
+        'Brita (m³)': britaVolume.toFixed(2),
+      });
+    }
+    // Adicionar outros cálculos aqui
+  };
+  
+  useEffect(() => {
+    // Reset inputs and results when service type changes
+    setInputs(serviceType === 'concreto' ? { volume: '1' } : {});
+    setResults(null);
+  }, [serviceType]);
+
+  const renderInputs = () => {
+    switch(serviceType) {
+      case 'concreto':
+        return (
+          <div className="space-y-2">
+            <Label htmlFor="volume">Volume de Concreto (m³)</Label>
+            <Input id="volume" type="number" placeholder="Ex: 5" value={inputs.volume || ''} onChange={(e) => handleInputChange('volume', e.target.value)} />
+          </div>
+        );
+      // Adicionar outros cases aqui
+      default:
+        return null;
+    }
+  }
+
+  return (
+    <Card className="col-span-1 md:col-span-2">
+      <CardHeader>
+        <CardTitle>Calculadora de Quantitativos</CardTitle>
+        <CardDescription>
+          Estime a quantidade de materiais necessários para diferentes tipos de serviço.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="service-type">Tipo de Serviço</Label>
+            <Select value={serviceType} onValueChange={setServiceType}>
+              <SelectTrigger id="service-type">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="concreto">Concreto</SelectItem>
+                <SelectItem value="alvenaria" disabled>Alvenaria (em breve)</SelectItem>
+                <SelectItem value="piso" disabled>Piso (em breve)</SelectItem>
+                <SelectItem value="pintura" disabled>Pintura (em breve)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {renderInputs()}
+          <Button onClick={calculate} className="w-full" variant="accent">Calcular Quantidade</Button>
+        </div>
+        <div className="space-y-4">
+          <Label>Resultados Estimados</Label>
+          <div className="p-4 bg-muted rounded-md min-h-[200px] flex items-center justify-center">
+            {results ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Material</TableHead>
+                    <TableHead className="text-right">Quantidade</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {Object.entries(results).map(([key, value]) => (
+                    <TableRow key={key}>
+                      <TableCell className="font-medium">{key}</TableCell>
+                      <TableCell className="text-right">{value}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center">
+                Insira os dados e clique em calcular para ver os resultados.
+              </p>
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+
 export default function CalculadoraPage() {
   return (
     <div className="flex flex-col gap-8">
@@ -436,6 +555,7 @@ export default function CalculadoraPage() {
         <PricePerSqMCalculator />
         <AreaAnalysisCalculator />
         <IrregularAreaCalculator />
+        <MaterialQuantifier />
       </div>
     </div>
   );
