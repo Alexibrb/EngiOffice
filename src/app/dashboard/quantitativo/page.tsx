@@ -71,10 +71,11 @@ export default function QuantitativoPage() {
       const volumeUnitario = (row.largura / 100) * (row.comprimento / 100) * (row.altura / 100);
       const volumeTotal = volumeUnitario * row.quant;
       
-      const totalLinearFerro = (((alturaM + larguraM) * 2 * row.elosVert) + ((comprimentoM + larguraM) * 2 * row.elosHoriz)) * row.quant;
+      const totalLinearFerro = (((larguraM + alturaM) * 2 * row.elosVert) + ((comprimentoM + larguraM) * 2 * row.elosHoriz)) * row.quant;
       const totalBarrasFerro = (totalLinearFerro / COMPRIMENTO_BARRA_FERRO) * 1.1;
 
       const cimentoKg = (volumeTotal * CIMENTO_POR_M3) * 1.1;
+      const cimentoSacos = cimentoKg / 50;
       const areiaM3 = volumeTotal * PROPORCAO_AREIA;
       const britaM3 = volumeTotal * PROPORCAO_BRITA;
 
@@ -83,7 +84,7 @@ export default function QuantitativoPage() {
         volume: volumeTotal,
         totalLinear: totalLinearFerro,
         totalBarras: totalBarrasFerro,
-        cimento: cimentoKg,
+        cimento: cimentoSacos,
         areia: areiaM3,
         brita: britaM3,
       };
@@ -132,7 +133,7 @@ export default function QuantitativoPage() {
                   <TableHead>Volume (m³)</TableHead>
                   <TableHead>Total Linear (m)</TableHead>
                   <TableHead>Barras de 12m</TableHead>
-                  <TableHead>Cimento (kg)</TableHead>
+                  <TableHead>Cimento (sacos 50kg)</TableHead>
                   <TableHead>Areia (m³)</TableHead>
                   <TableHead>Brita (m³)</TableHead>
                    <TableHead className="w-[50px]"></TableHead>
