@@ -306,8 +306,6 @@ function VigamentoCalculator() {
                 <TableHead className="font-bold bg-primary/10">Cimento (sacos 50kg)</TableHead>
                 <TableHead className="font-bold bg-primary/10">Areia (m³)</TableHead>
                 <TableHead className="font-bold bg-primary/10">Brita (m³)</TableHead>
-                <TableHead>Quant. Estribos</TableHead>
-                <TableHead>Tam. Estribos (cm)</TableHead>
                 <TableHead className="font-bold bg-primary/10">Ferro 3/16 (barras)</TableHead>
                  <TableHead className="w-[50px]"></TableHead>
               </TableRow>
@@ -329,8 +327,6 @@ function VigamentoCalculator() {
                   <TableCell className="font-bold bg-primary/10">{row.cimento.toFixed(2)}</TableCell>
                   <TableCell className="font-bold bg-primary/10">{row.areia.toFixed(3)}</TableCell>
                   <TableCell className="font-bold bg-primary/10">{row.brita.toFixed(3)}</TableCell>
-                  <TableCell>{row.quantEstribos.toFixed(2)}</TableCell>
-                  <TableCell>{row.tamEstribos.toFixed(2)}</TableCell>
                   <TableCell className="font-bold bg-primary/10">{row.quantFerro3_16.toFixed(2)}</TableCell>
                   <TableCell>
                       <Button variant="ghost" size="icon" onClick={() => handleRemoveRow(row.id)} disabled={rows.length <= 1}>
@@ -349,8 +345,6 @@ function VigamentoCalculator() {
                   <TableCell className="font-bold bg-primary/10">{totals.cimento.toFixed(2)}</TableCell>
                   <TableCell className="font-bold bg-primary/10">{totals.areia.toFixed(3)}</TableCell>
                   <TableCell className="font-bold bg-primary/10">{totals.brita.toFixed(3)}</TableCell>
-                  <TableCell></TableCell>
-                  <TableCell></TableCell>
                   <TableCell className="font-bold bg-primary/10">{totals.quantFerro3_16.toFixed(2)}</TableCell>
                   <TableCell></TableCell>
               </TableRow>
@@ -492,8 +486,6 @@ function PilarCalculator() {
                 <TableHead className="font-bold bg-primary/10">Cimento (sacos 50kg)</TableHead>
                 <TableHead className="font-bold bg-primary/10">Areia (m³)</TableHead>
                 <TableHead className="font-bold bg-primary/10">Brita (m³)</TableHead>
-                <TableHead>Quant. Estribos</TableHead>
-                <TableHead>Tam. Estribos (cm)</TableHead>
                 <TableHead className="font-bold bg-primary/10">Ferro 3/16 (barras)</TableHead>
                  <TableHead className="w-[50px]"></TableHead>
               </TableRow>
@@ -515,8 +507,6 @@ function PilarCalculator() {
                   <TableCell className="font-bold bg-primary/10">{row.cimento.toFixed(2)}</TableCell>
                   <TableCell className="font-bold bg-primary/10">{row.areia.toFixed(3)}</TableCell>
                   <TableCell className="font-bold bg-primary/10">{row.brita.toFixed(3)}</TableCell>
-                  <TableCell>{row.quantEstribos.toFixed(2)}</TableCell>
-                  <TableCell>{row.tamEstribos.toFixed(2)}</TableCell>
                   <TableCell className="font-bold bg-primary/10">{row.quantFerro3_16.toFixed(2)}</TableCell>
                   <TableCell>
                       <Button variant="ghost" size="icon" onClick={() => handleRemoveRow(row.id)} disabled={rows.length <= 1}>
@@ -535,8 +525,6 @@ function PilarCalculator() {
                   <TableCell className="font-bold bg-primary/10">{totals.cimento.toFixed(2)}</TableCell>
                   <TableCell className="font-bold bg-primary/10">{totals.areia.toFixed(3)}</TableCell>
                   <TableCell className="font-bold bg-primary/10">{totals.brita.toFixed(3)}</TableCell>
-                  <TableCell></TableCell>
-                  <TableCell></TableCell>
                   <TableCell className="font-bold bg-primary/10">{totals.quantFerro3_16.toFixed(2)}</TableCell>
                   <TableCell></TableCell>
               </TableRow>
