@@ -1449,13 +1449,7 @@ export default function QuantitativoPage() {
         doc.save('relatorio_quantitativo.pdf');
     };
 
-  return (
-    <div className="flex flex-col gap-8">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <PageHeader
-          title="Quantitativo"
-          description="Crie orçamentos detalhados para seus projetos."
-        />
+    const renderFilterControls = () => (
         <div className="flex items-center gap-2">
             <Select value={pavimentoFilter} onValueChange={setPavimentoFilter}>
                 <SelectTrigger className="w-full sm:w-[200px]">
@@ -1509,10 +1503,26 @@ export default function QuantitativoPage() {
                 </DropdownMenuContent>
             </DropdownMenu>
         </div>
+    );
+
+  return (
+    <div className="flex flex-col gap-8">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <PageHeader
+          title="Quantitativo"
+          description="Crie orçamentos detalhados para seus projetos."
+        />
+        {renderFilterControls()}
       </div>
 
       {calculators.map(({ key, component: Component }) =>
         visibleCalculators[key] ? <Component key={`${key}-${resetCounters[key]}`} pavimentoFilter={pavimentoFilter} ref={calculatorRefs[key]} /> : null
+      )}
+
+      {Object.values(visibleCalculators).some(v => v) && (
+         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-4 mt-4">
+            {renderFilterControls()}
+        </div>
       )}
     </div>
   );
