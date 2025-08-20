@@ -16,6 +16,7 @@ import { Label } from '@/components/ui/label';
 import { PageHeader } from '@/components/page-header';
 import { Calculator, PlusCircle, RotateCcw, Trash2 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableRow, TableHead, TableHeader, TableFooter } from '@/components/ui/table';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 
 function AreaCalculator() {
   const [width, setWidth] = useState('');
@@ -423,6 +424,161 @@ function IrregularAreaCalculator() {
   );
 }
 
+function BeamReinforcementCalculator() {
+    const [moment, setMoment] = useState('');
+    const [width, setWidth] = useState('');
+    const [height, setHeight] = useState('');
+    const [cover, setCover] = useState('2.5');
+    const [fck, setFck] = useState('25');
+    const [result, setResult] = useState<{ As: number; AsMin: number; suggestions: any[] } | null>(null);
+
+    const steelBars = [
+        { diameter: 5.0, area: 0.20 },
+        { diameter: 6.3, area: 0.31 },
+        { diameter: 8.0, area: 0.50 },
+        { diameter: 10.0, area: 0.79 },
+        { diameter: 12.5, area: 1.23 },
+        { diameter: 16.0, area: 2.01 },
+        { diameter: 20.0, area: 3.14 },
+        { diameter: 25.0, area: 4.91 },
+    ];
+
+    const calculateReinforcement = () => {
+        const Mk = parseFloat(moment);
+        const bw = parseFloat(width);
+        const h = parseFloat(height);
+        const c = parseFloat(cover);
+        const fckValue = parseInt(fck, 10);
+
+        if (isNaN(Mk) || isNaN(bw) || isNaN(h) || isNaN(c) || isNaN(fckValue)) {
+            setResult(null);
+            return;
+        }
+
+        // --- Simplified concrete beam design formulas (NBR 6118) ---
+        const fcd = fckValue / 1.4; 
+        const d = h - c; // Effective depth
+        const Md = Mk * 1.4; // Design moment
+        
+        // K calculation
+        const k = Md / (bw * Math.pow(d, 2) * 0.85 * fcd / 100); // 100 to convert kNm to kNcm
+        
+        let As;
+        if (k > 0.297) { // Domain 3 limit for CA-50
+            // Needs compression reinforcement - outside scope of this simple calculator
+            As = -1; // Indicate error/warning
+        } else {
+             const kz = 0.5 * (1 + Math.sqrt(1 - 2 * k));
+             const z = kz * d; // Lever arm
+             As = Md / (z * (50 / 1.15)); // fyd = 50kN/cm^2 / 1.15
+        }
+
+        // Minimum reinforcement area
+        const rho_min = Math.max(0.15 / 100, 0.0015);
+        const AsMin = rho_min * bw * h;
+
+        const finalAs = Math.max(As, AsMin);
+
+        // Suggest bars
+        const suggestions = [];
+        for (let numBars = 2; numBars <= 8; numBars++) {
+            for (const bar of steelBars) {
+                if (numBars * bar.area >= finalAs) {
+                    suggestions.push({ num: numBars, bar, totalArea: numBars * bar.area });
+                    break;
+                }
+            }
+        }
+        
+        const bestSuggestion = suggestions.sort((a,b) => a.totalArea - b.totalArea).slice(0, 3);
+
+        setResult({ As: finalAs, AsMin, suggestions: bestSuggestion });
+    };
+
+    return (
+        <Card className="col-span-1 md:col-span-2">
+            <CardHeader>
+                <CardTitle>Calculadora de Armadura de Viga</CardTitle>
+                <CardDescription>
+                    Faça o pré-dimensionamento da armadura longitudinal de vigas biapoiadas.
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="moment">Momento Fletor (Mk)</Label>
+                            <Input id="moment" type="number" placeholder="kNm" value={moment} onChange={(e) => setMoment(e.target.value)} />
+                        </div>
+                        <div className="space-y-2">
+                             <Label htmlFor="fck">fck do Concreto</Label>
+                            <Select value={fck} onValueChange={setFck}>
+                                <SelectTrigger id="fck"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="20">20 MPa</SelectItem>
+                                    <SelectItem value="25">25 MPa</SelectItem>
+                                    <SelectItem value="30">30 MPa</SelectItem>
+                                    <SelectItem value="35">35 MPa</SelectItem>
+                                    <SelectItem value="40">40 MPa</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                     <div className="grid grid-cols-3 gap-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="beam-width">Largura (bw)</Label>
+                            <Input id="beam-width" type="number" placeholder="cm" value={width} onChange={(e) => setWidth(e.target.value)} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="beam-height">Altura (h)</Label>
+                            <Input id="beam-height" type="number" placeholder="cm" value={height} onChange={(e) => setHeight(e.target.value)} />
+                        </div>
+                         <div className="space-y-2">
+                            <Label htmlFor="beam-cover">Cobrimento</Label>
+                            <Input id="beam-cover" type="number" placeholder="cm" value={cover} onChange={(e) => setCover(e.target.value)} />
+                        </div>
+                    </div>
+                    <Button onClick={calculateReinforcement} className="w-full" variant="accent">Calcular Armadura</Button>
+                </div>
+                <div className="space-y-4">
+                     <Label>Resultados</Label>
+                      <div className="w-full h-full bg-muted rounded-md flex flex-col items-center justify-center p-4 text-center space-y-4">
+                        {result === null && (
+                             <p className="text-sm text-muted-foreground">Preencha os dados para ver o resultado.</p>
+                        )}
+                        {result && result.As === -1 && (
+                            <p className="text-destructive font-bold">Viga necessita de armadura dupla. Aumente a altura (h).</p>
+                        )}
+                        {result && result.As > 0 && (
+                            <>
+                                <div>
+                                    <p className="text-muted-foreground">Área de Aço Mínima</p>
+                                    <p className="text-lg font-bold">{result.AsMin.toFixed(2)} cm²</p>
+                                </div>
+                                 <div>
+                                    <p className="text-muted-foreground">Área de Aço Calculada (As)</p>
+                                    <p className="text-2xl font-bold text-primary">{result.As.toFixed(2)} cm²</p>
+                                </div>
+                                <div>
+                                    <p className="text-muted-foreground mt-2">Sugestões de Bitolas (CA-50)</p>
+                                     <div className="flex gap-4 justify-center">
+                                     {result.suggestions.map((s, i) => (
+                                        <div key={i} className="p-2 border rounded-md bg-background">
+                                            <p className="font-bold">{s.num} Ø {s.bar.diameter.toFixed(1)}</p>
+                                            <p className="text-xs text-muted-foreground">({s.totalArea.toFixed(2)} cm²)</p>
+                                        </div>
+                                     ))}
+                                     </div>
+                                </div>
+                            </>
+                        )}
+                      </div>
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+
 
 export default function CalculadoraPage() {
   return (
@@ -435,6 +591,7 @@ export default function CalculadoraPage() {
         <AreaCalculator />
         <PricePerSqMCalculator />
         <AreaAnalysisCalculator />
+        <BeamReinforcementCalculator />
       </div>
       <div className="grid grid-cols-1 gap-8">
         <IrregularAreaCalculator />
