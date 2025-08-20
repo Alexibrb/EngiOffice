@@ -297,7 +297,7 @@ function IrregularAreaCalculator() {
 
   const svgData = useMemo(() => {
     const numericPoints = points.map(p => ({ x: parseFloat(p.x) || 0, y: parseFloat(p.y) || 0 }));
-    if (numericPoints.length < 3) return { path: '', viewBox: '0 0 300 200', points: [] };
+    if (numericPoints.length < 3) return { path: '', viewBox: '0 0 300 200', points: [], lines: [] };
 
     const allX = numericPoints.map(p => p.x);
     const allY = numericPoints.map(p => p.y);
@@ -309,7 +309,7 @@ function IrregularAreaCalculator() {
     const width = maxX - minX;
     const height = maxY - minY;
 
-    if (width === 0 || height === 0) return { path: '', viewBox: '0 0 300 200', points: [] };
+    if (width === 0 || height === 0) return { path: '', viewBox: '0 0 300 200', points: [], lines: [] };
 
     const padding = 20;
     const svgWidth = 300;
@@ -321,11 +321,25 @@ function IrregularAreaCalculator() {
         x: (p.x - minX) * scale + padding,
         y: svgHeight - ((p.y - minY) * scale + padding), // Flip Y-axis for correct display
     }));
+
+    const lines = [];
+    for (let i = 0; i < numericPoints.length; i++) {
+        const p1 = numericPoints[i];
+        const p2 = numericPoints[(i + 1) % numericPoints.length];
+        const translatedP1 = translatedPoints[i];
+        const translatedP2 = translatedPoints[(i + 1) % translatedPoints.length];
+
+        const length = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+        const midX = (translatedP1.x + translatedP2.x) / 2;
+        const midY = (translatedP1.y + translatedP2.y) / 2;
+        lines.push({ x: midX, y: midY, length: length.toFixed(2) });
+    }
     
     return {
         path: translatedPoints.map(p => `${p.x},${p.y}`).join(' '),
         viewBox: `0 0 ${svgWidth} ${svgHeight}`,
-        points: translatedPoints
+        points: translatedPoints,
+        lines: lines
     };
   }, [points]);
 
@@ -383,12 +397,17 @@ function IrregularAreaCalculator() {
                     <svg viewBox={svgData.viewBox} className="w-full h-full">
                       <polygon points={svgData.path} className="fill-primary/20 stroke-primary stroke-2" />
                        {svgData.points.map((p, index) => (
-                        <g key={index}>
+                        <g key={`point-${index}`}>
                             <circle cx={p.x} cy={p.y} r="3" className="fill-destructive" />
                             <text x={p.x + 5} y={p.y + 5} className="text-xs font-bold fill-foreground">
                                 P{index + 1}
                             </text>
                         </g>
+                       ))}
+                       {svgData.lines.map((line, index) => (
+                         <text key={`line-${index}`} x={line.x} y={line.y} textAnchor="middle" dominantBaseline="middle" className="text-[8px] font-bold fill-foreground stroke-background stroke-[0.5px] paint-order-stroke">
+                           {line.length}m
+                         </text>
                        ))}
                     </svg>
                  ) : (
