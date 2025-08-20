@@ -173,7 +173,7 @@ function AreaAnalysisCalculator() {
 
 
     return (
-        <Card className="col-span-1">
+        <Card className="col-span-1 md:col-span-2">
             <CardHeader>
                 <CardTitle>Cálculo de Áreas e Coeficientes</CardTitle>
                 <CardDescription>Calcule o total construído, taxa de ocupação e coeficiente de aproveitamento.</CardDescription>
@@ -345,7 +345,7 @@ function IrregularAreaCalculator() {
 
 
   return (
-    <Card className="col-span-1">
+    <Card className="col-span-1 md:col-span-2">
       <CardHeader>
         <CardTitle>Cálculo de Área por Coordenadas</CardTitle>
         <CardDescription>
@@ -435,6 +435,8 @@ export default function CalculadoraPage() {
         <AreaCalculator />
         <PricePerSqMCalculator />
         <AreaAnalysisCalculator />
+      </div>
+      <div className="grid grid-cols-1 gap-8">
         <IrregularAreaCalculator />
       </div>
     </div>
