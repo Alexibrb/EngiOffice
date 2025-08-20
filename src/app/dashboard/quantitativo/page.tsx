@@ -39,6 +39,7 @@ type SapataRow = {
   id: string;
   pav: string;
   tipo: string;
+  bitola: string;
   quant: number;
   largura: number;
   comprimento: number;
@@ -50,6 +51,7 @@ type SapataRow = {
 const initialSapataRow: Omit<SapataRow, 'id'> = {
   pav: 'Térreo',
   tipo: 'S1',
+  bitola: '3/8',
   quant: 1,
   largura: 0,
   comprimento: 0,
@@ -60,10 +62,12 @@ const initialSapataRow: Omit<SapataRow, 'id'> = {
 
 const COMPRIMENTO_BARRA_FERRO = 12; // metros
 const pavimentoOptions = ['Térreo', 'Pav1', 'Pav2', 'Pav3', 'Pav4', 'Pav5', 'Pav6', 'Pav7', 'Pav8', 'Pav9', 'Pav10'];
+const bitolaOptions = ['1/4', '5/16', '3/8', '1/2', '5/8'];
 
 type Totals = {
-    [key: string]: number;
+    [key: string]: number | Record<string, number>;
 };
+
 
 type CalculatorProps = {
     pavimentoFilter: string;
@@ -88,7 +92,7 @@ const SapataCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimento
   const handleInputChange = (id: string, field: keyof SapataRow, value: string | number) => {
     const newRows = rows.map(row => {
       if (row.id === id) {
-        const parsedValue = (typeof value === 'string' && (field === 'pav' || field === 'tipo')) ? value : parseFloat(String(value)) || 0;
+        const parsedValue = (typeof value === 'string' && (field === 'pav' || field === 'tipo' || field === 'bitola')) ? value : parseFloat(String(value)) || 0;
         return { ...row, [field]: parsedValue };
       }
       return row;
@@ -134,21 +138,34 @@ const SapataCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimento
     });
   }, [filteredRows]);
 
-  const totals = useMemo(() => {
-    return calculatedRows.reduce((acc, row) => {
-      acc.volume += row.volume;
-      acc.totalLinear += row.totalLinear;
-      acc.totalBarras += row.totalBarras;
-      acc.cimento += row.cimento;
-      acc.areia += row.areia;
-      acc.brita += row.brita;
-      return acc;
-    }, { volume: 0, totalLinear: 0, totalBarras: 0, cimento: 0, areia: 0, brita: 0 });
+  const getTotals = useCallback(() => {
+    const totals: Totals = {
+        volume: 0,
+        totalLinear: 0,
+        cimento: 0,
+        areia: 0,
+        brita: 0,
+        ferro: {}
+    };
+    calculatedRows.forEach(row => {
+        (totals.volume as number) += row.volume;
+        (totals.totalLinear as number) += row.totalLinear;
+        (totals.cimento as number) += row.cimento;
+        (totals.areia as number) += row.areia;
+        (totals.brita as number) += row.brita;
+
+        const ferroTotals = totals.ferro as Record<string, number>;
+        ferroTotals[row.bitola] = (ferroTotals[row.bitola] || 0) + row.totalBarras;
+    });
+    return totals;
   }, [calculatedRows]);
 
   useImperativeHandle(ref, () => ({
-    getTotals: () => totals,
+    getTotals,
   }));
+  
+  const displayTotals = useMemo(() => getTotals(), [getTotals]);
+
 
   return (
     <Card>
@@ -165,6 +182,7 @@ const SapataCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimento
               <TableRow>
                 <TableHead>Pav.</TableHead>
                 <TableHead>Tipo</TableHead>
+                <TableHead>Bitola do ferro</TableHead>
                 <TableHead>Quant.</TableHead>
                 <TableHead>Largura (cm)</TableHead>
                 <TableHead>Compr. (cm)</TableHead>
@@ -192,6 +210,14 @@ const SapataCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimento
                     </Select>
                   </TableCell>
                   <TableCell><Input value={row.tipo} onChange={(e) => handleInputChange(row.id, 'tipo', e.target.value)} /></TableCell>
+                  <TableCell className="min-w-[150px]">
+                     <Select value={row.bitola} onValueChange={(value) => handleInputChange(row.id, 'bitola', value)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                            {bitolaOptions.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                  </TableCell>
                   <TableCell><Input type="number" value={row.quant} onChange={(e) => handleInputChange(row.id, 'quant', e.target.value)} /></TableCell>
                   <TableCell><Input type="number" step="1" value={row.largura} onChange={(e) => handleInputChange(row.id, 'largura', e.target.value)} /></TableCell>
                   <TableCell><Input type="number" step="1" value={row.comprimento} onChange={(e) => handleInputChange(row.id, 'comprimento', e.target.value)} /></TableCell>
@@ -214,13 +240,13 @@ const SapataCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimento
             </TableBody>
             <TableFooter>
               <TableRow>
-                  <TableCell colSpan={8} className="font-bold text-right">Totais</TableCell>
-                  <TableCell className="font-bold">{totals.volume.toFixed(3)}</TableCell>
-                  <TableCell className="font-bold">{totals.totalLinear.toFixed(2)}</TableCell>
-                  <TableCell className="font-bold bg-primary/10">{totals.totalBarras.toFixed(2)}</TableCell>
-                  <TableCell className="font-bold bg-primary/10">{totals.cimento.toFixed(2)}</TableCell>
-                  <TableCell className="font-bold bg-primary/10">{totals.areia.toFixed(3)}</TableCell>
-                  <TableCell className="font-bold bg-primary/10">{totals.brita.toFixed(3)}</TableCell>
+                  <TableCell colSpan={9} className="font-bold text-right">Totais</TableCell>
+                  <TableCell className="font-bold">{(displayTotals.volume as number).toFixed(3)}</TableCell>
+                  <TableCell className="font-bold">{(displayTotals.totalLinear as number).toFixed(2)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{Object.values(displayTotals.ferro as Record<string, number>).reduce((a, b) => a + b, 0).toFixed(2)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{(displayTotals.cimento as number).toFixed(2)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{(displayTotals.areia as number).toFixed(3)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{(displayTotals.brita as number).toFixed(3)}</TableCell>
                   <TableCell></TableCell>
               </TableRow>
             </TableFooter>
@@ -323,22 +349,36 @@ const VigamentoCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavime
     });
   }, [filteredRows]);
 
-  const totals = useMemo(() => {
-    return calculatedRows.reduce((acc, row) => {
-      acc.volume += row.volume;
-      acc.totalLinear += row.totalLinear;
-      acc.totalBarras += row.totalBarras;
-      acc.cimento += row.cimento;
-      acc.areia += row.areia;
-      acc.brita += row.brita;
-      acc.quantFerro3_16 += row.quantFerro3_16;
-      return acc;
-    }, { volume: 0, totalLinear: 0, totalBarras: 0, cimento: 0, areia: 0, brita: 0, quantFerro3_16: 0 });
+ const getTotals = useCallback(() => {
+    const totals: Totals = {
+        volume: 0,
+        totalLinear: 0,
+        cimento: 0,
+        areia: 0,
+        brita: 0,
+        quantFerro3_16: 0,
+        ferro: {}
+    };
+    calculatedRows.forEach(row => {
+        (totals.volume as number) += row.volume;
+        (totals.totalLinear as number) += row.totalLinear;
+        (totals.cimento as number) += row.cimento;
+        (totals.areia as number) += row.areia;
+        (totals.brita as number) += row.brita;
+        (totals.quantFerro3_16 as number) += row.quantFerro3_16;
+
+        const ferroTotals = totals.ferro as Record<string, number>;
+        ferroTotals[row.bitola] = (ferroTotals[row.bitola] || 0) + row.totalBarras;
+    });
+    return totals;
   }, [calculatedRows]);
-  
+
   useImperativeHandle(ref, () => ({
-    getTotals: () => totals,
+    getTotals,
   }));
+
+  const displayTotals = useMemo(() => getTotals(), [getTotals]);
+  
 
   return (
     <Card>
@@ -383,7 +423,14 @@ const VigamentoCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavime
                     </Select>
                   </TableCell>
                   <TableCell><Input value={row.tipo} onChange={(e) => handleInputChange(row.id, 'tipo', e.target.value)} /></TableCell>
-                  <TableCell><Input value={row.bitola} onChange={(e) => handleInputChange(row.id, 'bitola', e.target.value)} /></TableCell>
+                  <TableCell className="min-w-[150px]">
+                     <Select value={row.bitola} onValueChange={(value) => handleInputChange(row.id, 'bitola', value)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                            {bitolaOptions.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                  </TableCell>
                   <TableCell><Input type="number" value={row.quant} onChange={(e) => handleInputChange(row.id, 'quant', e.target.value)} /></TableCell>
                   <TableCell><Input type="number" step="0.1" value={row.comprimento} onChange={(e) => handleInputChange(row.id, 'comprimento', e.target.value)} /></TableCell>
                   <TableCell><Input type="number" step="1" value={row.largura} onChange={(e) => handleInputChange(row.id, 'largura', e.target.value)} /></TableCell>
@@ -407,13 +454,13 @@ const VigamentoCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavime
             <TableFooter>
               <TableRow>
                   <TableCell colSpan={8} className="font-bold text-right">Totais</TableCell>
-                  <TableCell className="font-bold">{totals.volume.toFixed(3)}</TableCell>
-                  <TableCell className="font-bold">{totals.totalLinear.toFixed(2)}</TableCell>
-                  <TableCell className="font-bold bg-primary/10">{totals.totalBarras.toFixed(2)}</TableCell>
-                  <TableCell className="font-bold bg-primary/10">{totals.cimento.toFixed(2)}</TableCell>
-                  <TableCell className="font-bold bg-primary/10">{totals.areia.toFixed(3)}</TableCell>
-                  <TableCell className="font-bold bg-primary/10">{totals.brita.toFixed(3)}</TableCell>
-                  <TableCell className="font-bold bg-primary/10">{totals.quantFerro3_16.toFixed(2)}</TableCell>
+                  <TableCell className="font-bold">{(displayTotals.volume as number).toFixed(3)}</TableCell>
+                  <TableCell className="font-bold">{(displayTotals.totalLinear as number).toFixed(2)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{Object.values(displayTotals.ferro as Record<string, number>).reduce((a, b) => a + b, 0).toFixed(2)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{(displayTotals.cimento as number).toFixed(2)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{(displayTotals.areia as number).toFixed(3)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{(displayTotals.brita as number).toFixed(3)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{(displayTotals.quantFerro3_16 as number).toFixed(2)}</TableCell>
                   <TableCell></TableCell>
               </TableRow>
             </TableFooter>
@@ -516,22 +563,35 @@ const PilarCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoF
     });
   }, [filteredRows]);
 
-  const totals = useMemo(() => {
-    return calculatedRows.reduce((acc, row) => {
-      acc.volume += row.volume;
-      acc.totalLinear += row.totalLinear;
-      acc.totalBarras += row.totalBarras;
-      acc.cimento += row.cimento;
-      acc.areia += row.areia;
-      acc.brita += row.brita;
-      acc.quantFerro3_16 += row.quantFerro3_16;
-      return acc;
-    }, { volume: 0, totalLinear: 0, totalBarras: 0, cimento: 0, areia: 0, brita: 0, quantFerro3_16: 0 });
+  const getTotals = useCallback(() => {
+    const totals: Totals = {
+        volume: 0,
+        totalLinear: 0,
+        cimento: 0,
+        areia: 0,
+        brita: 0,
+        quantFerro3_16: 0,
+        ferro: {}
+    };
+    calculatedRows.forEach(row => {
+        (totals.volume as number) += row.volume;
+        (totals.totalLinear as number) += row.totalLinear;
+        (totals.cimento as number) += row.cimento;
+        (totals.areia as number) += row.areia;
+        (totals.brita as number) += row.brita;
+        (totals.quantFerro3_16 as number) += row.quantFerro3_16;
+
+        const ferroTotals = totals.ferro as Record<string, number>;
+        ferroTotals[row.bitola] = (ferroTotals[row.bitola] || 0) + row.totalBarras;
+    });
+    return totals;
   }, [calculatedRows]);
 
   useImperativeHandle(ref, () => ({
-    getTotals: () => totals,
+    getTotals,
   }));
+  
+  const displayTotals = useMemo(() => getTotals(), [getTotals]);
 
   return (
     <Card>
@@ -576,7 +636,14 @@ const PilarCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoF
                     </Select>
                   </TableCell>
                   <TableCell><Input value={row.tipo} onChange={(e) => handleInputChange(row.id, 'tipo', e.target.value)} /></TableCell>
-                  <TableCell><Input value={row.bitola} onChange={(e) => handleInputChange(row.id, 'bitola', e.target.value)} /></TableCell>
+                  <TableCell className="min-w-[150px]">
+                     <Select value={row.bitola} onValueChange={(value) => handleInputChange(row.id, 'bitola', value)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                            {bitolaOptions.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                  </TableCell>
                   <TableCell><Input type="number" value={row.quant} onChange={(e) => handleInputChange(row.id, 'quant', e.target.value)} /></TableCell>
                   <TableCell><Input type="number" step="0.1" value={row.comprimento} onChange={(e) => handleInputChange(row.id, 'comprimento', e.target.value)} /></TableCell>
                   <TableCell><Input type="number" step="1" value={row.largura} onChange={(e) => handleInputChange(row.id, 'largura', e.target.value)} /></TableCell>
@@ -600,13 +667,13 @@ const PilarCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoF
             <TableFooter>
               <TableRow>
                   <TableCell colSpan={8} className="font-bold text-right">Totais</TableCell>
-                  <TableCell className="font-bold">{totals.volume.toFixed(3)}</TableCell>
-                  <TableCell className="font-bold">{totals.totalLinear.toFixed(2)}</TableCell>
-                  <TableCell className="font-bold bg-primary/10">{totals.totalBarras.toFixed(2)}</TableCell>
-                  <TableCell className="font-bold bg-primary/10">{totals.cimento.toFixed(2)}</TableCell>
-                  <TableCell className="font-bold bg-primary/10">{totals.areia.toFixed(3)}</TableCell>
-                  <TableCell className="font-bold bg-primary/10">{totals.brita.toFixed(3)}</TableCell>
-                  <TableCell className="font-bold bg-primary/10">{totals.quantFerro3_16.toFixed(2)}</TableCell>
+                  <TableCell className="font-bold">{(displayTotals.volume as number).toFixed(3)}</TableCell>
+                  <TableCell className="font-bold">{(displayTotals.totalLinear as number).toFixed(2)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{Object.values(displayTotals.ferro as Record<string, number>).reduce((a, b) => a + b, 0).toFixed(2)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{(displayTotals.cimento as number).toFixed(2)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{(displayTotals.areia as number).toFixed(3)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{(displayTotals.brita as number).toFixed(3)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{(displayTotals.quantFerro3_16 as number).toFixed(2)}</TableCell>
                   <TableCell></TableCell>
               </TableRow>
             </TableFooter>
@@ -684,19 +751,22 @@ const LajeCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoFi
     });
   }, [filteredRows]);
 
-  const totals = useMemo(() => {
-    return calculatedRows.reduce((acc, row) => {
-      acc.volume += row.volume;
-      acc.cimento += row.cimento;
-      acc.areia += row.areia;
-      acc.brita += row.brita;
+  const getTotals = useCallback(() => {
+    return calculatedRows.reduce((acc: Totals, row) => {
+      (acc.volume as number) = (acc.volume as number || 0) + row.volume;
+      (acc.cimento as number) = (acc.cimento as number || 0) + row.cimento;
+      (acc.areia as number) = (acc.areia as number || 0) + row.areia;
+      (acc.brita as number) = (acc.brita as number || 0) + row.brita;
       return acc;
     }, { volume: 0, cimento: 0, areia: 0, brita: 0 });
   }, [calculatedRows]);
 
   useImperativeHandle(ref, () => ({
-    getTotals: () => totals,
+    getTotals,
   }));
+
+  const displayTotals = useMemo(() => getTotals(), [getTotals]);
+
 
   return (
     <Card>
@@ -751,10 +821,10 @@ const LajeCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoFi
             <TableFooter>
               <TableRow>
                   <TableCell colSpan={4} className="font-bold text-right">Totais</TableCell>
-                  <TableCell className="font-bold bg-primary/10">{totals.volume.toFixed(3)}</TableCell>
-                  <TableCell className="font-bold bg-primary/10">{totals.cimento.toFixed(2)}</TableCell>
-                  <TableCell className="font-bold bg-primary/10">{totals.areia.toFixed(3)}</TableCell>
-                  <TableCell className="font-bold bg-primary/10">{totals.brita.toFixed(3)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{(displayTotals.volume as number).toFixed(3)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{(displayTotals.cimento as number).toFixed(2)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{(displayTotals.areia as number).toFixed(3)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{(displayTotals.brita as number).toFixed(3)}</TableCell>
                   <TableCell></TableCell>
               </TableRow>
             </TableFooter>
@@ -843,27 +913,29 @@ const AlvenariaCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavime
 
       return {
         ...row,
-        blocksNeeded: N_final,
-        mortarVolume: V_final,
-        cementSacks: Sacos,
-        sandM3: Q_areia,
+        blocos: N_final,
+        argamassa: V_final,
+        cimento: Sacos,
+        areia: Q_areia,
       };
     });
   }, [filteredRows]);
 
-  const totals = useMemo(() => {
-    return calculatedRows.reduce((acc, row) => {
-      acc.blocksNeeded += row.blocksNeeded;
-      acc.mortarVolume += row.mortarVolume;
-      acc.cementSacks += row.cementSacks;
-      acc.sandM3 += row.sandM3;
+  const getTotals = useCallback(() => {
+    return calculatedRows.reduce((acc: Totals, row) => {
+      (acc.blocos as number) = (acc.blocos as number || 0) + row.blocos;
+      (acc.argamassa as number) = (acc.argamassa as number || 0) + row.argamassa;
+      (acc.cimento as number) = (acc.cimento as number || 0) + row.cimento;
+      (acc.areia as number) = (acc.areia as number || 0) + row.areia;
       return acc;
-    }, { blocksNeeded: 0, mortarVolume: 0, cementSacks: 0, sandM3: 0 });
+    }, { blocos: 0, argamassa: 0, cimento: 0, areia: 0 });
   }, [calculatedRows]);
 
   useImperativeHandle(ref, () => ({
-    getTotals: () => totals,
+    getTotals,
   }));
+  
+  const displayTotals = useMemo(() => getTotals(), [getTotals]);
 
   return (
     <Card>
@@ -907,10 +979,10 @@ const AlvenariaCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavime
                   <TableCell><Input type="number" step="1" value={row.larguraBloco} onChange={(e) => handleInputChange(row.id, 'larguraBloco', e.target.value)} /></TableCell>
                   <TableCell><Input type="number" step="1" value={row.alturaBloco} onChange={(e) => handleInputChange(row.id, 'alturaBloco', e.target.value)} /></TableCell>
                   <TableCell><Input type="number" step="0.1" value={row.junta} onChange={(e) => handleInputChange(row.id, 'junta', e.target.value)} /></TableCell>
-                  <TableCell className="font-bold bg-primary/10">{Math.ceil(row.blocksNeeded)}</TableCell>
-                  <TableCell className="font-bold bg-primary/10">{row.mortarVolume.toFixed(3)}</TableCell>
-                  <TableCell className="font-bold bg-primary/10">{row.cementSacks.toFixed(2)}</TableCell>
-                  <TableCell className="font-bold bg-primary/10">{row.sandM3.toFixed(3)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{Math.ceil(row.blocos)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{row.argamassa.toFixed(3)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{row.cimento.toFixed(2)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{row.areia.toFixed(3)}</TableCell>
                   <TableCell>
                       <Button variant="ghost" size="icon" onClick={() => handleRemoveRow(row.id)} disabled={rows.length <= 1}>
                           <Trash2 className="h-4 w-4 text-destructive" />
@@ -922,10 +994,10 @@ const AlvenariaCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavime
             <TableFooter>
               <TableRow>
                   <TableCell colSpan={6} className="font-bold text-right">Totais</TableCell>
-                  <TableCell className="font-bold bg-primary/10">{Math.ceil(totals.blocksNeeded)}</TableCell>
-                  <TableCell className="font-bold bg-primary/10">{totals.mortarVolume.toFixed(3)}</TableCell>
-                  <TableCell className="font-bold bg-primary/10">{totals.cementSacks.toFixed(2)}</TableCell>
-                  <TableCell className="font-bold bg-primary/10">{totals.sandM3.toFixed(3)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{Math.ceil(displayTotals.blocos as number)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{(displayTotals.argamassa as number).toFixed(3)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{(displayTotals.cimento as number).toFixed(2)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{(displayTotals.areia as number).toFixed(3)}</TableCell>
                   <TableCell></TableCell>
               </TableRow>
             </TableFooter>
@@ -1005,25 +1077,28 @@ const RebocoCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimento
       
       return {
         ...row,
-        mortarVolume: V_final,
-        cementSacks: Sacos,
-        sandM3: Q_areia,
+        argamassa: V_final,
+        cimento: Sacos,
+        areia: Q_areia,
       };
     });
   }, [filteredRows]);
 
-  const totals = useMemo(() => {
-    return calculatedRows.reduce((acc, row) => {
-      acc.mortarVolume += row.mortarVolume;
-      acc.cementSacks += row.cementSacks;
-      acc.sandM3 += row.sandM3;
+  const getTotals = useCallback(() => {
+    return calculatedRows.reduce((acc: Totals, row) => {
+      (acc.argamassa as number) = (acc.argamassa as number || 0) + row.argamassa;
+      (acc.cimento as number) = (acc.cimento as number || 0) + row.cimento;
+      (acc.areia as number) = (acc.areia as number || 0) + row.areia;
       return acc;
-    }, { mortarVolume: 0, cementSacks: 0, sandM3: 0 });
+    }, { argamassa: 0, cimento: 0, areia: 0 });
   }, [calculatedRows]);
 
   useImperativeHandle(ref, () => ({
-    getTotals: () => totals,
+    getTotals,
   }));
+
+  const displayTotals = useMemo(() => getTotals(), [getTotals]);
+
 
   return (
     <Card>
@@ -1074,9 +1149,9 @@ const RebocoCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimento
                         </SelectContent>
                     </Select>
                   </TableCell>
-                  <TableCell className="font-bold bg-primary/10">{row.mortarVolume.toFixed(3)}</TableCell>
-                  <TableCell className="font-bold bg-primary/10">{row.cementSacks.toFixed(2)}</TableCell>
-                  <TableCell className="font-bold bg-primary/10">{row.sandM3.toFixed(3)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{row.argamassa.toFixed(3)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{row.cimento.toFixed(2)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{row.areia.toFixed(3)}</TableCell>
                   <TableCell>
                       <Button variant="ghost" size="icon" onClick={() => handleRemoveRow(row.id)} disabled={rows.length <= 1}>
                           <Trash2 className="h-4 w-4 text-destructive" />
@@ -1088,9 +1163,9 @@ const RebocoCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimento
             <TableFooter>
               <TableRow>
                   <TableCell colSpan={5} className="font-bold text-right">Totais</TableCell>
-                  <TableCell className="font-bold bg-primary/10">{totals.mortarVolume.toFixed(3)}</TableCell>
-                  <TableCell className="font-bold bg-primary/10">{totals.cementSacks.toFixed(2)}</TableCell>
-                  <TableCell className="font-bold bg-primary/10">{totals.sandM3.toFixed(3)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{(displayTotals.argamassa as number).toFixed(3)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{(displayTotals.cimento as number).toFixed(2)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{(displayTotals.areia as number).toFixed(3)}</TableCell>
                   <TableCell></TableCell>
               </TableRow>
             </TableFooter>
@@ -1179,46 +1254,52 @@ export default function QuantitativoPage() {
             if (Object.keys(totals).length === 0) return;
             
             const body: (string | number)[][] = [];
+            const ferroTotals = totals.ferro as Record<string, number> | undefined;
 
             if (totals.cimento > 0) {
-                const value = totals.cimento;
+                const value = totals.cimento as number;
                 body.push(['Cimento (sacos 50kg)', value.toFixed(2)]);
                 consolidatedTotals['Cimento (sacos 50kg)'] = { value: (consolidatedTotals['Cimento (sacos 50kg)']?.value || 0) + value, unit: 'sacos' };
             }
-            if (totals.cementSacks > 0) {
-                const value = totals.cementSacks;
-                body.push(['Cimento (sacos 50kg)', value.toFixed(2)]);
-                consolidatedTotals['Cimento (sacos 50kg)'] = { value: (consolidatedTotals['Cimento (sacos 50kg)']?.value || 0) + value, unit: 'sacos' };
-            }
+            
             if (totals.areia > 0) {
-                 const value = totals.areia;
+                 const value = totals.areia as number;
                 body.push(['Areia (m³)', value.toFixed(3)]);
                 consolidatedTotals['Areia (m³)'] = { value: (consolidatedTotals['Areia (m³)']?.value || 0) + value, unit: 'm³' };
             }
-            if (totals.sandM3 > 0) {
-                 const value = totals.sandM3;
-                body.push(['Areia (m³)', value.toFixed(3)]);
-                consolidatedTotals['Areia (m³)'] = { value: (consolidatedTotals['Areia (m³)']?.value || 0) + value, unit: 'm³' };
-            }
+            
             if (totals.brita > 0) {
-                 const value = totals.brita;
+                 const value = totals.brita as number;
                 body.push(['Brita (m³)', value.toFixed(3)]);
                 consolidatedTotals['Brita (m³)'] = { value: (consolidatedTotals['Brita (m³)']?.value || 0) + value, unit: 'm³' };
             }
-             if (totals.totalBarras > 0) {
-                 const value = totals.totalBarras;
-                body.push(['Barras de Ferro (12m)', value.toFixed(2)]);
-                consolidatedTotals['Barras de Ferro (12m)'] = { value: (consolidatedTotals['Barras de Ferro (12m)']?.value || 0) + value, unit: 'un' };
+
+            if(ferroTotals && Object.keys(ferroTotals).length > 0) {
+              Object.entries(ferroTotals).forEach(([bitola, value]) => {
+                  constitemName = `Ferro ${bitola} (barras)`;
+                  body.push([itemName, value.toFixed(2)]);
+                  consolidatedTotals[itemName] = { value: (consolidatedTotals[itemName]?.value || 0) + value, unit: 'un' };
+              })
             }
+
             if (totals.quantFerro3_16 > 0) {
-                 const value = totals.quantFerro3_16;
-                body.push(['Ferro 3/16 (barras)', value.toFixed(2)]);
-                consolidatedTotals['Ferro 3/16 (barras)'] = { value: (consolidatedTotals['Ferro 3/16 (barras)']?.value || 0) + value, unit: 'un' };
+                 const value = totals.quantFerro3_16 as number;
+                 const itemName = `Ferro 3/16 (barras)`;
+                body.push([itemName, value.toFixed(2)]);
+                consolidatedTotals[itemName] = { value: (consolidatedTotals[itemName]?.value || 0) + value, unit: 'un' };
             }
-             if (totals.blocksNeeded > 0) {
-                 const value = totals.blocksNeeded;
-                body.push(['Blocos (un)', Math.ceil(value)]);
-                consolidatedTotals['Blocos (un)'] = { value: (consolidatedTotals['Blocos (un)']?.value || 0) + value, unit: 'un' };
+
+             if (totals.blocos > 0) {
+                 const value = totals.blocos as number;
+                 const itemName = 'Blocos (un)';
+                body.push([itemName, Math.ceil(value)]);
+                consolidatedTotals[itemName] = { value: (consolidatedTotals[itemName]?.value || 0) + value, unit: 'un' };
+            }
+
+            if (totals.argamassa > 0) {
+                 const value = totals.argamassa as number;
+                 body.push(['Argamassa (m³)', value.toFixed(3)]);
+                 // Argamassa é um total composto, não adicionamos ao consolidado
             }
 
 
@@ -1237,7 +1318,7 @@ export default function QuantitativoPage() {
         // Resumo Geral
         if (Object.keys(consolidatedTotals).length > 0) {
             const summaryBody = Object.entries(consolidatedTotals).map(([item, data]) => {
-                const formattedValue = item.includes('Blocos') ? Math.ceil(data.value) : data.value.toFixed(2);
+                const formattedValue = item.includes('Blocos') || item.includes('barras') ? Math.ceil(data.value) : data.value.toFixed(2);
                 return [item, `${formattedValue} ${data.unit}`];
             });
 
