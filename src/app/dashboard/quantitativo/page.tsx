@@ -1338,47 +1338,49 @@ export default function QuantitativoPage() {
 
   const generatePdf = () => {
         const doc = new jsPDF();
-        const pageWidth = doc.internal.pageSize.getWidth();
-        let currentY = 15;
 
-        // Cabeçalho Empresa
-        doc.setFontSize(18);
-        doc.setFont('helvetica', 'bold');
-        doc.text(companyData?.companyName || 'EngiOffice', pageWidth / 2, currentY, { align: 'center' });
-        currentY += 8;
+        const addHeader = (doc: jsPDF, pageNumber: number) => {
+            const pageWidth = doc.internal.pageSize.getWidth();
+            let currentY = 15;
 
-        // Título Relatório
-        doc.setFontSize(14);
-        doc.setFont('helvetica', 'normal');
-        doc.text('Relatório de Quantitativos', pageWidth / 2, currentY, { align: 'center' });
-        currentY += 10;
-
-        // Dados do Cliente
-        if (selectedClient) {
-            doc.setFontSize(10);
+            doc.setFontSize(18);
             doc.setFont('helvetica', 'bold');
-            doc.text('Cliente:', 14, currentY);
+            doc.text(companyData?.companyName || 'EngiOffice', pageWidth / 2, currentY, { align: 'center' });
+            currentY += 8;
+
+            doc.setFontSize(14);
             doc.setFont('helvetica', 'normal');
-            doc.text(selectedClient.nome_completo, 30, currentY);
-            currentY += 5;
+            doc.text(pageNumber === 1 ? 'Relatório de Quantitativos' : 'Resumo Geral de Materiais', pageWidth / 2, currentY, { align: 'center' });
+            currentY += 10;
 
-            const obra = selectedClient.endereco_obra;
-            if (obra && obra.street) {
+            if (selectedClient) {
+                doc.setFontSize(10);
                 doc.setFont('helvetica', 'bold');
-                doc.text('Obra:', 14, currentY);
+                doc.text('Cliente:', 14, currentY);
                 doc.setFont('helvetica', 'normal');
-                const address = `${obra.street}, ${obra.number} - ${obra.neighborhood}, ${obra.city} - ${obra.state}`;
-                doc.text(address, 30, currentY);
+                doc.text(selectedClient.nome_completo, 30, currentY);
                 currentY += 5;
-            }
-        }
-        
-        doc.setFont('helvetica', 'bold');
-        doc.text('Filtro de Pavimento Aplicado:', 14, currentY);
-        doc.setFont('helvetica', 'normal');
-        doc.text(pavimentoFilter === 'todos' ? 'Todos' : pavimentoFilter, 65, currentY);
 
-        currentY += 10;
+                const obra = selectedClient.endereco_obra;
+                if (obra && obra.street) {
+                    doc.setFont('helvetica', 'bold');
+                    doc.text('Obra:', 14, currentY);
+                    doc.setFont('helvetica', 'normal');
+                    const address = `${obra.street}, ${obra.number} - ${obra.neighborhood}, ${obra.city} - ${obra.state}`;
+                    doc.text(address, 30, currentY);
+                    currentY += 5;
+                }
+            }
+            
+            doc.setFont('helvetica', 'bold');
+            doc.text('Filtro de Pavimento Aplicado:', 14, currentY);
+            doc.setFont('helvetica', 'normal');
+            doc.text(pavimentoFilter === 'todos' ? 'Todos' : pavimentoFilter, 65, currentY);
+
+            return currentY + 10;
+        };
+        
+        let currentY = addHeader(doc, 1);
         
         const consolidatedTotals: Record<string, { value: number; unit: string }> = {};
 
@@ -1467,6 +1469,7 @@ export default function QuantitativoPage() {
         }
         
         doc.addPage();
+        currentY = addHeader(doc, 2);
         
         if (Object.keys(consolidatedTotals).length > 0) {
             const summaryBody = Object.entries(consolidatedTotals).map(([item, data]) => {
@@ -1475,6 +1478,7 @@ export default function QuantitativoPage() {
             });
 
              autoTable(doc, {
+                startY: currentY,
                 head: [['Resumo Geral de Materiais', 'Quantidade Total']],
                 body: summaryBody,
                 theme: 'grid',
