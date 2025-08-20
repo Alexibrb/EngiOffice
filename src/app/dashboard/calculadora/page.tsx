@@ -426,12 +426,16 @@ function IrregularAreaCalculator() {
 
 function MaterialQuantifier() {
   const [serviceType, setServiceType] = useState('concreto');
-  const [inputs, setInputs] = useState<Record<string, string>>({ volume: '1' });
+  const [inputs, setInputs] = useState<Record<string, string>>({
+    volume: '0.18',
+    consumo: '434.8',
+    perda: '5'
+  });
   const [results, setResults] = useState<Record<string, string | number> | null>(null);
 
   const handleInputChange = (field: string, value: string) => {
     setInputs(prev => ({ ...prev, [field]: value }));
-    setResults(null); // Reset results on input change
+    setResults(null);
   };
 
   const calculate = () => {
@@ -441,30 +445,36 @@ function MaterialQuantifier() {
     }
 
     if (serviceType === 'concreto') {
-      const { volume } = parsedInputs;
-      if (!volume || volume <= 0) {
+      const { volume, consumo, perda } = parsedInputs;
+      if (!volume || volume <= 0 || !consumo || consumo <= 0) {
         setResults(null);
         return;
       }
       
-      // Proporção 1:2:3 (cimento:areia:brita) - comum para concreto de 25 MPa
-      const cimentoVolume = volume * (1/6) * 1.5; // Fator de correção para volume seco
-      const cimentoSacos = Math.ceil((cimentoVolume * 1440) / 50); // densidade cimento ~1440 kg/m³
-      const areiaVolume = volume * (2/6);
-      const britaVolume = volume * (3/6);
-      
+      const volumeComPerdas = volume * (1 + (perda / 100));
+      const cimentoKg = volumeComPerdas * consumo;
+      const cimentoSacos = Math.ceil(cimentoKg / 50);
+
+      const tracoBase = 1 + 2 + 3; // Proporção 1:2:3 (cimento:areia:brita)
+      const volumeAreia = volumeComPerdas * (2 / tracoBase);
+      const volumeBrita = volumeComPerdas * (3 / tracoBase);
+
       setResults({
-        'Cimento (sacos de 50kg)': cimentoSacos,
-        'Areia (m³)': areiaVolume.toFixed(2),
-        'Brita (m³)': britaVolume.toFixed(2),
+        'Cimento (sacos 50kg)': cimentoSacos,
+        'Cimento (kg)': cimentoKg.toFixed(2),
+        'Areia (m³)': volumeAreia.toFixed(3),
+        'Brita (m³)': volumeBrita.toFixed(3),
+        'Volume com Perdas (m³)': volumeComPerdas.toFixed(3),
       });
     }
-    // Adicionar outros cálculos aqui
   };
   
   useEffect(() => {
-    // Reset inputs and results when service type changes
-    setInputs(serviceType === 'concreto' ? { volume: '1' } : {});
+    setInputs(serviceType === 'concreto' ? {
+        volume: '0.18',
+        consumo: '434.8',
+        perda: '5'
+      } : {});
     setResults(null);
   }, [serviceType]);
 
@@ -472,12 +482,21 @@ function MaterialQuantifier() {
     switch(serviceType) {
       case 'concreto':
         return (
-          <div className="space-y-2">
-            <Label htmlFor="volume">Volume de Concreto (m³)</Label>
-            <Input id="volume" type="number" placeholder="Ex: 5" value={inputs.volume || ''} onChange={(e) => handleInputChange('volume', e.target.value)} />
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="volume">Volume de Concreto (m³)</Label>
+              <Input id="volume" type="number" step="0.01" placeholder="Ex: 0.18" value={inputs.volume || ''} onChange={(e) => handleInputChange('volume', e.target.value)} />
+            </div>
+             <div className="space-y-2">
+              <Label htmlFor="consumo">Consumo de Cimento (kg/m³)</Label>
+              <Input id="consumo" type="number" step="0.1" placeholder="Ex: 434.8" value={inputs.consumo || ''} onChange={(e) => handleInputChange('consumo', e.target.value)} />
+            </div>
+             <div className="space-y-2">
+              <Label htmlFor="perda">Percentual de Perda (%)</Label>
+              <Input id="perda" type="number" step="1" placeholder="Ex: 5" value={inputs.perda || ''} onChange={(e) => handleInputChange('perda', e.target.value)} />
+            </div>
           </div>
         );
-      // Adicionar outros cases aqui
       default:
         return null;
     }
@@ -517,7 +536,7 @@ function MaterialQuantifier() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Material</TableHead>
+                    <TableHead>Material / Parâmetro</TableHead>
                     <TableHead className="text-right">Quantidade</TableHead>
                   </TableRow>
                 </TableHeader>
