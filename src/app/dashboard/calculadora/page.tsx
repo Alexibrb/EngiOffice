@@ -492,7 +492,7 @@ function BeamReinforcementCalculator() {
             }
         }
         
-        const bestSuggestion = suggestions.sort((a,b) => a.totalArea - b.totalArea).slice(0, 3);
+        const bestSuggestion = suggestions.filter(s => s.totalArea >= finalAs).sort((a,b) => a.totalArea - b.totalArea).slice(0, 3);
 
         setResult({ As: finalAs, AsMin, suggestions: bestSuggestion });
     };
