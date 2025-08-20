@@ -1276,7 +1276,7 @@ export default function QuantitativoPage() {
 
             if(ferroTotals && Object.keys(ferroTotals).length > 0) {
               Object.entries(ferroTotals).forEach(([bitola, value]) => {
-                  constitemName = `Ferro ${bitola} (barras)`;
+                  const itemName = `Ferro ${bitola} (barras)`;
                   body.push([itemName, value.toFixed(2)]);
                   consolidatedTotals[itemName] = { value: (consolidatedTotals[itemName]?.value || 0) + value, unit: 'un' };
               })
