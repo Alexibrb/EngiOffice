@@ -24,9 +24,9 @@ const initialRow: Omit<SapataRow, 'id'> = {
   pav: 'Térreo',
   tipo: 'S1',
   quant: 1,
-  largura: 0.8,
-  comprimento: 0.8,
-  altura: 0.3,
+  largura: 80,
+  comprimento: 80,
+  altura: 30,
   elos: 5,
 };
 
@@ -61,9 +61,13 @@ export default function QuantitativoPage() {
 
   const calculatedRows = useMemo(() => {
     return rows.map(row => {
-      const volumeUnitario = row.largura * row.comprimento * row.altura;
+      const larguraM = row.largura / 100;
+      const comprimentoM = row.comprimento / 100;
+      const alturaM = row.altura / 100;
+
+      const volumeUnitario = larguraM * comprimentoM * alturaM;
       const volumeTotal = volumeUnitario * row.quant;
-      const perimetro = 2 * (row.largura + row.comprimento);
+      const perimetro = 2 * (larguraM + comprimentoM);
       const totalLinearFerro = perimetro * row.elos * row.quant;
       const totalPesoFerro = totalLinearFerro * PESO_FERRO_POR_METRO;
       const cimentoKg = volumeTotal * CIMENTO_POR_M3;
@@ -116,9 +120,9 @@ export default function QuantitativoPage() {
                   <TableHead className="w-[100px]">Pav.</TableHead>
                   <TableHead className="w-[80px]">Tipo</TableHead>
                   <TableHead className="w-[80px]">Quant.</TableHead>
-                  <TableHead className="w-[100px]">Largura (m)</TableHead>
-                  <TableHead className="w-[100px]">Compr. (m)</TableHead>
-                  <TableHead className="w-[100px]">Altura (m)</TableHead>
+                  <TableHead className="w-[100px]">Largura (cm)</TableHead>
+                  <TableHead className="w-[100px]">Compr. (cm)</TableHead>
+                  <TableHead className="w-[100px]">Altura (cm)</TableHead>
                   <TableHead className="w-[120px]">Volume (m³)</TableHead>
                   <TableHead className="w-[80px]">Elos</TableHead>
                   <TableHead className="w-[120px]">Total Linear (m)</TableHead>
@@ -135,9 +139,9 @@ export default function QuantitativoPage() {
                     <TableCell><Input value={row.pav} onChange={(e) => handleInputChange(row.id, 'pav', e.target.value)} /></TableCell>
                     <TableCell><Input value={row.tipo} onChange={(e) => handleInputChange(row.id, 'tipo', e.target.value)} /></TableCell>
                     <TableCell><Input type="number" value={row.quant} onChange={(e) => handleInputChange(row.id, 'quant', e.target.value)} /></TableCell>
-                    <TableCell><Input type="number" step="0.01" value={row.largura} onChange={(e) => handleInputChange(row.id, 'largura', e.target.value)} /></TableCell>
-                    <TableCell><Input type="number" step="0.01" value={row.comprimento} onChange={(e) => handleInputChange(row.id, 'comprimento', e.target.value)} /></TableCell>
-                    <TableCell><Input type="number" step="0.01" value={row.altura} onChange={(e) => handleInputChange(row.id, 'altura', e.target.value)} /></TableCell>
+                    <TableCell><Input type="number" step="1" value={row.largura} onChange={(e) => handleInputChange(row.id, 'largura', e.target.value)} /></TableCell>
+                    <TableCell><Input type="number" step="1" value={row.comprimento} onChange={(e) => handleInputChange(row.id, 'comprimento', e.target.value)} /></TableCell>
+                    <TableCell><Input type="number" step="1" value={row.altura} onChange={(e) => handleInputChange(row.id, 'altura', e.target.value)} /></TableCell>
                     <TableCell>{row.volume.toFixed(3)}</TableCell>
                     <TableCell><Input type="number" value={row.elos} onChange={(e) => handleInputChange(row.id, 'elos', e.target.value)} /></TableCell>
                     <TableCell>{row.totalLinear.toFixed(2)}</TableCell>
