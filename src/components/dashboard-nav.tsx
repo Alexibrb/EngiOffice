@@ -97,6 +97,9 @@ export function DashboardNav() {
           <span className="text-lg font-semibold font-headline">EngiOffice</span>
         </Link>
       </SidebarHeader>
+      <SidebarFooter>
+        <UserNav />
+      </SidebarFooter>
       <SidebarContent>
         <SidebarMenu>
           {mainLinks.map((link) => (
@@ -173,10 +176,6 @@ export function DashboardNav() {
 
 
       </SidebarContent>
-       <SidebarFooter>
-        <SidebarSeparator />
-        <UserNav />
-      </SidebarFooter>
     </Sidebar>
   );
 }
