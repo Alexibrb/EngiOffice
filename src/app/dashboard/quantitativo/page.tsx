@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useMemo, useCallback, useEffect, forwardRef, useImperativeHandle, useRef } from 'react';
+import { useState, useMemo, useCallback, forwardRef, useImperativeHandle, useRef } from 'react';
 import { PageHeader } from '@/components/page-header';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
@@ -72,7 +72,6 @@ type Totals = {
 
 type CalculatorProps = {
     pavimentoFilter: string;
-    onReset: () => void;
 };
 
 export type CalculatorRef = {
@@ -108,7 +107,7 @@ function usePersistentState<T>(key: string, initialState: T): [T, (value: T) => 
 }
 
 
-const SapataCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoFilter, onReset }, ref) => {
+const SapataCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoFilter }, ref) => {
   const [rows, setRows] = usePersistentState<SapataRow[]>('sapatasData', [{ ...initialSapataRow, id: crypto.randomUUID() }]);
 
   const handleAddRow = () => {
@@ -129,10 +128,6 @@ const SapataCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimento
     });
     setRows(newRows);
   };
-  
-  useEffect(() => {
-    onReset && onReset();
-  }, [onReset]);
   
   const filteredRows = useMemo(() => {
     if (!pavimentoFilter || pavimentoFilter === 'todos') return rows;
@@ -324,7 +319,7 @@ const initialVigamentoRow: Omit<VigamentoRow, 'id'> = {
   quantDeFerro: 0,
 };
 
-const VigamentoCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoFilter, onReset }, ref) => {
+const VigamentoCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoFilter }, ref) => {
   const [rows, setRows] = usePersistentState<VigamentoRow[]>('vigamentosData', [{ ...initialVigamentoRow, id: crypto.randomUUID() }]);
 
   const handleAddRow = () => {
@@ -345,10 +340,6 @@ const VigamentoCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavime
     });
     setRows(newRows);
   };
-  
-  useEffect(() => {
-    onReset && onReset();
-  }, [onReset]);
   
   const filteredRows = useMemo(() => {
     if (!pavimentoFilter || pavimentoFilter === 'todos') return rows;
@@ -545,7 +536,7 @@ const initialPilarRow: Omit<PilarRow, 'id'> = {
   quantDeFerro: 0,
 };
 
-const PilarCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoFilter, onReset }, ref) => {
+const PilarCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoFilter }, ref) => {
   const [rows, setRows] = usePersistentState<PilarRow[]>('pilaresData', [{ ...initialPilarRow, id: crypto.randomUUID() }]);
 
   const handleAddRow = () => {
@@ -566,10 +557,6 @@ const PilarCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoF
     });
     setRows(newRows);
   };
-  
-  useEffect(() => {
-    onReset && onReset();
-  }, [onReset]);
   
   const filteredRows = useMemo(() => {
     if (!pavimentoFilter || pavimentoFilter === 'todos') return rows;
@@ -757,7 +744,7 @@ const initialLajeRow: Omit<LajeRow, 'id'> = {
   area: 0,
 };
 
-const LajeCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoFilter, onReset }, ref) => {
+const LajeCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoFilter }, ref) => {
   const [rows, setRows] = usePersistentState<LajeRow[]>('lajesData', [{ ...initialLajeRow, id: crypto.randomUUID() }]);
 
   const handleAddRow = () => {
@@ -778,10 +765,6 @@ const LajeCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoFi
     });
     setRows(newRows);
   };
-  
-  useEffect(() => {
-    onReset && onReset();
-  }, [onReset]);
   
   const filteredRows = useMemo(() => {
     if (!pavimentoFilter || pavimentoFilter === 'todos') return rows;
@@ -920,7 +903,7 @@ const initialAlvenariaRow: Omit<AlvenariaRow, 'id'> = {
   junta: 1.5,
 };
 
-const AlvenariaCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoFilter, onReset }, ref) => {
+const AlvenariaCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoFilter }, ref) => {
   const [rows, setRows] = usePersistentState<AlvenariaRow[]>('alvenariaData', [{ ...initialAlvenariaRow, id: crypto.randomUUID() }]);
 
   const handleAddRow = () => {
@@ -941,10 +924,6 @@ const AlvenariaCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavime
     });
     setRows(newRows);
   };
-  
-  useEffect(() => {
-    onReset && onReset();
-  }, [onReset]);
   
   const filteredRows = useMemo(() => {
     if (!pavimentoFilter || pavimentoFilter === 'todos') return rows;
@@ -1098,7 +1077,7 @@ const initialRebocoRow: Omit<RebocoRow, 'id'> = {
   lados: 1,
 };
 
-const RebocoCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoFilter, onReset }, ref) => {
+const RebocoCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoFilter }, ref) => {
   const [rows, setRows] = usePersistentState<RebocoRow[]>('rebocoData', [{ ...initialRebocoRow, id: crypto.randomUUID() }]);
 
   const handleAddRow = () => {
@@ -1119,10 +1098,6 @@ const RebocoCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimento
     });
     setRows(newRows);
   };
-  
-  useEffect(() => {
-    onReset && onReset();
-  }, [onReset]);
   
   const filteredRows = useMemo(() => {
     if (!pavimentoFilter || pavimentoFilter === 'todos') return rows;
@@ -1295,12 +1270,10 @@ export default function QuantitativoPage() {
         newCounters[key]++;
     });
     setResetCounters(newCounters);
+    // We need to trigger a re-render of the children for the localStorage removal to take effect.
+    // This is a bit of a hack, but it works with the current structure.
+    window.location.reload(); 
   };
-  
-  const handleResetCalculator = useCallback((key: CalculatorType) => {
-     localStorage.removeItem(`${key}Data`);
-     setResetCounters(prev => ({...prev, [key]: prev[key] + 1}));
-  }, []);
 
 
   const handleVisibilityChange = (key: CalculatorType, checked: boolean) => {
@@ -1400,9 +1373,10 @@ export default function QuantitativoPage() {
 
 
             if (body.length > 0) {
-                autoTable(doc, {
+                 autoTable(doc, {
                     startY: currentY,
                     head: [[CALCULATOR_OPTIONS[key as CalculatorType], 'Total']],
+                    body: body,
                     theme: 'striped',
                     headStyles: { fillColor: [34, 139, 34] },
                 });
@@ -1492,7 +1466,7 @@ export default function QuantitativoPage() {
       </div>
 
       {calculators.map(({ key, component: Component }) =>
-        visibleCalculators[key] ? <Component key={`${key}-${resetCounters[key]}`} pavimentoFilter={pavimentoFilter} ref={calculatorRefs[key]} onReset={() => handleResetCalculator(key)} /> : null
+        visibleCalculators[key] ? <Component key={`${key}-${resetCounters[key]}`} pavimentoFilter={pavimentoFilter} ref={calculatorRefs[key]} /> : null
       )}
     </div>
   );
