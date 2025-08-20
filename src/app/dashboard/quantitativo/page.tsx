@@ -872,7 +872,7 @@ const LajeCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoFi
                   </TableCell>
                   <TableCell><Input value={row.descricao} onChange={(e) => handleInputChange(row.id, 'descricao', e.target.value)} /></TableCell>
                   <TableCell className="min-w-[150px]">
-                    <Select value={row.tipo} onValueChange={(value) => handleInputChange(row.id, 'tipo', value)}>
+                    <Select value={row.tipo} onValueChange={(value) => handleInputChange(row.id, 'tipo', value as 'Laje' | 'Contrapiso')}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
                             <SelectItem value="Laje">Laje</SelectItem>
@@ -1221,7 +1221,7 @@ const RebocoCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimento
                   <TableCell><Input type="number" step="0.1" value={row.area} onChange={(e) => handleInputChange(row.id, 'area', e.target.value)} /></TableCell>
                   <TableCell><Input type="number" step="0.1" value={row.espessura} onChange={(e) => handleInputChange(row.id, 'espessura', e.target.value)} /></TableCell>
                   <TableCell>
-                     <Select value={String(row.lados)} onValueChange={(value) => handleInputChange(row.id, 'lados', value)}>
+                     <Select value={String(row.lados)} onValueChange={(value) => handleInputChange(row.id, 'lados', parseInt(value))}>
                         <SelectTrigger className="w-[80px]">
                             <SelectValue />
                         </SelectTrigger>
@@ -1287,26 +1287,10 @@ export default function QuantitativoPage() {
     reboco: useRef<CalculatorRef>(null),
   };
   
-  const [resetCounters, setResetCounters] = useState<Record<CalculatorType, number>>({
-    sapatas: 0,
-    vigamentos: 0,
-    pilares: 0,
-    lajes: 0,
-    alvenaria: 0,
-    reboco: 0,
-  });
-
   const handleResetAll = () => {
     Object.keys(CALCULATOR_OPTIONS).forEach(key => {
       localStorage.removeItem(`${key}Data`);
     });
-    const newCounters = { ...resetCounters };
-    (Object.keys(newCounters) as CalculatorType[]).forEach(key => {
-        newCounters[key]++;
-    });
-    setResetCounters(newCounters);
-    // We need to trigger a re-render of the children for the localStorage removal to take effect.
-    // This is a bit of a hack, but it works with the current structure.
     window.location.reload(); 
   };
 
@@ -1449,61 +1433,78 @@ export default function QuantitativoPage() {
         doc.save('relatorio_quantitativo.pdf');
     };
 
-    const renderFilterControls = () => (
-        <div className="flex items-center gap-2">
-            <Select value={pavimentoFilter} onValueChange={setPavimentoFilter}>
-                <SelectTrigger className="w-full sm:w-[200px]">
-                    <SelectValue placeholder="Filtrar por Pavimento" />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="todos">Todos os Pavimentos</SelectItem>
-                    {pavimentoOptions.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
-                </SelectContent>
-            </Select>
-             <AlertDialog>
-                <AlertDialogTrigger asChild>
-                    <Button variant="outline"><RotateCcw className="mr-2 h-4 w-4"/>Limpar Tudo</Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Limpar todos os dados?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Esta ação não pode ser desfeita. Todos os dados inseridos em todas as calculadoras serão permanentemente apagados.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleResetAll}>Sim, limpar tudo</AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
-            <Button onClick={generatePdf} variant="outline">
-                <Download className="mr-2 h-4 w-4"/>
-                Exportar PDF
-            </Button>
-            <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                    <Button variant="destructive">
-                        <Settings2 className="mr-2 h-4 w-4" />
-                        Exibir Calculadoras
-                    </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56">
-                    <DropdownMenuLabel>Selecione as calculadoras</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    {Object.entries(CALCULATOR_OPTIONS).map(([key, label]) => (
-                        <DropdownMenuCheckboxItem
-                            key={key}
-                            checked={visibleCalculators[key as CalculatorType]}
-                            onCheckedChange={(checked) => handleVisibilityChange(key as CalculatorType, !!checked)}
-                        >
-                            {label}
-                        </DropdownMenuCheckboxItem>
-                    ))}
-                </DropdownMenuContent>
-            </DropdownMenu>
-        </div>
-    );
+    const handleToggleAll = () => {
+        const allVisible = Object.values(visibleCalculators).every(Boolean);
+        const newVisibility: Record<CalculatorType, boolean> = {} as any;
+        Object.keys(CALCULATOR_OPTIONS).forEach(key => {
+            newVisibility[key as CalculatorType] = !allVisible;
+        });
+        setVisibleCalculators(newVisibility);
+    };
+
+    const renderFilterControls = () => {
+        const allVisible = Object.values(visibleCalculators).every(Boolean);
+
+        return (
+            <div className="flex items-center gap-2">
+                <Select value={pavimentoFilter} onValueChange={setPavimentoFilter}>
+                    <SelectTrigger className="w-full sm:w-[200px]">
+                        <SelectValue placeholder="Filtrar por Pavimento" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="todos">Todos os Pavimentos</SelectItem>
+                        {pavimentoOptions.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
+                    </SelectContent>
+                </Select>
+                 <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                        <Button variant="outline"><RotateCcw className="mr-2 h-4 w-4"/>Limpar Tudo</Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Limpar todos os dados?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Esta ação não pode ser desfeita. Todos os dados inseridos em todas as calculadoras serão permanentemente apagados.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleResetAll}>Sim, limpar tudo</AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+                <Button onClick={generatePdf} variant="outline">
+                    <Download className="mr-2 h-4 w-4"/>
+                    Exportar PDF
+                </Button>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="destructive">
+                            <Settings2 className="mr-2 h-4 w-4" />
+                            Exibir Calculadoras
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-56">
+                        <DropdownMenuLabel>Selecione as calculadoras</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onSelect={handleToggleAll}>
+                           {allVisible ? 'Limpar seleção' : 'Selecionar todas'}
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        {Object.entries(CALCULATOR_OPTIONS).map(([key, label]) => (
+                            <DropdownMenuCheckboxItem
+                                key={key}
+                                checked={visibleCalculators[key as CalculatorType]}
+                                onCheckedChange={(checked) => handleVisibilityChange(key as CalculatorType, !!checked)}
+                            >
+                                {label}
+                            </DropdownMenuCheckboxItem>
+                        ))}
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </div>
+        );
+    }
 
   return (
     <div className="flex flex-col gap-8">
@@ -1516,7 +1517,7 @@ export default function QuantitativoPage() {
       </div>
 
       {calculators.map(({ key, component: Component }) =>
-        visibleCalculators[key] ? <Component key={`${key}-${resetCounters[key]}`} pavimentoFilter={pavimentoFilter} ref={calculatorRefs[key]} /> : null
+        visibleCalculators[key] ? <Component key={key} pavimentoFilter={pavimentoFilter} ref={calculatorRefs[key]} /> : null
       )}
 
       {Object.values(visibleCalculators).some(v => v) && (
