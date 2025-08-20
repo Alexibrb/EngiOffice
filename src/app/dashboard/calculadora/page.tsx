@@ -369,10 +369,10 @@ function IrregularAreaCalculator() {
                         <TableRow key={index}>
                             <TableCell className="font-medium p-2">P{index + 1}</TableCell>
                             <TableCell className="p-2">
-                                <Input type="number" value={point.x} onChange={e => handlePointChange(index, 'x', e.target.value)} />
+                                <Input type="number" step="0.1" value={point.x} onChange={e => handlePointChange(index, 'x', e.target.value)} />
                             </TableCell>
                             <TableCell className="p-2">
-                                <Input type="number" value={point.y} onChange={e => handlePointChange(index, 'y', e.target.value)} />
+                                <Input type="number" step="0.1" value={point.y} onChange={e => handlePointChange(index, 'y', e.target.value)} />
                             </TableCell>
                              <TableCell className="p-2">
                                 <Button variant="ghost" size="icon" onClick={() => removePoint(index)} disabled={points.length <= 3}>
