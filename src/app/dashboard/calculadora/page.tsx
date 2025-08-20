@@ -245,10 +245,10 @@ function AreaAnalysisCalculator() {
 }
 
 const initialPoints = [
+    { x: '20', y: '0' },
+    { x: '20', y: '10' },
+    { x: '0', y: '10' },
     { x: '0', y: '0' },
-    { x: '10', y: '0' },
-    { x: '10', y: '20' },
-    { x: '0', y: '20' },
 ];
 
 function IrregularAreaCalculator() {
@@ -428,7 +428,6 @@ function MaterialQuantifier() {
   const [serviceType, setServiceType] = useState('concreto');
   const [inputs, setInputs] = useState<Record<string, string>>({
     volume: '0.18',
-    consumo: '434.8',
     perda: '5'
   });
   const [results, setResults] = useState<Record<string, string | number> | null>(null);
@@ -445,19 +444,26 @@ function MaterialQuantifier() {
     }
 
     if (serviceType === 'concreto') {
-      const { volume, consumo, perda } = parsedInputs;
-      if (!volume || volume <= 0 || !consumo || consumo <= 0) {
+      const { volume, perda } = parsedInputs;
+      if (!volume || volume <= 0) {
         setResults(null);
         return;
       }
       
       const volumeComPerdas = volume * (1 + (perda / 100));
-      const cimentoKg = volumeComPerdas * consumo;
+
+      // Usando um traço padrão de 1:2:3 (cimento:areia:brita)
+      // E consumos médios de mercado para um concreto de ~25MPa
+      const consumoCimentoKgM3 = 350; // kg/m³
+      const consumoAreiaM3M3 = 0.55;  // m³/m³
+      const consumoBritaM3M3 = 0.85;   // m³/m³
+      
+      const cimentoKg = volumeComPerdas * consumoCimentoKgM3;
       const cimentoSacos = Math.ceil(cimentoKg / 50);
 
-      const tracoBase = 1 + 2 + 3; // Proporção 1:2:3 (cimento:areia:brita)
-      const volumeAreia = volumeComPerdas * (2 / tracoBase);
-      const volumeBrita = volumeComPerdas * (3 / tracoBase);
+      const volumeAreia = volumeComPerdas * consumoAreiaM3M3;
+      const volumeBrita = volumeComPerdas * consumoBritaM3M3;
+
 
       setResults({
         'Cimento (sacos 50kg)': cimentoSacos,
@@ -472,7 +478,6 @@ function MaterialQuantifier() {
   useEffect(() => {
     setInputs(serviceType === 'concreto' ? {
         volume: '0.18',
-        consumo: '434.8',
         perda: '5'
       } : {});
     setResults(null);
@@ -486,10 +491,6 @@ function MaterialQuantifier() {
             <div className="space-y-2">
               <Label htmlFor="volume">Volume de Concreto (m³)</Label>
               <Input id="volume" type="number" step="0.01" placeholder="Ex: 0.18" value={inputs.volume || ''} onChange={(e) => handleInputChange('volume', e.target.value)} />
-            </div>
-             <div className="space-y-2">
-              <Label htmlFor="consumo">Consumo de Cimento (kg/m³)</Label>
-              <Input id="consumo" type="number" step="0.1" placeholder="Ex: 434.8" value={inputs.consumo || ''} onChange={(e) => handleInputChange('consumo', e.target.value)} />
             </div>
              <div className="space-y-2">
               <Label htmlFor="perda">Percentual de Perda (%)</Label>
