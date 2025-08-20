@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFoo
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PlusCircle, Trash2 } from 'lucide-react';
+import { Label } from '@/components/ui/label';
 
 type SapataRow = {
   id: string;
@@ -671,6 +672,157 @@ function LajeCalculator() {
   );
 }
 
+type AlvenariaRow = {
+  id: string;
+  descricao: string;
+  comprimento: number; // m
+  altura: number; // m
+};
+
+const initialAlvenariaRow: Omit<AlvenariaRow, 'id'> = {
+  descricao: 'Parede 1',
+  comprimento: 5,
+  altura: 2.8,
+};
+
+function AlvenariaCalculator() {
+  const [rows, setRows] = useState<AlvenariaRow[]>([{ ...initialAlvenariaRow, id: crypto.randomUUID() }]);
+  const [blockLength, setBlockLength] = useState(29);
+  const [blockHeight, setBlockHeight] = useState(19);
+  const [mortarJoint, setMortarJoint] = useState(1); // cm
+
+  const handleAddRow = () => {
+    setRows([...rows, { ...initialAlvenariaRow, id: crypto.randomUUID(), descricao: `Parede ${rows.length + 1}` }]);
+  };
+
+  const handleRemoveRow = (id: string) => {
+    setRows(rows.filter(row => row.id !== id));
+  };
+
+  const handleInputChange = (id: string, field: keyof AlvenariaRow, value: string) => {
+    const newRows = rows.map(row => {
+      if (row.id === id) {
+        const parsedValue = field === 'descricao' ? value : parseFloat(value) || 0;
+        return { ...row, [field]: parsedValue };
+      }
+      return row;
+    });
+    setRows(newRows);
+  };
+  
+  const calculatedRows = useMemo(() => {
+    const blockAreaWithMortar = ((blockLength / 100) + (mortarJoint / 100)) * ((blockHeight / 100) + (mortarJoint / 100));
+    
+    return rows.map(row => {
+      const wallArea = row.comprimento * row.altura;
+      const blocksNeeded = wallArea > 0 ? (wallArea / blockAreaWithMortar) * 1.10 : 0; // 10% loss
+      const mortarVolume = wallArea > 0 ? wallArea * (mortarJoint / 100) : 0;
+      const cementSacks = mortarVolume > 0 ? (mortarVolume / 0.18) * 0.25 : 0; // Simplified mortar calc
+      const sandM3 = cementSacks > 0 ? (cementSacks * 8 * 18) / 1000 : 0;
+
+      return {
+        ...row,
+        wallArea,
+        blocksNeeded,
+        mortarVolume,
+        cementSacks,
+        sandM3,
+      };
+    });
+  }, [rows, blockLength, blockHeight, mortarJoint]);
+
+  const totals = useMemo(() => {
+    return calculatedRows.reduce((acc, row) => {
+      acc.wallArea += row.wallArea;
+      acc.blocksNeeded += row.blocksNeeded;
+      acc.mortarVolume += row.mortarVolume;
+      acc.cementSacks += row.cementSacks;
+      acc.sandM3 += row.sandM3;
+      return acc;
+    }, { wallArea: 0, blocksNeeded: 0, mortarVolume: 0, cementSacks: 0, sandM3: 0 });
+  }, [calculatedRows]);
+
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Calculadora de Quantitativos de Alvenaria</CardTitle>
+        <CardDescription>
+          Calcule a quantidade de blocos e argamassa para as paredes do seu projeto.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 p-4 border rounded-lg">
+            <div className="space-y-2">
+                <Label htmlFor="block-length">Compr. Bloco (cm)</Label>
+                <Input id="block-length" type="number" value={blockLength} onChange={(e) => setBlockLength(parseFloat(e.target.value) || 0)} />
+            </div>
+             <div className="space-y-2">
+                <Label htmlFor="block-height">Altura Bloco (cm)</Label>
+                <Input id="block-height" type="number" value={blockHeight} onChange={(e) => setBlockHeight(parseFloat(e.target.value) || 0)} />
+            </div>
+             <div className="space-y-2">
+                <Label htmlFor="mortar-joint">Junta Argamassa (cm)</Label>
+                <Input id="mortar-joint" type="number" value={mortarJoint} onChange={(e) => setMortarJoint(parseFloat(e.target.value) || 0)} />
+            </div>
+         </div>
+        <div className="border rounded-lg overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Descrição da Parede</TableHead>
+                <TableHead>Comprimento (m)</TableHead>
+                <TableHead>Altura (m)</TableHead>
+                <TableHead>Área Parede (m²)</TableHead>
+                <TableHead className="font-bold bg-primary/10">Quant. Blocos (un)</TableHead>
+                <TableHead className="font-bold bg-primary/10">Argamassa (m³)</TableHead>
+                <TableHead className="font-bold bg-primary/10">Cimento (sacos 50kg)</TableHead>
+                <TableHead className="font-bold bg-primary/10">Areia (m³)</TableHead>
+                <TableHead className="w-[50px]"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {calculatedRows.map((row) => (
+                <TableRow key={row.id}>
+                  <TableCell><Input value={row.descricao} onChange={(e) => handleInputChange(row.id, 'descricao', e.target.value)} /></TableCell>
+                  <TableCell><Input type="number" step="0.1" value={row.comprimento} onChange={(e) => handleInputChange(row.id, 'comprimento', e.target.value)} /></TableCell>
+                  <TableCell><Input type="number" step="0.1" value={row.altura} onChange={(e) => handleInputChange(row.id, 'altura', e.target.value)} /></TableCell>
+                  <TableCell>{row.wallArea.toFixed(2)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{Math.ceil(row.blocksNeeded)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{row.mortarVolume.toFixed(3)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{row.cementSacks.toFixed(2)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{row.sandM3.toFixed(3)}</TableCell>
+                  <TableCell>
+                      <Button variant="ghost" size="icon" onClick={() => handleRemoveRow(row.id)} disabled={rows.length <= 1}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+            <TableFooter>
+              <TableRow>
+                  <TableCell colSpan={3} className="font-bold text-right">Totais</TableCell>
+                  <TableCell className="font-bold">{totals.wallArea.toFixed(2)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{Math.ceil(totals.blocksNeeded)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{totals.mortarVolume.toFixed(3)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{totals.cementSacks.toFixed(2)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{totals.sandM3.toFixed(3)}</TableCell>
+                  <TableCell></TableCell>
+              </TableRow>
+            </TableFooter>
+          </Table>
+        </div>
+      </CardContent>
+      <CardFooter>
+          <Button onClick={handleAddRow} variant="outline">
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Adicionar Parede
+          </Button>
+      </CardFooter>
+    </Card>
+  )
+}
 
 export default function QuantitativoPage() {
 
@@ -684,6 +836,7 @@ export default function QuantitativoPage() {
       <VigamentoCalculator />
       <PilarCalculator />
       <LajeCalculator />
+      <AlvenariaCalculator />
     </div>
   );
 }
