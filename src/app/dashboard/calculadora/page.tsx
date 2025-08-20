@@ -14,7 +14,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PageHeader } from '@/components/page-header';
-import { Calculator, PlusCircle, RotateCcw } from 'lucide-react';
+import { Calculator, PlusCircle, RotateCcw, Trash2 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableRow, TableHead, TableHeader, TableFooter } from '@/components/ui/table';
 
 function AreaCalculator() {
@@ -243,101 +243,62 @@ function AreaAnalysisCalculator() {
     );
 }
 
-const initialSides = { a: '', b: '', c: '', d: '', p: '' };
-const sideLabels = {
-    a: 'Frente (A)',
-    b: 'Lado Direito (B)',
-    c: 'Fundo (C)',
-    d: 'Lado Esquerdo (D)',
-};
-
-type SideKey = keyof typeof sideLabels;
+const initialPoints = [
+    { x: '0', y: '0' },
+    { x: '30', y: '0' },
+    { x: '35', y: '20' },
+    { x: '5', y: '25' },
+];
 
 function IrregularAreaCalculator() {
-  const [sides, setSides] = useState(initialSides);
+  const [points, setPoints] = useState(initialPoints);
   const [area, setArea] = useState<number | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [points, setPoints] = useState<string | null>(null);
-  const [pointCoords, setPointCoords] = useState<{ x: number, y: number }[]>([]);
 
-  const handleSideChange = (side: keyof typeof sides, value: string) => {
-    setSides(prev => ({ ...prev, [side]: value }));
+  const handlePointChange = (index: number, axis: 'x' | 'y', value: string) => {
+    const newPoints = [...points];
+    newPoints[index][axis] = value;
+    setPoints(newPoints);
   };
 
-  const calculateAreaAndPoints = () => {
-    const { a, b, c, d, p } = sides;
-    const sideA = parseFloat(a);
-    const sideB = parseFloat(b);
-    const sideC = parseFloat(c);
-    const sideD = parseFloat(d);
-    const diagP = parseFloat(p);
+  const addPoint = () => {
+    setPoints([...points, { x: '0', y: '0' }]);
+  };
 
-    if ([sideA, sideB, sideC, sideD, diagP].some(isNaN)) {
-      setError('Todas as medidas devem ser números válidos.');
+  const removePoint = (index: number) => {
+    if (points.length <= 3) return; // Need at least 3 points for a polygon
+    const newPoints = points.filter((_, i) => i !== index);
+    setPoints(newPoints);
+  };
+  
+  const handleReset = () => {
+      setPoints(initialPoints);
       setArea(null);
-      setPoints(null);
+  }
+
+  const calculateArea = () => {
+    const numericPoints = points.map(p => ({ x: parseFloat(p.x), y: parseFloat(p.y) }));
+    if (numericPoints.some(p => isNaN(p.x) || isNaN(p.y))) {
+      setArea(null);
       return;
     }
-
-    // Heron's formula for triangle area
-    const heron = (x: number, y: number, z: number) => {
-      if (x + y <= z || x + z <= y || y + z <= x) return NaN;
-      const s = (x + y + z) / 2;
-      return Math.sqrt(s * (s - x) * (s - y) * (s - z));
-    };
-
-    const area1 = heron(sideA, sideD, diagP); // Triangle with Frente, Lado Esquerdo, Diagonal
-    const area2 = heron(sideB, sideC, diagP); // Triangle with Lado Direito, Fundo, Diagonal
-
-    if (isNaN(area1) || isNaN(area2)) {
-      setError('As medidas fornecidas não formam triângulos válidos. Verifique a medida cruzada.');
-      setArea(null);
-      setPoints(null);
-      return;
-    }
-
-    setError(null);
-    setArea(area1 + area2);
-
-    // Calculate points for drawing
-    const p1 = { x: 0, y: 0 };
-    const p2 = { x: sideA, y: 0 };
-
-    // Law of cosines to find angles
-    // Angle at p1 for triangle (A, D, P)
-    const angle1 = Math.acos((sideA * sideA + diagP * diagP - sideD * sideD) / (2 * sideA * diagP));
-    // Angle at p2 for triangle (A, B, P') - needs the other diagonal, let's place points differently.
-
-    // Let's place p1 (A-D corner) at origin
-    const pA_D = { x: 0, y: 0 }; 
-    // Place p2 (A-B corner) on x-axis
-    const pA_B = { x: sideA, y: 0 };
-
-    // Calculate position of p3 (D-C corner) using triangle (A,D,P)
-    const angle_p1 = Math.acos((sideA*sideA + sideD*sideD - diagP*diagP) / (2 * sideA * sideD));
-    if (isNaN(angle_p1)) {
-        setError("Não foi possível calcular o ângulo. Verifique as medidas.");
-        return;
-    }
-    const pD_C_Angle = Math.acos((sideD*sideD + diagP*diagP - sideA*sideA) / (2 * sideD * diagP));
-    const pD_C = {
-        x: sideD * Math.cos(pD_C_Angle),
-        y: sideD * Math.sin(pD_C_Angle)
-    };
-
-    // Calculate position of p4 (B-C corner) using triangle (A,B,P) is complex.
-    // Let's use the other triangle (B,C,P) with p3 and p2
-    const angle_p2 = Math.acos((sideA*sideA + diagP*diagP - sideB*sideB) / (2*sideA*diagP));
-     const pB_C = {
-        x: pA_B.x + sideB * Math.cos(Math.PI - angle_p2),
-        y: pA_B.y + sideB * Math.sin(Math.PI - angle_p2)
-    };
-
-    const finalPoints = [pA_D, pA_B, pB_C, pD_C];
     
-    // Normalize and scale points to fit in the viewbox
-    const allX = finalPoints.map(p => p.x);
-    const allY = finalPoints.map(p => p.y);
+    // Shoelace formula
+    let total = 0;
+    for (let i = 0; i < numericPoints.length; i++) {
+      const currentPoint = numericPoints[i];
+      const nextPoint = numericPoints[(i + 1) % numericPoints.length];
+      total += (currentPoint.x * nextPoint.y - nextPoint.x * currentPoint.y);
+    }
+    const calculatedArea = Math.abs(total / 2);
+    setArea(calculatedArea);
+  };
+
+  const svgPoints = useMemo(() => {
+    const numericPoints = points.map(p => ({ x: parseFloat(p.x) || 0, y: parseFloat(p.y) || 0 }));
+    if (numericPoints.length === 0) return { path: '', viewBox: '0 0 300 200' };
+
+    const allX = numericPoints.map(p => p.x);
+    const allY = numericPoints.map(p => p.y);
     const minX = Math.min(...allX);
     const minY = Math.min(...allY);
     const maxX = Math.max(...allX);
@@ -345,67 +306,82 @@ function IrregularAreaCalculator() {
 
     const width = maxX - minX;
     const height = maxY - minY;
-    
-    const padding = 30;
+
+    if (width === 0 || height === 0) return { path: '', viewBox: '0 0 300 200' };
+
+    const padding = 20;
     const svgWidth = 300;
     const svgHeight = 200;
 
     const scale = Math.min((svgWidth - 2 * padding) / width, (svgHeight - 2 * padding) / height);
 
-    const translatedPoints = finalPoints.map(p => ({
+    const translatedPoints = numericPoints.map(p => ({
         x: (p.x - minX) * scale + padding,
         y: (p.y - minY) * scale + padding,
     }));
     
-    setPointCoords(translatedPoints);
-    setPoints(translatedPoints.map(p => `${p.x},${p.y}`).join(' '));
-  };
-  
-  const viewBox = `0 0 300 200`;
+    return {
+        path: translatedPoints.map(p => `${p.x},${p.y}`).join(' '),
+        viewBox: `0 0 ${svgWidth} ${svgHeight}`
+    };
+  }, [points]);
+
 
   return (
     <Card className="col-span-1">
       <CardHeader>
-        <CardTitle>Cálculo de Terreno Irregular (4 Lados)</CardTitle>
+        <CardTitle>Cálculo de Área por Coordenadas</CardTitle>
         <CardDescription>
-          Use a medida cruzada (diagonal) entre cantos opostos (ex: Frente/Esquerda até Fundo/Direita).
+          Insira os vértices (pontos X, Y) do terreno para calcular a área e visualizar o desenho.
         </CardDescription>
       </CardHeader>
       <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            {(Object.keys(sideLabels) as SideKey[]).map(side => (
-              <div key={side} className="space-y-2">
-                <Label htmlFor={`side-${side}`}>{sideLabels[side]} (m)</Label>
-                <Input id={`side-${side}`} type="number" placeholder="0.00" value={sides[side]} onChange={e => handleSideChange(side, e.target.value)} />
-              </div>
-            ))}
-          </div>
-           <div className="space-y-2">
-              <Label htmlFor="diagonal-p">Medida Cruzada (Diagonal P)</Label>
-              <Input id="diagonal-p" type="number" placeholder="0.00" value={sides.p} onChange={e => handleSideChange('p', e.target.value)} />
-           </div>
-          <Button onClick={calculateAreaAndPoints} className="w-full" variant="accent">Calcular Área</Button>
-           {error && <p className="text-sm text-destructive">{error}</p>}
+            <div className="max-h-60 overflow-y-auto pr-2">
+             <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead className="w-1/3">Ponto</TableHead>
+                        <TableHead className="w-1/3">Eixo X (m)</TableHead>
+                        <TableHead className="w-1/3">Eixo Y (m)</TableHead>
+                        <TableHead className="w-[40px]"></TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {points.map((point, index) => (
+                        <TableRow key={index}>
+                            <TableCell className="font-medium">P{index + 1}</TableCell>
+                            <TableCell>
+                                <Input type="number" value={point.x} onChange={e => handlePointChange(index, 'x', e.target.value)} />
+                            </TableCell>
+                            <TableCell>
+                                <Input type="number" value={point.y} onChange={e => handlePointChange(index, 'y', e.target.value)} />
+                            </TableCell>
+                             <TableCell>
+                                <Button variant="ghost" size="icon" onClick={() => removePoint(index)} disabled={points.length <= 3}>
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                            </TableCell>
+                        </TableRow>
+                    ))}
+                </TableBody>
+             </Table>
+            </div>
+            <div className="flex gap-2">
+                <Button onClick={addPoint} variant="outline"><PlusCircle className="mr-2 h-4 w-4"/>Adicionar Ponto</Button>
+                <Button onClick={handleReset} variant="secondary"><RotateCcw className="mr-2 h-4 w-4"/>Zerar Pontos</Button>
+            </div>
+             <Button onClick={calculateArea} className="w-full" variant="accent" disabled={points.length < 3}>Calcular Área</Button>
         </div>
         <div className="space-y-4">
             <Label>Desenho do Terreno (escala)</Label>
-            <div className="w-full h-48 bg-muted rounded-md flex items-center justify-center overflow-hidden">
-                 {points ? (
-                    <svg viewBox={viewBox} className="w-full h-full">
-                      <polygon points={points} className="fill-primary/20 stroke-primary stroke-2" />
-                      {pointCoords.length === 4 && (
-                        <>
-                          <text x={(pointCoords[0].x + pointCoords[1].x) / 2} y={(pointCoords[0].y + pointCoords[1].y) / 2 - 5} fill="currentColor" textAnchor="middle" fontSize="10">A</text>
-                          <text x={(pointCoords[1].x + pointCoords[2].x) / 2 + 5} y={(pointCoords[1].y + pointCoords[2].y) / 2} fill="currentColor" textAnchor="middle" fontSize="10">B</text>
-                          <text x={(pointCoords[2].x + pointCoords[3].x) / 2} y={(pointCoords[2].y + pointCoords[3].y) / 2 + 10} fill="currentColor" textAnchor="middle" fontSize="10">C</text>
-                          <text x={(pointCoords[3].x + pointCoords[0].x) / 2 - 5} y={(pointCoords[3].y + pointCoords[0].y) / 2} fill="currentColor" textAnchor="middle" fontSize="10">D</text>
-                          <line x1={pointCoords[0].x} y1={pointCoords[0].y} x2={pointCoords[2].x} y2={pointCoords[2].y} className="stroke-destructive/50" strokeWidth="1" strokeDasharray="4"/>
-                        </>
-                      )}
+            <div className="w-full h-56 bg-muted rounded-md flex items-center justify-center overflow-hidden">
+                {svgPoints.path ? (
+                    <svg viewBox={svgPoints.viewBox} className="w-full h-full">
+                      <polygon points={svgPoints.path} className="fill-primary/20 stroke-primary stroke-2" />
                     </svg>
                  ) : (
-                    <p className="text-sm text-muted-foreground">O desenho aparecerá aqui.</p>
+                    <p className="text-sm text-muted-foreground p-4 text-center">Insira pelo menos 3 pontos com coordenadas válidas para ver o desenho.</p>
                  )}
             </div>
             {area !== null && (
