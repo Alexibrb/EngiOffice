@@ -125,10 +125,10 @@ function SapataCalculator() {
                 <TableHead>Elos Vert.</TableHead>
                 <TableHead>Volume (m³)</TableHead>
                 <TableHead>Total Linear (m)</TableHead>
-                <TableHead>Barras de 12m</TableHead>
-                <TableHead>Cimento (sacos 50kg)</TableHead>
-                <TableHead>Areia (m³)</TableHead>
-                <TableHead>Brita (m³)</TableHead>
+                <TableHead className="font-bold bg-primary/10">Barras de 12m</TableHead>
+                <TableHead className="font-bold bg-primary/10">Cimento (sacos 50kg)</TableHead>
+                <TableHead className="font-bold bg-primary/10">Areia (m³)</TableHead>
+                <TableHead className="font-bold bg-primary/10">Brita (m³)</TableHead>
                  <TableHead className="w-[50px]"></TableHead>
               </TableRow>
             </TableHeader>
@@ -145,10 +145,10 @@ function SapataCalculator() {
                   <TableCell><Input type="number" value={row.elosVert} onChange={(e) => handleInputChange(row.id, 'elosVert', e.target.value)} /></TableCell>
                   <TableCell>{row.volume.toFixed(3)}</TableCell>
                   <TableCell>{row.totalLinear.toFixed(2)}</TableCell>
-                  <TableCell>{row.totalBarras.toFixed(2)}</TableCell>
-                  <TableCell>{row.cimento.toFixed(2)}</TableCell>
-                  <TableCell>{row.areia.toFixed(3)}</TableCell>
-                  <TableCell>{row.brita.toFixed(3)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{row.totalBarras.toFixed(2)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{row.cimento.toFixed(2)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{row.areia.toFixed(3)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{row.brita.toFixed(3)}</TableCell>
                   <TableCell>
                       <Button variant="ghost" size="icon" onClick={() => handleRemoveRow(row.id)} disabled={rows.length <= 1}>
                           <Trash2 className="h-4 w-4 text-destructive" />
@@ -162,10 +162,10 @@ function SapataCalculator() {
                   <TableCell colSpan={8} className="font-bold text-right">Totais</TableCell>
                   <TableCell className="font-bold">{totals.volume.toFixed(3)}</TableCell>
                   <TableCell className="font-bold">{totals.totalLinear.toFixed(2)}</TableCell>
-                  <TableCell className="font-bold">{totals.totalBarras.toFixed(2)}</TableCell>
-                  <TableCell className="font-bold">{totals.cimento.toFixed(2)}</TableCell>
-                  <TableCell className="font-bold">{totals.areia.toFixed(3)}</TableCell>
-                  <TableCell className="font-bold">{totals.brita.toFixed(3)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{totals.totalBarras.toFixed(2)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{totals.cimento.toFixed(2)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{totals.areia.toFixed(3)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{totals.brita.toFixed(3)}</TableCell>
                   <TableCell></TableCell>
               </TableRow>
             </TableFooter>
@@ -302,13 +302,13 @@ function VigamentoCalculator() {
                 <TableHead>Quant. de Ferro</TableHead>
                 <TableHead>Volume (m³)</TableHead>
                 <TableHead>Total Linear (m)</TableHead>
-                <TableHead>Barras de 12m</TableHead>
-                <TableHead>Cimento (sacos 50kg)</TableHead>
-                <TableHead>Areia (m³)</TableHead>
-                <TableHead>Brita (m³)</TableHead>
+                <TableHead className="font-bold bg-primary/10">Barras de 12m</TableHead>
+                <TableHead className="font-bold bg-primary/10">Cimento (sacos 50kg)</TableHead>
+                <TableHead className="font-bold bg-primary/10">Areia (m³)</TableHead>
+                <TableHead className="font-bold bg-primary/10">Brita (m³)</TableHead>
                 <TableHead>Quant. Estribos</TableHead>
                 <TableHead>Tam. Estribos (cm)</TableHead>
-                <TableHead>Ferro 3/16 (barras)</TableHead>
+                <TableHead className="font-bold bg-primary/10">Ferro 3/16 (barras)</TableHead>
                  <TableHead className="w-[50px]"></TableHead>
               </TableRow>
             </TableHeader>
@@ -325,13 +325,13 @@ function VigamentoCalculator() {
                   <TableCell><Input type="number" value={row.quantDeFerro} onChange={(e) => handleInputChange(row.id, 'quantDeFerro', e.target.value)} /></TableCell>
                   <TableCell>{row.volume.toFixed(3)}</TableCell>
                   <TableCell>{row.totalLinear.toFixed(2)}</TableCell>
-                  <TableCell>{row.totalBarras.toFixed(2)}</TableCell>
-                  <TableCell>{row.cimento.toFixed(2)}</TableCell>
-                  <TableCell>{row.areia.toFixed(3)}</TableCell>
-                  <TableCell>{row.brita.toFixed(3)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{row.totalBarras.toFixed(2)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{row.cimento.toFixed(2)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{row.areia.toFixed(3)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{row.brita.toFixed(3)}</TableCell>
                   <TableCell>{row.quantEstribos.toFixed(2)}</TableCell>
                   <TableCell>{row.tamEstribos.toFixed(2)}</TableCell>
-                  <TableCell>{row.quantFerro3_16.toFixed(2)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{row.quantFerro3_16.toFixed(2)}</TableCell>
                   <TableCell>
                       <Button variant="ghost" size="icon" onClick={() => handleRemoveRow(row.id)} disabled={rows.length <= 1}>
                           <Trash2 className="h-4 w-4 text-destructive" />
@@ -345,13 +345,13 @@ function VigamentoCalculator() {
                   <TableCell colSpan={8} className="font-bold text-right">Totais</TableCell>
                   <TableCell className="font-bold">{totals.volume.toFixed(3)}</TableCell>
                   <TableCell className="font-bold">{totals.totalLinear.toFixed(2)}</TableCell>
-                  <TableCell className="font-bold">{totals.totalBarras.toFixed(2)}</TableCell>
-                  <TableCell className="font-bold">{totals.cimento.toFixed(2)}</TableCell>
-                  <TableCell className="font-bold">{totals.areia.toFixed(3)}</TableCell>
-                  <TableCell className="font-bold">{totals.brita.toFixed(3)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{totals.totalBarras.toFixed(2)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{totals.cimento.toFixed(2)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{totals.areia.toFixed(3)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{totals.brita.toFixed(3)}</TableCell>
                   <TableCell></TableCell>
                   <TableCell></TableCell>
-                  <TableCell className="font-bold">{totals.quantFerro3_16.toFixed(2)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{totals.quantFerro3_16.toFixed(2)}</TableCell>
                   <TableCell></TableCell>
               </TableRow>
             </TableFooter>
@@ -488,13 +488,13 @@ function PilarCalculator() {
                 <TableHead>Quant. de Ferro</TableHead>
                 <TableHead>Volume (m³)</TableHead>
                 <TableHead>Total Linear (m)</TableHead>
-                <TableHead>Barras de 12m</TableHead>
-                <TableHead>Cimento (sacos 50kg)</TableHead>
-                <TableHead>Areia (m³)</TableHead>
-                <TableHead>Brita (m³)</TableHead>
+                <TableHead className="font-bold bg-primary/10">Barras de 12m</TableHead>
+                <TableHead className="font-bold bg-primary/10">Cimento (sacos 50kg)</TableHead>
+                <TableHead className="font-bold bg-primary/10">Areia (m³)</TableHead>
+                <TableHead className="font-bold bg-primary/10">Brita (m³)</TableHead>
                 <TableHead>Quant. Estribos</TableHead>
                 <TableHead>Tam. Estribos (cm)</TableHead>
-                <TableHead>Ferro 3/16 (barras)</TableHead>
+                <TableHead className="font-bold bg-primary/10">Ferro 3/16 (barras)</TableHead>
                  <TableHead className="w-[50px]"></TableHead>
               </TableRow>
             </TableHeader>
@@ -511,13 +511,13 @@ function PilarCalculator() {
                   <TableCell><Input type="number" value={row.quantDeFerro} onChange={(e) => handleInputChange(row.id, 'quantDeFerro', e.target.value)} /></TableCell>
                   <TableCell>{row.volume.toFixed(3)}</TableCell>
                   <TableCell>{row.totalLinear.toFixed(2)}</TableCell>
-                  <TableCell>{row.totalBarras.toFixed(2)}</TableCell>
-                  <TableCell>{row.cimento.toFixed(2)}</TableCell>
-                  <TableCell>{row.areia.toFixed(3)}</TableCell>
-                  <TableCell>{row.brita.toFixed(3)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{row.totalBarras.toFixed(2)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{row.cimento.toFixed(2)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{row.areia.toFixed(3)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{row.brita.toFixed(3)}</TableCell>
                   <TableCell>{row.quantEstribos.toFixed(2)}</TableCell>
                   <TableCell>{row.tamEstribos.toFixed(2)}</TableCell>
-                  <TableCell>{row.quantFerro3_16.toFixed(2)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{row.quantFerro3_16.toFixed(2)}</TableCell>
                   <TableCell>
                       <Button variant="ghost" size="icon" onClick={() => handleRemoveRow(row.id)} disabled={rows.length <= 1}>
                           <Trash2 className="h-4 w-4 text-destructive" />
@@ -531,13 +531,13 @@ function PilarCalculator() {
                   <TableCell colSpan={8} className="font-bold text-right">Totais</TableCell>
                   <TableCell className="font-bold">{totals.volume.toFixed(3)}</TableCell>
                   <TableCell className="font-bold">{totals.totalLinear.toFixed(2)}</TableCell>
-                  <TableCell className="font-bold">{totals.totalBarras.toFixed(2)}</TableCell>
-                  <TableCell className="font-bold">{totals.cimento.toFixed(2)}</TableCell>
-                  <TableCell className="font-bold">{totals.areia.toFixed(3)}</TableCell>
-                  <TableCell className="font-bold">{totals.brita.toFixed(3)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{totals.totalBarras.toFixed(2)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{totals.cimento.toFixed(2)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{totals.areia.toFixed(3)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{totals.brita.toFixed(3)}</TableCell>
                   <TableCell></TableCell>
                   <TableCell></TableCell>
-                  <TableCell className="font-bold">{totals.quantFerro3_16.toFixed(2)}</TableCell>
+                  <TableCell className="font-bold bg-primary/10">{totals.quantFerro3_16.toFixed(2)}</TableCell>
                   <TableCell></TableCell>
               </TableRow>
             </TableFooter>
