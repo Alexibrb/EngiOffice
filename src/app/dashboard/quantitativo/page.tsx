@@ -1505,7 +1505,7 @@ export default function QuantitativoPage() {
         return (
             <div className="flex flex-wrap items-center gap-2">
                 <Select value={pavimentoFilter} onValueChange={setPavimentoFilter}>
-                    <SelectTrigger className="w-full sm:w-[200px] bg-accent text-accent-foreground border-accent-foreground/50">
+                    <SelectTrigger className="w-full sm:w-[200px] bg-accent text-black border-accent-foreground/50">
                         <SelectValue placeholder="Filtrar por Pavimento" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1515,7 +1515,7 @@ export default function QuantitativoPage() {
                 </Select>
                  <AlertDialog>
                     <AlertDialogTrigger asChild>
-                        <Button variant="accent"><RotateCcw className="mr-2 h-4 w-4"/>Limpar Tudo</Button>
+                        <Button className="bg-[#FF9800] text-black hover:bg-[#FF9800]/90"><RotateCcw className="mr-2 h-4 w-4"/>Limpar Tudo</Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                         <AlertDialogHeader>
@@ -1530,7 +1530,7 @@ export default function QuantitativoPage() {
                         </AlertDialogFooter>
                     </AlertDialogContent>
                 </AlertDialog>
-                <Button onClick={generatePdf} variant="accent">
+                <Button onClick={generatePdf} className="bg-[#FFC107] text-black hover:bg-[#FFC107]/90">
                     <Download className="mr-2 h-4 w-4"/>
                     Exportar PDF
                 </Button>
