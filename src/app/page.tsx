@@ -7,8 +7,8 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { signInWithEmailAndPassword }from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { signInWithEmailAndPassword, signOut }from 'firebase/auth';
+import { auth, db } from '@/lib/firebase';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -30,6 +30,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Rocket, Loader2 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 
 const loginSchema = z.object({
   email: z.string().email({ message: 'Por favor, insira um email válido.' }),
@@ -54,7 +55,18 @@ export default function LoginPage() {
     setIsLoading(true);
     setError(null);
     try {
-      await signInWithEmailAndPassword(auth, values.email, values.password);
+      const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
+      
+      const q = query(collection(db, "authorized_users"), where("email", "==", values.email));
+      const querySnapshot = await getDocs(q);
+
+      if (querySnapshot.empty) {
+        await signOut(auth);
+        setError("Este e-mail não está autorizado a acessar o sistema.");
+        setIsLoading(false);
+        return;
+      }
+
       toast({
         title: 'Login bem-sucedido!',
         description: 'Redirecionando para o dashboard...',

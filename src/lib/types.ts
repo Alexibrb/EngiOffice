@@ -133,4 +133,8 @@ export type CompanyData = {
   crea?: string;
 };
 
+export type AuthorizedUser = {
+  email: string;
+  role: 'admin' | 'user';
+}
     

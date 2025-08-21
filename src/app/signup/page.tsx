@@ -8,7 +8,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -56,6 +57,16 @@ export default function SignupPage() {
     setIsLoading(true);
     setError(null);
     try {
+      // Check if email is authorized
+      const q = query(collection(db, "authorized_users"), where("email", "==", values.email));
+      const querySnapshot = await getDocs(q);
+      
+      if (querySnapshot.empty) {
+        setError("Este e-mail não está autorizado a se cadastrar. Entre em contato com o administrador.");
+        setIsLoading(false);
+        return;
+      }
+      
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
       const user = userCredential.user;
 
@@ -71,7 +82,16 @@ export default function SignupPage() {
       });
       router.push('/');
     } catch (err: any) {
-       setError(err.message || 'Ocorreu um erro desconhecido.');
+       let errorMessage = "Ocorreu um erro desconhecido.";
+        switch (err.code) {
+            case 'auth/email-already-in-use':
+                errorMessage = 'Este e-mail já está em uso por outra conta.';
+                break;
+            default:
+                errorMessage = err.message;
+                break;
+        }
+       setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
