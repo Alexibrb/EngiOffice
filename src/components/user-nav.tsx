@@ -319,7 +319,7 @@ function ProfileDataDialog({ user, isOpen, onOpenChange }: { user: User | null, 
 
 export function UserNav() {
   const [user, setUser] = useState<User | null>(null);
-  const [authUser, setAuthUser] = useState<AuthorizedUser | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [isCompanyDataOpen, setIsCompanyDataOpen] = useState(false);
   const [isProfileDataOpen, setIsProfileDataOpen] = useState(false);
   const router = useRouter();
@@ -330,14 +330,20 @@ export function UserNav() {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
-        const q = query(collection(db, "authorized_users"), where("email", "==", currentUser.email));
-        const querySnapshot = await getDocs(q);
-        if (!querySnapshot.empty) {
-          const userData = querySnapshot.docs[0].data() as Omit<AuthorizedUser, 'id'>;
-          setAuthUser({ ...userData, id: querySnapshot.docs[0].id });
+        if (currentUser.email === 'alexandro.ibrb@gmail.com') {
+          setIsAdmin(true);
+        } else {
+          const q = query(collection(db, "authorized_users"), where("email", "==", currentUser.email));
+          const querySnapshot = await getDocs(q);
+          if (!querySnapshot.empty) {
+            const userData = querySnapshot.docs[0].data() as AuthorizedUser;
+            setIsAdmin(userData.role === 'admin');
+          } else {
+            setIsAdmin(false);
+          }
         }
       } else {
-        setAuthUser(null);
+        setIsAdmin(false);
       }
     });
     return () => unsubscribe();
@@ -378,8 +384,6 @@ export function UserNav() {
     }
     return name.substring(0, 2).toUpperCase();
   };
-
-  const isAdmin = authUser?.role === 'admin';
 
   return (
     <>

@@ -35,7 +35,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { useToast } from "@/hooks/use-toast"
-import { collection, addDoc, getDocs, doc, setDoc, deleteDoc, updateDoc, arrayUnion, writeBatch, getDoc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, doc, setDoc, deleteDoc, updateDoc, arrayUnion, writeBatch, getDoc, query, where } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import { PlusCircle, MoreHorizontal, Loader2, Calendar as CalendarIcon, Download, XCircle, ArrowDown, CreditCard, Trash } from 'lucide-react';
 import {
@@ -52,7 +52,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { format, endOfDay, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import type { Account, Supplier, Employee, Payee, Service, CompanyData } from '@/lib/types';
+import type { Account, Supplier, Employee, Payee, Service, CompanyData, AuthorizedUser } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -60,6 +60,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Label } from '@/components/ui/label';
 import { DateRange } from 'react-day-picker';
 import { PageHeader } from '@/components/page-header';
+import { onAuthStateChanged, User } from 'firebase/auth';
 
 
 const accountSchema = z.object({
@@ -102,8 +103,7 @@ export default function ContasAPagarPage() {
     const { toast } = useToast();
     const router = useRouter();
     const searchParams = useSearchParams();
-    const user = auth.currentUser;
-    const isAdmin = !!user;
+    const [isAdmin, setIsAdmin] = useState(false);
 
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
     const [statusFilter, setStatusFilter] = useState<string>('');
@@ -126,6 +126,28 @@ export default function ContasAPagarPage() {
             produtos_servicos: '',
         },
     });
+
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                if (user.email === 'alexandro.ibrb@gmail.com') {
+                    setIsAdmin(true);
+                } else {
+                    const q = query(collection(db, "authorized_users"), where("email", "==", user.email));
+                    const querySnapshot = await getDocs(q);
+                    if (!querySnapshot.empty) {
+                        const userData = querySnapshot.docs[0].data() as AuthorizedUser;
+                        setIsAdmin(userData.role === 'admin');
+                    } else {
+                        setIsAdmin(false);
+                    }
+                }
+            } else {
+                setIsAdmin(false);
+            }
+        });
+        return () => unsubscribe();
+    }, []);
 
     const fetchSuppliers = async () => {
       const suppliersSnapshot = await getDocs(collection(db, "fornecedores"));
@@ -894,8 +916,29 @@ function PayableTableComponent({ accounts, getPayeeName, onEdit, onDelete, total
     onDelete: (id: string) => void,
     total: number
 }) {
-    const user = auth.currentUser;
-    const isAdmin = !!user;
+    const [isAdmin, setIsAdmin] = useState(false);
+
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                if (user.email === 'alexandro.ibrb@gmail.com') {
+                    setIsAdmin(true);
+                } else {
+                    const q = query(collection(db, "authorized_users"), where("email", "==", user.email));
+                    const querySnapshot = await getDocs(q);
+                    if (!querySnapshot.empty) {
+                        const userData = querySnapshot.docs[0].data() as AuthorizedUser;
+                        setIsAdmin(userData.role === 'admin');
+                    } else {
+                        setIsAdmin(false);
+                    }
+                }
+            } else {
+                setIsAdmin(false);
+            }
+        });
+        return () => unsubscribe();
+    }, []);
 
     return (
         <div className="border rounded-lg">
@@ -970,5 +1013,3 @@ function PayableTableComponent({ accounts, getPayeeName, onEdit, onDelete, total
         </div>
     );
 }
-
-    

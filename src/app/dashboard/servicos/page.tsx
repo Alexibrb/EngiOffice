@@ -28,7 +28,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import type { Service, Client, ServiceType, Commission, Account, Employee, CompanyData, City } from '@/lib/types';
+import type { Service, Client, ServiceType, Commission, Account, Employee, CompanyData, City, AuthorizedUser } from '@/lib/types';
 import { PlusCircle, Search, MoreHorizontal, Loader2, Calendar as CalendarIcon, Wrench, Link as LinkIcon, ExternalLink, ClipboardCopy, XCircle, FileText, CheckCircle, ArrowUp, TrendingUp, HandCoins, Users, Trash } from 'lucide-react';
 import {
   DropdownMenu,
@@ -38,7 +38,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
-import { collection, addDoc, getDocs, doc, setDoc, deleteDoc, Timestamp, updateDoc, writeBatch } from 'firebase/firestore';
+import { collection, addDoc, getDocs, doc, setDoc, deleteDoc, Timestamp, updateDoc, writeBatch, query, where } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import { useToast } from "@/hooks/use-toast"
 import {
@@ -64,6 +64,7 @@ import { Label } from '@/components/ui/label';
 import { PageHeader } from '@/components/page-header';
 import { useCompanyData } from '../layout';
 import { Separator } from '@/components/ui/separator';
+import { onAuthStateChanged } from 'firebase/auth';
 
 const serviceSchema = z.object({
   descricao: z.string().min(1, { message: 'Descrição é obrigatória.' }),
@@ -224,8 +225,7 @@ export default function ServicosPage() {
   const { toast } = useToast();
   const searchParams = useSearchParams();
   const router = useRouter();
-  const user = auth.currentUser;
-  const isAdmin = !!user;
+  const [isAdmin, setIsAdmin] = useState(false);
   const companyData = useCompanyData();
   
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
@@ -251,6 +251,28 @@ export default function ServicosPage() {
   });
 
   const anexosValue = useWatch({ control: form.control, name: 'anexos' });
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+        if (user) {
+            if (user.email === 'alexandro.ibrb@gmail.com') {
+                setIsAdmin(true);
+            } else {
+                const q = query(collection(db, "authorized_users"), where("email", "==", user.email));
+                const querySnapshot = await getDocs(q);
+                if (!querySnapshot.empty) {
+                    const userData = querySnapshot.docs[0].data() as AuthorizedUser;
+                    setIsAdmin(userData.role === 'admin');
+                } else {
+                    setIsAdmin(false);
+                }
+            }
+        } else {
+            setIsAdmin(false);
+        }
+    });
+    return () => unsubscribe();
+}, []);
 
  const fetchFinancials = async () => {
         try {

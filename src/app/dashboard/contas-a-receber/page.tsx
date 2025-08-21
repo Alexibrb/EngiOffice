@@ -21,7 +21,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { useToast } from "@/hooks/use-toast"
-import { collection, getDocs, doc, updateDoc, Timestamp, writeBatch } from 'firebase/firestore';
+import { collection, getDocs, doc, updateDoc, Timestamp, writeBatch, query, where } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import { Calendar as CalendarIcon, Download, ExternalLink, XCircle, ArrowUp, TrendingUp, MoreHorizontal, HandCoins, FileText, Loader2, User, Users, CheckCircle, Link as LinkIcon } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -29,7 +29,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { format, endOfDay, startOfDay } from 'date-fns';
-import type { Client, Service, Employee, Account, Commission, CompanyData } from '@/lib/types';
+import type { Client, Service, Employee, Account, Commission, CompanyData, AuthorizedUser } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -52,6 +52,7 @@ import * as z from 'zod';
 import { ptBR } from 'date-fns/locale';
 import { PageHeader } from '@/components/page-header';
 import { useCompanyData } from '../layout';
+import { onAuthStateChanged } from 'firebase/auth';
 
 const paymentSchema = z.object({
   valor_pago: z.coerce.number().min(0.01, "O valor deve ser maior que zero.")
@@ -65,8 +66,7 @@ export default function ContasAReceberPage() {
       commissionableEmployees: [] as Employee[],
     });
     const { toast } = useToast();
-    const user = auth.currentUser;
-    const isAdmin = !!user;
+    const [isAdmin, setIsAdmin] = useState(false);
     const companyData = useCompanyData();
     
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
@@ -84,6 +84,28 @@ export default function ContasAReceberPage() {
         resolver: zodResolver(paymentSchema),
         defaultValues: { valor_pago: 0 },
     });
+
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                if (user.email === 'alexandro.ibrb@gmail.com') {
+                    setIsAdmin(true);
+                } else {
+                    const q = query(collection(db, "authorized_users"), where("email", "==", user.email));
+                    const querySnapshot = await getDocs(q);
+                    if (!querySnapshot.empty) {
+                        const userData = querySnapshot.docs[0].data() as AuthorizedUser;
+                        setIsAdmin(userData.role === 'admin');
+                    } else {
+                        setIsAdmin(false);
+                    }
+                }
+            } else {
+                setIsAdmin(false);
+            }
+        });
+        return () => unsubscribe();
+    }, []);
 
    const fetchFinancials = async () => {
         try {
@@ -141,7 +163,7 @@ export default function ContasAReceberPage() {
             });
             setServices(servicesData);
 
-            const clientsData = clientsSnapshot.docs.map(doc => ({ ...doc.data(), codigo_cliente: doc.id }) as Client);
+            const clientsData = clientsSnapshot.docs.map(doc => ({ ...doc.data(), codigo_cliente: doc.id } as Client));
             setClients(clientsData);
 
             await fetchFinancials();
@@ -508,8 +530,29 @@ function ReceivableTableComponent({ services, getClient, totalValor, totalSaldo,
     onDistribute: (service: Service) => void,
 }) {
     const router = useRouter();
-    const user = auth.currentUser;
-    const isAdmin = !!user;
+    const [isAdmin, setIsAdmin] = useState(false);
+
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                if (user.email === 'alexandro.ibrb@gmail.com') {
+                    setIsAdmin(true);
+                } else {
+                    const q = query(collection(db, "authorized_users"), where("email", "==", user.email));
+                    const querySnapshot = await getDocs(q);
+                    if (!querySnapshot.empty) {
+                        const userData = querySnapshot.docs[0].data() as AuthorizedUser;
+                        setIsAdmin(userData.role === 'admin');
+                    } else {
+                        setIsAdmin(false);
+                    }
+                }
+            } else {
+                setIsAdmin(false);
+            }
+        });
+        return () => unsubscribe();
+    }, []);
 
     const handleEditService = (serviceId: string) => {
         router.push(`/dashboard/servicos?edit=${serviceId}`);
