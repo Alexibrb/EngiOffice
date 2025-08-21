@@ -22,6 +22,7 @@ import {
   Banknote,
   Presentation,
   SquareFunction,
+  ChevronDown,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -32,10 +33,16 @@ import {
   SidebarContent,
   SidebarFooter,
   SidebarSeparator,
-  SidebarGroup,
-  SidebarGroupLabel,
 } from '@/components/ui/sidebar';
 import { UserNav } from './user-nav';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible"
+import { useState } from 'react';
+import { cn } from '@/lib/utils';
+
 
 const dashboardLink = { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard };
 
@@ -70,29 +77,63 @@ const aiLinks = [
   },
 ]
 
+function NavGroup({
+  label,
+  icon: Icon,
+  links,
+  pathname,
+}: {
+  label: string;
+  icon: React.ElementType;
+  links: { href: string; label: string; icon: React.ElementType }[];
+  pathname: string;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const isActive = links.some(link => pathname.startsWith(link.href));
+
+  return (
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <CollapsibleTrigger asChild>
+        <button className={cn(
+            "flex w-full items-center justify-between rounded-md p-2 text-sm font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+             isActive && "bg-sidebar-accent text-sidebar-accent-foreground"
+        )}>
+          <div className="flex items-center gap-2">
+            <Icon className="h-4 w-4" />
+            <span>{label}</span>
+          </div>
+          <ChevronDown className={cn("h-4 w-4 transition-transform", isOpen && "rotate-180")} />
+        </button>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <SidebarMenu className="py-2 pl-6">
+            {links.map((link) => (
+                <SidebarMenuItem key={link.href}>
+                <Link href={link.href} passHref>
+                    <SidebarMenuButton
+                    isActive={pathname === link.href}
+                    asChild
+                    tooltip={link.label}
+                    size="default"
+                    variant="default"
+                    >
+                    <span>
+                        <link.icon />
+                        <span>{link.label}</span>
+                    </span>
+                    </SidebarMenuButton>
+                </Link>
+                </SidebarMenuItem>
+            ))}
+        </SidebarMenu>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
+
+
 export function DashboardNav() {
   const pathname = usePathname();
-
-  const renderLinks = (links: typeof cadastroLinks) => {
-    return links.map((link) => (
-        <SidebarMenuItem key={link.href}>
-          <Link href={link.href} passHref>
-            <SidebarMenuButton
-              isActive={pathname === link.href}
-              asChild
-              tooltip={link.label}
-              size="default"
-              variant="default"
-            >
-              <span>
-                <link.icon />
-                <span>{link.label}</span>
-              </span>
-            </SidebarMenuButton>
-          </Link>
-        </SidebarMenuItem>
-      ));
-  }
 
   return (
     <Sidebar>
@@ -126,53 +167,14 @@ export function DashboardNav() {
         </SidebarMenu>
 
         <SidebarSeparator />
-        
-         <SidebarGroup>
-            <SidebarGroupLabel className="flex items-center">
-                <Building2 className="mr-2"/>
-                Cadastros
-            </SidebarGroupLabel>
-            <SidebarMenu>
-                {renderLinks(cadastroLinks)}
-            </SidebarMenu>
-        </SidebarGroup>
-        
-        <SidebarSeparator />
 
-        <SidebarGroup>
-            <SidebarGroupLabel className="flex items-center">
-                <Banknote className="mr-2"/>
-                Financeiro
-            </SidebarGroupLabel>
-            <SidebarMenu>
-                {renderLinks(financeiroLinks)}
-            </SidebarMenu>
-        </SidebarGroup>
-
-        <SidebarSeparator />
-
-        <SidebarGroup>
-            <SidebarGroupLabel className="flex items-center">
-                <Presentation className="mr-2"/>
-                Relatórios
-            </SidebarGroupLabel>
-            <SidebarMenu>
-                {renderLinks(relatoriosLinks)}
-            </SidebarMenu>
-        </SidebarGroup>
-        
-        <SidebarSeparator />
-        
-        <SidebarGroup>
-            <SidebarGroupLabel className="flex items-center">
-                <SquareFunction className="mr-2"/>
-                Cálculos
-            </SidebarGroupLabel>
-            <SidebarMenu>
-                {renderLinks(calculosLinks)}
-            </SidebarMenu>
-        </SidebarGroup>
-
+        <div className="flex flex-col gap-2 p-2">
+            <NavGroup label="Cadastros" icon={Building2} links={cadastroLinks} pathname={pathname} />
+            <NavGroup label="Financeiro" icon={Banknote} links={financeiroLinks} pathname={pathname} />
+            <NavGroup label="Relatórios" icon={Presentation} links={relatoriosLinks} pathname={pathname} />
+            <NavGroup label="Cálculos" icon={SquareFunction} links={calculosLinks} pathname={pathname} />
+        </div>
+       
         <SidebarSeparator />
 
          <SidebarMenu>
