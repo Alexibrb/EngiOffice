@@ -31,13 +31,15 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { useToast } from "@/hooks/use-toast"
-import { collection, addDoc, getDocs, doc, deleteDoc, query, where } from 'firebase/firestore';
+import { collection, addDoc, getDocs, doc, deleteDoc, query, where, updateDoc } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
-import { Loader2, Trash2, ShieldAlert } from 'lucide-react';
+import { Loader2, Trash2, ShieldAlert, MoreHorizontal } from 'lucide-react';
 import type { AuthorizedUser } from '@/lib/types';
 import { PageHeader } from '@/components/page-header';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { onAuthStateChanged, User } from 'firebase/auth';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Badge } from '@/components/ui/badge';
 
 const authUserSchema = z.object({
   email: z.string().email({ message: 'Por favor, insira um email válido.' }),
@@ -87,6 +89,8 @@ export default function SettingsPage() {
             if (!querySnapshot.empty) {
                 const userData = querySnapshot.docs[0].data() as Omit<AuthorizedUser, 'id'>;
                 setIsCurrentUserAdmin(userData.role === 'admin');
+            } else {
+                setIsCurrentUserAdmin(false);
             }
             await fetchAuthorizedUsers();
         } else {
@@ -96,7 +100,7 @@ export default function SettingsPage() {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [toast]);
 
   const handleAddUser = async (values: z.infer<typeof authUserSchema>) => {
     setIsSubmitting(true);
@@ -142,6 +146,25 @@ export default function SettingsPage() {
       });
     }
   };
+
+  const handleChangeRole = async (userId: string, newRole: 'admin' | 'user') => {
+      try {
+          const userDocRef = doc(db, 'authorized_users', userId);
+          await updateDoc(userDocRef, { role: newRole });
+          toast({
+              title: "Sucesso!",
+              description: `Usuário atualizado para ${newRole}.`
+          });
+          await fetchAuthorizedUsers();
+      } catch (error) {
+          console.error("Erro ao alterar a função do usuário:", error);
+          toast({
+              variant: "destructive",
+              title: "Erro",
+              description: "Ocorreu um erro ao alterar a função do usuário."
+          });
+      }
+  };
   
   if (isLoading) {
     return (
@@ -178,7 +201,7 @@ export default function SettingsPage() {
         <CardHeader>
           <CardTitle>Autorização de Usuários</CardTitle>
           <CardDescription>
-            Adicione ou remova e-mails que podem se cadastrar e acessar o sistema.
+            Adicione, remova e gerencie as permissões dos usuários que podem acessar o sistema.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -209,8 +232,8 @@ export default function SettingsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Email Autorizado</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead className="w-[100px] text-right">Ação</TableHead>
+                  <TableHead>Função</TableHead>
+                  <TableHead className="w-[100px] text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -218,29 +241,52 @@ export default function SettingsPage() {
                   authorizedUsers.map((user) => (
                     <TableRow key={user.id}>
                       <TableCell className="font-medium">{user.email}</TableCell>
-                      <TableCell>{user.role}</TableCell>
+                      <TableCell>
+                        <Badge variant={user.role === 'admin' ? 'default' : 'secondary'}>{user.role}</Badge>
+                      </TableCell>
                       <TableCell className="text-right">
-                         <AlertDialog>
-                            <AlertDialogTrigger asChild>
+                         <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" size="icon" disabled={user.email === currentUser?.email}>
-                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                    <MoreHorizontal className="h-4 w-4" />
                                 </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                                <AlertDialogHeader>
-                                    <AlertDialogTitle>Remover autorização?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                        Esta ação removerá a permissão para o usuário <strong>{user.email}</strong> acessar o sistema. O usuário existente não será removido, mas não poderá mais logar.
-                                    </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => handleDeleteUser(user.id)} variant="destructive">
-                                        Remover
-                                    </AlertDialogAction>
-                                </AlertDialogFooter>
-                            </AlertDialogContent>
-                        </AlertDialog>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                                {user.role !== 'admin' && (
+                                    <DropdownMenuItem onSelect={() => handleChangeRole(user.id, 'admin')}>
+                                        Tornar Admin
+                                    </DropdownMenuItem>
+                                )}
+                                {user.role === 'admin' && (
+                                    <DropdownMenuItem onSelect={() => handleChangeRole(user.id, 'user')}>
+                                        Tornar Usuário
+                                    </DropdownMenuItem>
+                                )}
+                                <DropdownMenuSeparator />
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600">
+                                            Remover
+                                        </DropdownMenuItem>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Remover autorização?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                Esta ação removerá a permissão para o usuário <strong>{user.email}</strong> acessar o sistema. O usuário existente não será removido, mas não poderá mais logar.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                            <AlertDialogAction onClick={() => handleDeleteUser(user.id)} variant="destructive">
+                                                Remover
+                                            </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            </DropdownMenuContent>
+                         </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   ))
