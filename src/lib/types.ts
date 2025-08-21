@@ -134,6 +134,7 @@ export type CompanyData = {
 };
 
 export type AuthorizedUser = {
+  id: string;
   email: string;
   role: 'admin' | 'user';
 }

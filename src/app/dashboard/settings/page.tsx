@@ -32,11 +32,12 @@ import {
 } from '@/components/ui/form';
 import { useToast } from "@/hooks/use-toast"
 import { collection, addDoc, getDocs, doc, deleteDoc, query, where } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
-import { Loader2, Trash2 } from 'lucide-react';
+import { db, auth } from '@/lib/firebase';
+import { Loader2, Trash2, ShieldAlert } from 'lucide-react';
 import type { AuthorizedUser } from '@/lib/types';
 import { PageHeader } from '@/components/page-header';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { onAuthStateChanged, User } from 'firebase/auth';
 
 const authUserSchema = z.object({
   email: z.string().email({ message: 'Por favor, insira um email válido.' }),
@@ -44,6 +45,8 @@ const authUserSchema = z.object({
 
 export default function SettingsPage() {
   const [authorizedUsers, setAuthorizedUsers] = useState<AuthorizedUser[]>([]);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [isCurrentUserAdmin, setIsCurrentUserAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
@@ -54,9 +57,8 @@ export default function SettingsPage() {
       email: '',
     },
   });
-
+  
   const fetchAuthorizedUsers = async () => {
-    setIsLoading(true);
     try {
       const querySnapshot = await getDocs(collection(db, "authorized_users"));
       const usersData = querySnapshot.docs.map(doc => ({
@@ -69,15 +71,31 @@ export default function SettingsPage() {
       toast({
         variant: "destructive",
         title: "Erro",
-        description: "Não foi possível carregar a lista de usuários.",
+        description: "Não foi possível carregar la lista de usuários.",
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 
+
   useEffect(() => {
-    fetchAuthorizedUsers();
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+        setIsLoading(true);
+        setCurrentUser(user);
+        if (user) {
+            const q = query(collection(db, "authorized_users"), where("email", "==", user.email));
+            const querySnapshot = await getDocs(q);
+            if (!querySnapshot.empty) {
+                const userData = querySnapshot.docs[0].data() as Omit<AuthorizedUser, 'id'>;
+                setIsCurrentUserAdmin(userData.role === 'admin');
+            }
+            await fetchAuthorizedUsers();
+        } else {
+            setIsCurrentUserAdmin(false);
+        }
+        setIsLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
   const handleAddUser = async (values: z.infer<typeof authUserSchema>) => {
@@ -124,6 +142,30 @@ export default function SettingsPage() {
       });
     }
   };
+  
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-full">
+        <Loader2 className="mx-auto h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!isCurrentUserAdmin) {
+    return (
+      <Card className="border-destructive">
+          <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-destructive">
+                  <ShieldAlert />
+                  Acesso Negado
+              </CardTitle>
+              <CardDescription>
+                  Você não tem permissão para visualizar ou gerenciar as configurações de autorização.
+              </CardDescription>
+          </CardHeader>
+      </Card>
+    )
+  }
 
   return (
     <div className="flex flex-col gap-8">
@@ -167,24 +209,20 @@ export default function SettingsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Email Autorizado</TableHead>
+                  <TableHead>Role</TableHead>
                   <TableHead className="w-[100px] text-right">Ação</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {isLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={2} className="h-24 text-center">
-                      <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
-                    </TableCell>
-                  </TableRow>
-                ) : authorizedUsers.length > 0 ? (
+                {authorizedUsers.length > 0 ? (
                   authorizedUsers.map((user) => (
                     <TableRow key={user.id}>
                       <TableCell className="font-medium">{user.email}</TableCell>
+                      <TableCell>{user.role}</TableCell>
                       <TableCell className="text-right">
                          <AlertDialog>
                             <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon">
+                                <Button variant="ghost" size="icon" disabled={user.email === currentUser?.email}>
                                     <Trash2 className="h-4 w-4 text-destructive" />
                                 </Button>
                             </AlertDialogTrigger>
@@ -208,7 +246,7 @@ export default function SettingsPage() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={2} className="h-24 text-center">
+                    <TableCell colSpan={3} className="h-24 text-center">
                       Nenhum usuário autorizado encontrado.
                     </TableCell>
                   </TableRow>

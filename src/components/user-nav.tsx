@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { onAuthStateChanged, User, signOut, sendPasswordResetEmail, updateProfile } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -42,6 +42,7 @@ import { Loader2 } from 'lucide-react';
 import { useSidebar } from './ui/sidebar';
 import { cn } from '@/lib/utils';
 import { Separator } from './ui/separator';
+import type { AuthorizedUser } from '@/lib/types';
 
 const companySchema = z.object({
   logoUrl: z.string().url({ message: "Por favor, insira uma URL válida para o logo." }).optional().or(z.literal('')),
@@ -318,6 +319,7 @@ function ProfileDataDialog({ user, isOpen, onOpenChange }: { user: User | null, 
 
 export function UserNav() {
   const [user, setUser] = useState<User | null>(null);
+  const [authUser, setAuthUser] = useState<AuthorizedUser | null>(null);
   const [isCompanyDataOpen, setIsCompanyDataOpen] = useState(false);
   const [isProfileDataOpen, setIsProfileDataOpen] = useState(false);
   const router = useRouter();
@@ -325,8 +327,18 @@ export function UserNav() {
   const { state: sidebarState } = useSidebar();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
+      if (currentUser) {
+        const q = query(collection(db, "authorized_users"), where("email", "==", currentUser.email));
+        const querySnapshot = await getDocs(q);
+        if (!querySnapshot.empty) {
+          const userData = querySnapshot.docs[0].data() as Omit<AuthorizedUser, 'id'>;
+          setAuthUser({ ...userData, id: querySnapshot.docs[0].id });
+        }
+      } else {
+        setAuthUser(null);
+      }
     });
     return () => unsubscribe();
   }, []);
@@ -367,6 +379,8 @@ export function UserNav() {
     return name.substring(0, 2).toUpperCase();
   };
 
+  const isAdmin = authUser?.role === 'admin';
+
   return (
     <>
       <DropdownMenu>
@@ -406,9 +420,11 @@ export function UserNav() {
             <DropdownMenuItem onClick={handleChangePassword}>
               Trocar Senha
             </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => router.push('/dashboard/settings')}>
-              Configurações
-            </DropdownMenuItem>
+            {isAdmin && (
+                <DropdownMenuItem onSelect={() => router.push('/dashboard/settings')}>
+                Configurações
+                </DropdownMenuItem>
+            )}
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={handleLogout}>
