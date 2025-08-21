@@ -84,13 +84,17 @@ export default function SettingsPage() {
         setIsLoading(true);
         setCurrentUser(user);
         if (user) {
-            const q = query(collection(db, "authorized_users"), where("email", "==", user.email));
-            const querySnapshot = await getDocs(q);
-            if (!querySnapshot.empty) {
-                const userData = querySnapshot.docs[0].data() as Omit<AuthorizedUser, 'id'>;
-                setIsCurrentUserAdmin(userData.role === 'admin');
+            if (user.email === 'alexandro.ibrb@gmail.com') {
+                setIsCurrentUserAdmin(true);
             } else {
-                setIsCurrentUserAdmin(false);
+                const q = query(collection(db, "authorized_users"), where("email", "==", user.email));
+                const querySnapshot = await getDocs(q);
+                if (!querySnapshot.empty) {
+                    const userData = querySnapshot.docs[0].data() as Omit<AuthorizedUser, 'id'>;
+                    setIsCurrentUserAdmin(userData.role === 'admin');
+                } else {
+                    setIsCurrentUserAdmin(false);
+                }
             }
             await fetchAuthorizedUsers();
         } else {
