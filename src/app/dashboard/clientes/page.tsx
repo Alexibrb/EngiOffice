@@ -50,7 +50,6 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatCPF_CNPJ, formatTelefone, formatCEP } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { PageHeader } from '@/components/page-header';
 import { useRouter, useSearchParams } from 'next/navigation';
 
@@ -167,100 +166,96 @@ function ClientTableRow({ client, onEdit, onDelete }: { client: Client, onEdit: 
   const obra = client.endereco_obra;
 
   return (
-    <Collapsible asChild>
-      <>
-        <TableRow>
-          <TableCell>
-            <CollapsibleTrigger asChild>
-              <Button variant="ghost" size="sm" className="w-9 p-0">
-                {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                <span className="sr-only">{isOpen ? 'Fechar' : 'Abrir'}</span>
-              </Button>
-            </CollapsibleTrigger>
-          </TableCell>
-          <TableCell className="font-medium">{client.nome_completo}</TableCell>
-          <TableCell>{client.cpf_cnpj}</TableCell>
-          <TableCell>{client.telefone}</TableCell>
-          <TableCell>
-              <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                  <Button aria-haspopup="true" size="icon" variant="ghost">
-                  <MoreHorizontal className="h-4 w-4" />
-                  <span className="sr-only">Toggle menu</span>
-                  </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                  <DropdownMenuItem onClick={() => onEdit(client)}>
-                  Editar
-                  </DropdownMenuItem>
-                  <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                      <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600">
-                          Excluir
-                      </DropdownMenuItem>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                      <AlertDialogHeader>
-                      <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                          Essa ação não pode ser desfeita. Isso excluirá permanentemente o cliente.
-                      </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                      <AlertDialogAction onClick={() => onDelete(client.codigo_cliente)} variant="destructive">
-                          Excluir
-                      </AlertDialogAction>
-                      </AlertDialogFooter>
-                  </AlertDialogContent>
-                  </AlertDialog>
-              </DropdownMenuContent>
-              </DropdownMenu>
-          </TableCell>
-        </TableRow>
-        <CollapsibleContent asChild>
-            <TableRow>
-                <TableCell colSpan={5} className="p-0">
-                    <div className="p-6 bg-muted/50">
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div>
-                          <h4 className="font-semibold mb-2">Dados Pessoais</h4>
-                          <div className="text-sm space-y-1">
-                              <p><span className="font-medium text-muted-foreground">RG:</span> {client.rg || 'N/A'}</p>
-                          </div>
-                        </div>
-                        <div>
-                          <h4 className="font-semibold mb-2">Endereço Residencial</h4>
-                          {residencial ? (
-                             <div className="text-sm space-y-1">
-                              <p>{residencial.street}, {residencial.number}</p>
-                              <p>{residencial.neighborhood}, {residencial.city} - {residencial.state}</p>
-                              <p>CEP: {residencial.zip}</p>
-                            </div>
-                          ) : <p className="text-sm text-muted-foreground">N/A</p>}
-                        </div>
-                         <div>
-                          <h4 className="font-semibold mb-2">Endereço da Obra e Coordenadas</h4>
-                          {obra ? (
-                             <div className="text-sm space-y-1">
-                              <p>{obra.street}, {obra.number}</p>
-                              <p>{obra.neighborhood}, {obra.city} - {obra.state}</p>
-                              <p>CEP: {obra.zip}</p>
-                              <p className="pt-2"><span className="font-medium text-muted-foreground">Lat:</span> {client.coordenadas?.lat || 'N/A'}, <span className="font-medium text-muted-foreground">Lng:</span> {client.coordenadas?.lng || 'N/A'}</p>
-                            </div>
-                          ) : <p className="text-sm text-muted-foreground">N/A</p>}
+    <>
+      <TableRow>
+        <TableCell>
+          <Button variant="ghost" size="sm" className="w-9 p-0" onClick={() => setIsOpen(!isOpen)}>
+            {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+            <span className="sr-only">{isOpen ? 'Fechar' : 'Abrir'}</span>
+          </Button>
+        </TableCell>
+        <TableCell className="font-medium">{client.nome_completo}</TableCell>
+        <TableCell>{client.cpf_cnpj}</TableCell>
+        <TableCell>{client.telefone}</TableCell>
+        <TableCell>
+            <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <Button aria-haspopup="true" size="icon" variant="ghost">
+                <MoreHorizontal className="h-4 w-4" />
+                <span className="sr-only">Toggle menu</span>
+                </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                <DropdownMenuItem onClick={() => onEdit(client)}>
+                Editar
+                </DropdownMenuItem>
+                <AlertDialog>
+                <AlertDialogTrigger asChild>
+                    <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600">
+                        Excluir
+                    </DropdownMenuItem>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                    <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Essa ação não pode ser desfeita. Isso excluirá permanentemente o cliente.
+                    </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => onDelete(client.codigo_cliente)} variant="destructive">
+                        Excluir
+                    </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+                </AlertDialog>
+            </DropdownMenuContent>
+            </DropdownMenu>
+        </TableCell>
+      </TableRow>
+      {isOpen && (
+          <TableRow>
+              <TableCell colSpan={5} className="p-0">
+                  <div className="p-6 bg-muted/50">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div>
+                        <h4 className="font-semibold mb-2">Dados Pessoais</h4>
+                        <div className="text-sm space-y-1">
+                            <p><span className="font-medium text-muted-foreground">RG:</span> {client.rg || 'N/A'}</p>
                         </div>
                       </div>
+                      <div>
+                        <h4 className="font-semibold mb-2">Endereço Residencial</h4>
+                        {residencial ? (
+                           <div className="text-sm space-y-1">
+                            <p>{residencial.street}, {residencial.number}</p>
+                            <p>{residencial.neighborhood}, {residencial.city} - {residencial.state}</p>
+                            <p>CEP: {residencial.zip}</p>
+                          </div>
+                        ) : <p className="text-sm text-muted-foreground">N/A</p>}
+                      </div>
+                       <div>
+                        <h4 className="font-semibold mb-2">Endereço da Obra e Coordenadas</h4>
+                        {obra ? (
+                           <div className="text-sm space-y-1">
+                            <p>{obra.street}, {obra.number}</p>
+                            <p>{obra.neighborhood}, {obra.city} - {obra.state}</p>
+                            <p>CEP: {obra.zip}</p>
+                            <p className="pt-2"><span className="font-medium text-muted-foreground">Lat:</span> {client.coordenadas?.lat || 'N/A'}, <span className="font-medium text-muted-foreground">Lng:</span> {client.coordenadas?.lng || 'N/A'}</p>
+                          </div>
+                        ) : <p className="text-sm text-muted-foreground">N/A</p>}
+                      </div>
                     </div>
-                </TableCell>
-            </TableRow>
-        </CollapsibleContent>
-         <TableRow className="border-b">
-            <TableCell colSpan={5} className="p-0 h-0"></TableCell>
-        </TableRow>
-      </>
-    </Collapsible>
+                  </div>
+              </TableCell>
+          </TableRow>
+      )}
+       <TableRow className="border-b">
+          <TableCell colSpan={5} className="p-0 h-0"></TableCell>
+      </TableRow>
+    </>
   );
 }
 
@@ -875,3 +870,5 @@ export default function ClientesPage() {
     </div>
   );
 }
+
+    
