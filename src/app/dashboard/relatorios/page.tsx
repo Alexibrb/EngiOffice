@@ -48,8 +48,8 @@ function ClientReportRow({ client }: { client: Client }) {
   const obra = client.endereco_obra;
 
   return (
-    <>
-      <Collapsible asChild key={client.codigo_cliente} open={isOpen} onOpenChange={setIsOpen}>
+    <Collapsible asChild key={client.codigo_cliente} open={isOpen} onOpenChange={setIsOpen}>
+      <>
         <TableRow>
           <TableCell>
             <CollapsibleTrigger asChild>
@@ -63,45 +63,45 @@ function ClientReportRow({ client }: { client: Client }) {
           <TableCell>{client.cpf_cnpj || '-'}</TableCell>
           <TableCell>{client.telefone || '-'}</TableCell>
         </TableRow>
-      </Collapsible>
-      <CollapsibleContent asChild>
-        <TableRow>
-          <TableCell colSpan={4} className="p-0">
-            <div className="p-6 bg-muted/50">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div>
-                  <h4 className="font-semibold mb-2">Dados Pessoais</h4>
-                  <div className="text-sm space-y-1">
-                    <p><span className="font-medium text-muted-foreground">RG:</span> {client.rg || 'N/A'}</p>
+        <CollapsibleContent asChild>
+            <TableRow>
+              <TableCell colSpan={4} className="p-0">
+                <div className="p-6 bg-muted/50">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                      <h4 className="font-semibold mb-2">Dados Pessoais</h4>
+                      <div className="text-sm space-y-1">
+                        <p><span className="font-medium text-muted-foreground">RG:</span> {client.rg || 'N/A'}</p>
+                      </div>
+                    </div>
+                    <div>
+                      <h4 className="font-semibold mb-2">Endereço Residencial</h4>
+                      {residencial ? (
+                        <div className="text-sm space-y-1">
+                          <p>{residencial.street}, {residencial.number}</p>
+                          <p>{residencial.neighborhood}, {residencial.city} - {residencial.state}</p>
+                          <p>CEP: {residencial.zip}</p>
+                        </div>
+                      ) : <p className="text-sm text-muted-foreground">N/A</p>}
+                    </div>
+                    <div>
+                      <h4 className="font-semibold mb-2">Endereço da Obra e Coordenadas</h4>
+                      {obra ? (
+                        <div className="text-sm space-y-1">
+                          <p>{obra.street}, {obra.number}</p>
+                          <p>{obra.neighborhood}, {obra.city} - {obra.state}</p>
+                          <p>CEP: {obra.zip}</p>
+                          <p className="pt-2"><span className="font-medium text-muted-foreground">Lat:</span> {client.coordenadas?.lat || 'N/A'}, <span className="font-medium text-muted-foreground">Lng:</span> {client.coordenadas?.lng || 'N/A'}</p>
+                        </div>
+                      ) : <p className="text-sm text-muted-foreground">N/A</p>}
+                    </div>
                   </div>
                 </div>
-                <div>
-                  <h4 className="font-semibold mb-2">Endereço Residencial</h4>
-                  {residencial ? (
-                    <div className="text-sm space-y-1">
-                      <p>{residencial.street}, {residencial.number}</p>
-                      <p>{residencial.neighborhood}, {residencial.city} - {residencial.state}</p>
-                      <p>CEP: {residencial.zip}</p>
-                    </div>
-                  ) : <p className="text-sm text-muted-foreground">N/A</p>}
-                </div>
-                <div>
-                  <h4 className="font-semibold mb-2">Endereço da Obra e Coordenadas</h4>
-                  {obra ? (
-                    <div className="text-sm space-y-1">
-                      <p>{obra.street}, {obra.number}</p>
-                      <p>{obra.neighborhood}, {obra.city} - {obra.state}</p>
-                      <p>CEP: {obra.zip}</p>
-                      <p className="pt-2"><span className="font-medium text-muted-foreground">Lat:</span> {client.coordenadas?.lat || 'N/A'}, <span className="font-medium text-muted-foreground">Lng:</span> {client.coordenadas?.lng || 'N/A'}</p>
-                    </div>
-                  ) : <p className="text-sm text-muted-foreground">N/A</p>}
-                </div>
-              </div>
-            </div>
-          </TableCell>
-        </TableRow>
-      </CollapsibleContent>
-    </>
+              </TableCell>
+            </TableRow>
+        </CollapsibleContent>
+      </>
+    </Collapsible>
   );
 }
 
@@ -109,8 +109,8 @@ function SupplierReportRow({ supplier }: { supplier: Supplier }) {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <>
-      <Collapsible asChild key={supplier.id} open={isOpen} onOpenChange={setIsOpen}>
+    <Collapsible asChild key={supplier.id} open={isOpen} onOpenChange={setIsOpen}>
+       <>
         <TableRow>
           <TableCell>
             <CollapsibleTrigger asChild>
@@ -125,34 +125,34 @@ function SupplierReportRow({ supplier }: { supplier: Supplier }) {
           <TableCell>{supplier.telefone || '-'}</TableCell>
           <TableCell>{supplier.email || '-'}</TableCell>
         </TableRow>
-      </Collapsible>
-      <CollapsibleContent asChild>
-        <TableRow>
-          <TableCell colSpan={5} className="p-0">
-            <div className="p-6 bg-muted/50">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <h4 className="font-semibold mb-2">Endereço</h4>
-                  <p className="text-sm">{supplier.endereco || 'N/A'}</p>
+        <CollapsibleContent asChild>
+            <TableRow>
+              <TableCell colSpan={5} className="p-0">
+                <div className="p-6 bg-muted/50">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <h4 className="font-semibold mb-2">Endereço</h4>
+                      <p className="text-sm">{supplier.endereco || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <h4 className="font-semibold mb-2">Produtos/Serviços</h4>
+                      {supplier.produtos_servicos && supplier.produtos_servicos.length > 0 ? (
+                        <ul className="list-disc list-inside text-sm">
+                          {supplier.produtos_servicos.map((item, index) => (
+                            <li key={index}>{item}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">N/A</p>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="font-semibold mb-2">Produtos/Serviços</h4>
-                  {supplier.produtos_servicos && supplier.produtos_servicos.length > 0 ? (
-                    <ul className="list-disc list-inside text-sm">
-                      {supplier.produtos_servicos.map((item, index) => (
-                        <li key={index}>{item}</li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">N/A</p>
-                  )}
-                </div>
-              </div>
-            </div>
-          </TableCell>
-        </TableRow>
-      </CollapsibleContent>
-    </>
+              </TableCell>
+            </TableRow>
+        </CollapsibleContent>
+      </>
+    </Collapsible>
   );
 }
 
