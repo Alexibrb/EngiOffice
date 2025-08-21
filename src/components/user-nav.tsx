@@ -406,7 +406,9 @@ export function UserNav() {
             <DropdownMenuItem onClick={handleChangePassword}>
               Trocar Senha
             </DropdownMenuItem>
-            <DropdownMenuItem disabled>Configurações</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => router.push('/dashboard/settings')}>
+              Configurações
+            </DropdownMenuItem>
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={handleLogout}>
