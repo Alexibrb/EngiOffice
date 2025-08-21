@@ -330,17 +330,13 @@ export function UserNav() {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
-        if (currentUser.email === 'alexandro.ibrb@gmail.com') {
-          setIsAdmin(true);
+        const q = query(collection(db, "authorized_users"), where("email", "==", currentUser.email));
+        const querySnapshot = await getDocs(q);
+        if (!querySnapshot.empty) {
+          const userData = querySnapshot.docs[0].data() as AuthorizedUser;
+          setIsAdmin(userData.role === 'admin');
         } else {
-          const q = query(collection(db, "authorized_users"), where("email", "==", currentUser.email));
-          const querySnapshot = await getDocs(q);
-          if (!querySnapshot.empty) {
-            const userData = querySnapshot.docs[0].data() as AuthorizedUser;
-            setIsAdmin(userData.role === 'admin');
-          } else {
-            setIsAdmin(false);
-          }
+          setIsAdmin(false);
         }
       } else {
         setIsAdmin(false);

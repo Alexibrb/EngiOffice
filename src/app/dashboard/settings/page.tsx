@@ -84,17 +84,13 @@ export default function SettingsPage() {
         setIsLoading(true);
         setCurrentUser(user);
         if (user) {
-            if (user.email === 'alexandro.ibrb@gmail.com') {
-                setIsCurrentUserAdmin(true);
+            const q = query(collection(db, "authorized_users"), where("email", "==", user.email));
+            const querySnapshot = await getDocs(q);
+            if (!querySnapshot.empty) {
+                const userData = querySnapshot.docs[0].data() as Omit<AuthorizedUser, 'id'>;
+                setIsCurrentUserAdmin(userData.role === 'admin');
             } else {
-                const q = query(collection(db, "authorized_users"), where("email", "==", user.email));
-                const querySnapshot = await getDocs(q);
-                if (!querySnapshot.empty) {
-                    const userData = querySnapshot.docs[0].data() as Omit<AuthorizedUser, 'id'>;
-                    setIsCurrentUserAdmin(userData.role === 'admin');
-                } else {
-                    setIsCurrentUserAdmin(false);
-                }
+                setIsCurrentUserAdmin(false);
             }
             await fetchAuthorizedUsers();
         } else {
@@ -104,7 +100,7 @@ export default function SettingsPage() {
     });
 
     return () => unsubscribe();
-  }, [toast]);
+  }, []);
 
   const handleAddUser = async (values: z.infer<typeof authUserSchema>) => {
     setIsSubmitting(true);

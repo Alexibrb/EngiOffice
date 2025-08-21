@@ -9,7 +9,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, addDoc } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -57,14 +57,19 @@ export default function SignupPage() {
     setIsLoading(true);
     setError(null);
     try {
-      // Check if email is authorized
-      const q = query(collection(db, "authorized_users"), where("email", "==", values.email));
-      const querySnapshot = await getDocs(q);
-      
-      if (querySnapshot.empty) {
-        setError("Este e-mail não está autorizado a se cadastrar. Entre em contato com o administrador.");
-        setIsLoading(false);
-        return;
+      const authUsersCollection = collection(db, "authorized_users");
+      const authUsersSnapshot = await getDocs(authUsersCollection);
+      const isFirstUser = authUsersSnapshot.empty;
+
+      // Se não for o primeiro usuário, verifique se o e-mail está na lista de autorizados
+      if (!isFirstUser) {
+        const q = query(authUsersCollection, where("email", "==", values.email));
+        const querySnapshot = await getDocs(q);
+        if (querySnapshot.empty) {
+          setError("Este e-mail não está autorizado a se cadastrar. Entre em contato com o administrador.");
+          setIsLoading(false);
+          return;
+        }
       }
       
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
@@ -73,6 +78,14 @@ export default function SignupPage() {
       if (user) {
         await updateProfile(user, {
           displayName: values.name,
+        });
+      }
+
+      // Se for o primeiro usuário, adicione-o como administrador
+      if (isFirstUser) {
+        await addDoc(authUsersCollection, {
+            email: values.email,
+            role: 'admin',
         });
       }
 
