@@ -1,0 +1,22 @@
+{
+  "name": "EngiOffice",
+  "short_name": "EngiOffice",
+  "description": "Sistema de Gestão para Escritórios de Engenharia",
+  "icons": [
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "theme_color": "#1f2937",
+  "background_color": "#ffffff",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "orientation": "portrait"
+}
