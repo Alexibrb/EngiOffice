@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -240,7 +241,7 @@ export default function ContasAReceberPage() {
 
         // Corpo do Recibo
         doc.setFontSize(12);
-        const obraAddress = (client.endereco_obra && client.endereco_obra.street) ? `${client.endereco_obra.street}, ${client.endereco_obra.number} - ${client.endereco_obra.neighborhood}, ${client.endereco_obra.city} - ${client.endereco_obra.state}` : 'Endereço da obra não informado';
+        const obraAddress = (service.endereco_obra && service.endereco_obra.street) ? `${service.endereco_obra.street}, ${service.endereco_obra.number} - ${service.endereco_obra.neighborhood}, ${service.endereco_obra.city} - ${service.endereco_obra.state}` : 'Endereço da obra não informado';
         const receiptText = `Recebemos de ${client.nome_completo}, CPF/CNPJ nº ${client.cpf_cnpj || 'Não informado'}, a importância de R$ ${valueToDisplay.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} referente ao pagamento ${isPartialPayment ? 'parcial' : ''} pelo serviço de "${service.descricao}".\n\nEndereço da Obra: ${obraAddress}`;
         const splitText = doc.splitTextToSize(receiptText, pageWidth - 40);
         doc.text(splitText, 20, 90);
@@ -577,7 +578,7 @@ function ReceivableTableComponent({ services, getClient, totalValor, totalSaldo,
             <Table>
                 <TableHeader>
                     <TableRow>
-                        <TableHead>Cliente / Endereços</TableHead>
+                        <TableHead>Cliente</TableHead>
                         <TableHead>Detalhes do Serviço</TableHead>
                         <TableHead>Valores</TableHead>
                         <TableHead>Status</TableHead>
@@ -587,22 +588,19 @@ function ReceivableTableComponent({ services, getClient, totalValor, totalSaldo,
                 <TableBody>
                     {services.length > 0 ? services.map((service) => {
                         const client = getClient(service.cliente_id);
-                        const residencial = client?.endereco_residencial;
-                        const obra = client?.endereco_obra;
-                        const formattedResidencial = (residencial && residencial.street) ? `Residencial: ${residencial.street}, ${residencial.number} - ${residencial.neighborhood}, ${residencial.city}` : '';
+                        const obra = service.endereco_obra;
                         const formattedObra = (obra && obra.street) ? `Obra: ${obra.street}, ${obra.number} - ${obra.neighborhood}, ${obra.city}` : '';
                         const distributionStatus = getDistributionStatus(service);
-                        const coordenadas = (client?.coordenadas?.lat && client?.coordenadas?.lng) ? `Coords: ${client.coordenadas.lat}, ${client.coordenadas.lng}` : '';
+                        const coordenadas = (service.coordenadas?.lat && service.coordenadas?.lng) ? `Coords: ${service.coordenadas.lat}, ${service.coordenadas.lng}` : '';
 
                         return (
                             <TableRow key={service.id}>
                                 <TableCell className="align-top">
                                     <div className="font-bold">{client?.nome_completo || 'Desconhecido'}</div>
-                                    <div className="text-xs text-muted-foreground">{formattedResidencial}</div>
-                                    <div className="text-xs text-muted-foreground">{formattedObra}</div>
                                 </TableCell>
                                 <TableCell className="align-top">
                                   <div className="font-medium">{service.descricao}</div>
+                                  <div className="text-xs text-muted-foreground">{formattedObra}</div>
                                   <div className="text-xs text-muted-foreground">{coordenadas}</div>
                                   {(service.anexos && service.anexos.length > 0) && (
                                     <div className="text-xs text-muted-foreground mt-1 space-y-1">
@@ -859,3 +857,4 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, paymentValue, fi
         </Dialog>
     );
 }
+

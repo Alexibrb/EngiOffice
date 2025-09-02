@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -362,7 +363,7 @@ export default function ComissoesPage() {
                         {filteredCommissions.length > 0 ? filteredCommissions.map((commission) => {
                             const service = getService(commission.servico_id);
                             const client = service ? getClient(service.cliente_id) : null;
-                            const address = client?.endereco_obra;
+                            const address = service?.endereco_obra;
                             const formattedAddress = address ? `${address.street}, ${address.number} - ${address.neighborhood}, ${address.city} - ${address.state}` : '';
 
                             return (
@@ -453,7 +454,7 @@ export default function ComissoesPage() {
                             <TableBody>
                                 {servicesWithPendingDistribution.length > 0 ? servicesWithPendingDistribution.map(service => {
                                     const client = getClient(service.cliente_id);
-                                    const address = client?.endereco_obra;
+                                    const address = service.endereco_obra;
                                     const formattedAddress = address ? `${address.street}, ${address.number} - ${address.neighborhood}, ${address.city} - ${address.state}` : 'N/A';
                                     return (
                                         <TableRow key={service.id}>
@@ -681,11 +682,4 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, financials, toas
         </Dialog>
     );
 }
-
-    
-
-    
-
-    
-
     

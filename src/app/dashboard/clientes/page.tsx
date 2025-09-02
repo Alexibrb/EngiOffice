@@ -74,11 +74,6 @@ const clientSchema = z.object({
     message: 'Telefone inválido.',
   }),
   endereco_residencial: addressSchema.optional(),
-  endereco_obra: addressSchema.optional(),
-  coordenadas: z.object({
-    lat: z.coerce.number().optional(),
-    lng: z.coerce.number().optional(),
-  }).optional(),
 });
 
 const citySchema = z.object({
@@ -163,7 +158,6 @@ function AddCityDialog({ isOpen, setIsOpen, onCityAdded }: {
 function ClientTableRow({ client, onEdit, onDelete }: { client: Client, onEdit: (client: Client) => void, onDelete: (id: string) => void }) {
   const [isOpen, setIsOpen] = useState(false);
   const residencial = client.endereco_residencial;
-  const obra = client.endereco_obra;
 
   return (
     <>
@@ -219,7 +213,7 @@ function ClientTableRow({ client, onEdit, onDelete }: { client: Client, onEdit: 
           <TableRow>
               <TableCell colSpan={5} className="p-0">
                   <div className="p-6 bg-muted/50">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
                         <h4 className="font-semibold mb-2">Dados Pessoais</h4>
                         <div className="text-sm space-y-1">
@@ -233,17 +227,6 @@ function ClientTableRow({ client, onEdit, onDelete }: { client: Client, onEdit: 
                             <p>{residencial.street}, {residencial.number}</p>
                             <p>{residencial.neighborhood}, {residencial.city} - {residencial.state}</p>
                             <p>CEP: {residencial.zip}</p>
-                          </div>
-                        ) : <p className="text-sm text-muted-foreground">N/A</p>}
-                      </div>
-                       <div>
-                        <h4 className="font-semibold mb-2">Endereço da Obra e Coordenadas</h4>
-                        {obra ? (
-                           <div className="text-sm space-y-1">
-                            <p>{obra.street}, {obra.number}</p>
-                            <p>{obra.neighborhood}, {obra.city} - {obra.state}</p>
-                            <p>CEP: {obra.zip}</p>
-                            <p className="pt-2"><span className="font-medium text-muted-foreground">Lat:</span> {client.coordenadas?.lat || 'N/A'}, <span className="font-medium text-muted-foreground">Lng:</span> {client.coordenadas?.lng || 'N/A'}</p>
                           </div>
                         ) : <p className="text-sm text-muted-foreground">N/A</p>}
                       </div>
@@ -282,8 +265,6 @@ export default function ClientesPage() {
       cpf_cnpj: '',
       telefone: '',
       endereco_residencial: { street: '', number: '', neighborhood: '', city: '', state: '', zip: '' },
-      endereco_obra: { street: '', number: '', neighborhood: '', city: '', state: '', zip: '' },
-      coordenadas: { lat: 0, lng: 0 },
     },
   });
 
@@ -343,10 +324,6 @@ export default function ClientesPage() {
     try {
       const clientData = {
         ...values,
-        coordenadas: {
-          lat: values.coordenadas?.lat || 0,
-          lng: values.coordenadas?.lng || 0,
-        },
         numero_art: editingClient?.numero_art || '',
         historico_servicos: editingClient?.historico_servicos || [],
         endereco_residencial: {
@@ -357,14 +334,6 @@ export default function ClientesPage() {
             state: values.endereco_residencial?.state || '',
             zip: values.endereco_residencial?.zip || '',
         },
-         endereco_obra: {
-            street: values.endereco_obra?.street || '',
-            number: values.endereco_obra?.number || '',
-            neighborhood: values.endereco_obra?.neighborhood || '',
-            city: values.endereco_obra?.city || '',
-            state: values.endereco_obra?.state || '',
-            zip: values.endereco_obra?.zip || '',
-        }
       };
 
       if (editingClient) {
@@ -515,7 +484,7 @@ export default function ClientesPage() {
                         Adicionar Cliente
                         </Button>
                     </DialogTrigger>
-                    <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
+                    <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
                         <DialogHeader>
                         <DialogTitle className="font-headline">{editingClient ? 'Editar Cliente' : 'Adicionar Novo Cliente'}</DialogTitle>
                         <DialogDescription>
@@ -697,134 +666,6 @@ export default function ClientesPage() {
                                     />
                                 </div>
                             </div>
-
-                            <Separator />
-
-                            <div>
-                                <h3 className="text-lg font-medium mb-4">Endereço da Obra e Coordenadas</h3>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <FormField
-                                    control={form.control}
-                                    name="endereco_obra.street"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                        <FormLabel>Rua</FormLabel>
-                                        <FormControl>
-                                            <Input {...field} />
-                                        </FormControl>
-                                        <FormMessage />
-                                        </FormItem>
-                                    )}
-                                    />
-                                    <FormField
-                                    control={form.control}
-                                    name="endereco_obra.number"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                        <FormLabel>Número</FormLabel>
-                                        <FormControl>
-                                            <Input {...field} />
-                                        </FormControl>
-                                        <FormMessage />
-                                        </FormItem>
-                                    )}
-                                    />
-                                    <FormField
-                                    control={form.control}
-                                    name="endereco_obra.neighborhood"
-                                    render={({ field }) => (
-                                        <FormItem className="md:col-span-2">
-                                        <FormLabel>Bairro</FormLabel>
-                                        <FormControl>
-                                            <Input {...field} />
-                                        </FormControl>
-                                        <FormMessage />
-                                        </FormItem>
-                                    )}
-                                    />
-                                    <FormField
-                                        control={form.control}
-                                        name="endereco_obra.city"
-                                        render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Cidade</FormLabel>
-                                            <div className="flex items-center gap-2">
-                                            <Select onValueChange={(value) => {
-                                                const selectedCity = cities.find(c => c.nome_cidade === value);
-                                                field.onChange(value);
-                                                form.setValue('endereco_obra.state', selectedCity?.estado || '');
-                                            }} value={field.value}>
-                                                <FormControl><SelectTrigger><SelectValue placeholder="Selecione a Cidade" /></SelectTrigger></FormControl>
-                                                <SelectContent><>
-                                                {cities.map(city => (<SelectItem key={city.id} value={city.nome_cidade}>{city.nome_cidade}</SelectItem>))}
-                                                </></SelectContent>
-                                            </Select>
-                                            <Button type="button" variant="outline" size="icon" onClick={() => setIsCityDialogOpen(true)}><PlusCircle className="h-4 w-4" /></Button>
-                                            </div>
-                                            <FormMessage />
-                                        </FormItem>
-                                        )}
-                                    />
-                                    <FormField
-                                    control={form.control}
-                                    name="endereco_obra.state"
-                                    render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Estado</FormLabel>
-                                        <FormControl>
-                                        <Input {...field} disabled />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={form.control}
-                                    name="endereco_obra.zip"
-                                    render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>CEP</FormLabel>
-                                        <FormControl>
-                                        <Input 
-                                            {...field}
-                                            onChange={(e) => {
-                                                const { value } = e.target;
-                                                field.onChange(formatCEP(value));
-                                            }}
-                                        />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                    )}
-                                />
-                                    <FormField
-                                    control={form.control}
-                                    name="coordenadas.lat"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                        <FormLabel>Latitude</FormLabel>
-                                        <FormControl>
-                                            <Input type="number" step="any" {...field} />
-                                        </FormControl>
-                                        <FormMessage />
-                                        </FormItem>
-                                    )}
-                                    />
-                                    <FormField
-                                    control={form.control}
-                                    name="coordenadas.lng"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                        <FormLabel>Longitude</FormLabel>
-                                        <FormControl>
-                                            <Input type="number" step="any" {...field} />
-                                        </FormControl>
-                                        <FormMessage />
-                                        </FormItem>
-                                    )}
-                                    />
-                                </div>
-                            </div>
                             <DialogFooter>
                             <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
                             <Button type="submit" variant="accent" disabled={isLoading}>
@@ -870,5 +711,4 @@ export default function ClientesPage() {
     </div>
   );
 }
-
     

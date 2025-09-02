@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -250,7 +251,7 @@ export default function DashboardPage() {
 
     // Corpo do Recibo
     doc.setFontSize(12);
-    const obraAddress = (client.endereco_obra && client.endereco_obra.street) ? `${client.endereco_obra.street}, ${client.endereco_obra.number} - ${client.endereco_obra.neighborhood}, ${client.endereco_obra.city} - ${client.endereco_obra.state}` : 'Endereço da obra não informado';
+    const obraAddress = (service.endereco_obra && service.endereco_obra.street) ? `${service.endereco_obra.street}, ${service.endereco_obra.number} - ${service.endereco_obra.neighborhood}, ${service.endereco_obra.city} - ${service.endereco_obra.state}` : 'Endereço da obra não informado';
     const receiptText = `Recebemos de ${client.nome_completo}, CPF/CNPJ nº ${client.cpf_cnpj || 'Não informado'}, a importância de R$ ${valueToDisplay.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} referente ao pagamento ${isPartialPayment ? 'parcial' : ''} pelo serviço de "${service.descricao}".\n\nEndereço da Obra: ${obraAddress}`;
     const splitText = doc.splitTextToSize(receiptText, pageWidth - 40);
     doc.text(splitText, 20, 90);
@@ -454,7 +455,7 @@ export default function DashboardPage() {
               <TableBody>
                 {ongoingServices.length > 0 ? ongoingServices.map((service) => {
                   const client = getClient(service.cliente_id);
-                  const address = client?.endereco_obra;
+                  const address = service?.endereco_obra;
                   const formattedAddress = address ? `${address.street}, ${address.number} - ${address.neighborhood}, ${address.city} - ${address.state}` : 'N/A';
                   return (
                     <TableRow key={service.id}>
@@ -612,3 +613,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+

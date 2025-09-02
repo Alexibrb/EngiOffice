@@ -67,6 +67,7 @@ const accountSchema = z.object({
   descricao: z.string().min(1, 'Descrição é obrigatória.'),
   referencia_id: z.string().min(1, 'Favorecido é obrigatório.'),
   tipo_referencia: z.enum(['fornecedor', 'funcionario']).optional(),
+  servico_id: z.string().optional(),
   valor: z.any().refine(val => {
     const num = parseFloat(String(val).replace(',', '.'));
     return !isNaN(num) && num > 0;
@@ -92,6 +93,7 @@ export default function ContasAPagarPage() {
     const [accountsPayable, setAccountsPayable] = useState<Account[]>([]);
     const [suppliers, setSuppliers] = useState<Supplier[]>([]);
     const [employees, setEmployees] = useState<Employee[]>([]);
+    const [services, setServices] = useState<Service[]>([]);
     const [companyData, setCompanyData] = useState<CompanyData | null>(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isSupplierDialogOpen, setIsSupplierDialogOpen] = useState(false);
@@ -161,6 +163,12 @@ export default function ContasAPagarPage() {
         const employeesData = employeesSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Employee[];
         setEmployees(employeesData);
     }
+
+    const fetchServices = async () => {
+      const servicesSnapshot = await getDocs(collection(db, 'servicos'));
+      const servicesData = servicesSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Service));
+      setServices(servicesData);
+    }
     
     const fetchData = async () => {
         try {
@@ -179,6 +187,7 @@ export default function ContasAPagarPage() {
             
             await fetchSuppliers();
             await fetchEmployees();
+            await fetchServices();
             
             const payableData = payableSnapshot.docs.map(doc => {
                 const data = doc.data();
@@ -324,6 +333,7 @@ export default function ContasAPagarPage() {
         form.reset({
             descricao: '',
             referencia_id: '',
+            servico_id: '',
             valor: '0,00',
             status: 'pendente',
             vencimento: new Date(),
@@ -558,6 +568,7 @@ export default function ContasAPagarPage() {
                             <PayableFormComponent 
                                 form={form} 
                                 payees={payees} 
+                                services={services}
                                 onAddSupplier={() => setIsSupplierDialogOpen(true)}
                                 onAddProduct={() => setIsAddProductDialogOpen(true)}
                                 editingAccount={editingAccount}
@@ -676,9 +687,10 @@ export default function ContasAPagarPage() {
     );
 }
 
-function PayableFormComponent({ form, payees, onAddSupplier, onAddProduct, editingAccount }: { 
+function PayableFormComponent({ form, payees, services, onAddSupplier, onAddProduct, editingAccount }: { 
     form: any, 
     payees: Payee[], 
+    services: Service[],
     onAddSupplier: () => void,
     onAddProduct: () => void,
     editingAccount: Account | null
@@ -771,7 +783,34 @@ function PayableFormComponent({ form, payees, onAddSupplier, onAddProduct, editi
                     </FormItem>
                 )}
             />
-            
+             <FormField
+                control={form.control}
+                name="servico_id"
+                render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Serviço Vinculado (Opcional)</FormLabel>
+                            <Select 
+                                onValueChange={field.onChange} 
+                                value={field.value} 
+                                defaultValue={field.value}
+                            >
+                                <FormControl>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Selecione um serviço para vincular esta despesa" />
+                                    </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                    {services.map(s => (
+                                        <SelectItem key={s.id} value={s.id}>
+                                            {s.descricao}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        <FormMessage />
+                    </FormItem>
+                )}
+            />
             <FormField
                 control={form.control}
                 name="valor"

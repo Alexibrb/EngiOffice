@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -44,7 +45,6 @@ type ReportType = 'clients' | 'suppliers' | 'services' | 'accountsPayable' | 'co
 function ClientReportRow({ client }: { client: Client }) {
   const [isOpen, setIsOpen] = useState(false);
   const residencial = client.endereco_residencial;
-  const obra = client.endereco_obra;
 
   return (
     <>
@@ -63,7 +63,7 @@ function ClientReportRow({ client }: { client: Client }) {
         <TableRow>
           <TableCell colSpan={4} className="p-0">
             <div className="p-6 bg-muted/50">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <h4 className="font-semibold mb-2">Dados Pessoais</h4>
                   <div className="text-sm space-y-1">
@@ -77,17 +77,6 @@ function ClientReportRow({ client }: { client: Client }) {
                       <p>{residencial.street}, {residencial.number}</p>
                       <p>{residencial.neighborhood}, {residencial.city} - {residencial.state}</p>
                       <p>CEP: {residencial.zip}</p>
-                    </div>
-                  ) : <p className="text-sm text-muted-foreground">N/A</p>}
-                </div>
-                <div>
-                  <h4 className="font-semibold mb-2">Endereço da Obra e Coordenadas</h4>
-                  {obra ? (
-                    <div className="text-sm space-y-1">
-                      <p>{obra.street}, {obra.number}</p>
-                      <p>{obra.neighborhood}, {obra.city} - {obra.state}</p>
-                      <p>CEP: {obra.zip}</p>
-                      <p className="pt-2"><span className="font-medium text-muted-foreground">Lat:</span> {client.coordenadas?.lat || 'N/A'}, <span className="font-medium text-muted-foreground">Lng:</span> {client.coordenadas?.lng || 'N/A'}</p>
                     </div>
                   ) : <p className="text-sm text-muted-foreground">N/A</p>}
                 </div>
@@ -323,15 +312,13 @@ export default function RelatoriosPage() {
     switch (selectedReport) {
       case 'clients':
         reportTitle = 'Relatório de Clientes';
-        head = [['Cliente', 'Contato', 'Endereço Residencial', 'Endereço da Obra']];
+        head = [['Cliente', 'Contato', 'Endereço Residencial']];
         body = data.flatMap((item: Client) => {
             const residencial = item.endereco_residencial;
-            const obra = item.endereco_obra;
             const row = [
                 { content: `${item.nome_completo}\nCPF/CNPJ: ${item.cpf_cnpj || '-'}`, styles: { fontStyle: 'bold' } },
                 `${item.telefone || '-'}\n${item.email || ''}`,
                 residencial ? `${residencial.street}, ${residencial.number}\n${residencial.neighborhood}, ${residencial.city} - ${residencial.state}\nCEP: ${residencial.zip}` : 'N/A',
-                obra ? `${obra.street}, ${obra.number}\n${obra.neighborhood}, ${obra.city} - ${obra.state}\nCEP: ${obra.zip}` : 'N/A'
             ];
             return [row];
         });
@@ -353,15 +340,13 @@ export default function RelatoriosPage() {
         break;
       case 'services':
         reportTitle = 'Relatório de Serviços';
-        head = [['Cliente / Endereços', 'Detalhes do Serviço', 'Valores', 'Status']];
+        head = [['Cliente', 'Detalhes do Serviço', 'Endereço da Obra', 'Valores', 'Status']];
         body = data.map((item: Service) => {
             const client = getClient(item.cliente_id);
-            const residencial = client?.endereco_residencial;
-            const obra = client?.endereco_obra;
-            const formattedResidencial = residencial ? `Residencial: ${residencial.street}, ${residencial.number} - ${residencial.neighborhood}, ${residencial.city}` : '';
-            const formattedObra = obra ? `Obra: ${obra.street}, ${obra.number} - ${obra.neighborhood}, ${obra.city}` : '';
+            const obra = item.endereco_obra;
+            const formattedObra = obra ? `${obra.street}, ${obra.number} - ${obra.neighborhood}, ${obra.city}` : '';
             
-            const coordenadas = (client?.coordenadas?.lat && client?.coordenadas?.lng) ? `Coords: ${client.coordenadas.lat}, ${client.coordenadas.lng}` : '';
+            const coordenadas = (item.coordenadas?.lat && item.coordenadas?.lng) ? `Coords: ${item.coordenadas.lat}, ${item.coordenadas.lng}` : '';
             const anexos = item.anexos && item.anexos.length > 0 ? `Anexos: ${item.anexos.join(', ')}` : '';
 
             const valores = `Total: R$ ${item.valor_total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}\nSaldo: R$ ${item.saldo_devedor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
@@ -369,13 +354,14 @@ export default function RelatoriosPage() {
             const statusDistribuicao = `Distribuição: ${getDistributionStatus(item).text}`;
 
             return [
-                `${client?.nome_completo || 'Desconhecido'}\n${formattedResidencial}\n${formattedObra}`, 
+                `${client?.nome_completo || 'Desconhecido'}`, 
                 `${item.descricao}\n${coordenadas}\n${anexos}`,
+                formattedObra,
                 valores,
                 `${statusServico}\n${statusDistribuicao}`
             ];
         });
-        foot = [['Total', '', `Total: R$ ${(totals.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}\nSaldo: R$ ${(totals.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, '']];
+        foot = [['Total', '', '', `Total: R$ ${(totals.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}\nSaldo: R$ ${(totals.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, '']];
         fileName = 'relatorio_servicos.pdf';
         break;
       case 'accountsPayable':
@@ -391,7 +377,7 @@ export default function RelatoriosPage() {
         body = data.map((item: Commission) => {
             const service = getService(item.servico_id);
             const client = service ? getClient(service.cliente_id) : undefined;
-            const address = client?.endereco_obra;
+            const address = service?.endereco_obra;
             const formattedAddress = address ? `${address.street}, ${address.number}, ${address.neighborhood}, ${address.city} - ${address.state}` : '';
 
             return [
@@ -593,7 +579,7 @@ export default function RelatoriosPage() {
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead>Cliente / Endereços</TableHead>
+                            <TableHead>Cliente</TableHead>
                             <TableHead>Detalhes do Serviço</TableHead>
                             <TableHead>Valores</TableHead>
                             <TableHead>Status</TableHead>
@@ -602,9 +588,7 @@ export default function RelatoriosPage() {
                   <TableBody>
                     {filteredData.length > 0 ? filteredData.slice(0, 10).map((s: Service) => {
                          const client = getClient(s.cliente_id);
-                         const residencial = client?.endereco_residencial;
-                         const obra = client?.endereco_obra;
-                         const formattedResidencial = (residencial && residencial.street) ? `Residencial: ${residencial.street}, ${residencial.number} - ${residencial.neighborhood}, ${residencial.city}` : '';
+                         const obra = s.endereco_obra;
                          const formattedObra = (obra && obra.street) ? `Obra: ${obra.street}, ${obra.number} - ${obra.neighborhood}, ${obra.city}` : '';
                          
                          const distributionStatus = getDistributionStatus(s);
@@ -613,14 +597,13 @@ export default function RelatoriosPage() {
                             <TableRow key={s.id}>
                                 <TableCell className="align-top">
                                     <div className="font-bold">{client?.nome_completo || 'Desconhecido'}</div>
-                                    <div className="text-xs text-muted-foreground">{formattedResidencial}</div>
-                                    <div className="text-xs text-muted-foreground">{formattedObra}</div>
                                 </TableCell>
                                 <TableCell className="align-top">
                                   <div className="font-medium">{s.descricao}</div>
-                                  {(client?.coordenadas?.lat && client?.coordenadas?.lng) && (
+                                  <div className="text-xs text-muted-foreground">{formattedObra}</div>
+                                  {(s.coordenadas?.lat && s.coordenadas?.lng) && (
                                     <div className="text-xs text-muted-foreground">
-                                        Coords: {client.coordenadas.lat}, {client.coordenadas.lng}
+                                        Coords: {s.coordenadas.lat}, {s.coordenadas.lng}
                                     </div>
                                   )}
                                    {(s.anexos && s.anexos.length > 0) && (
@@ -724,7 +707,7 @@ export default function RelatoriosPage() {
                     {filteredData.length > 0 ? filteredData.slice(0, 10).map((comm: Commission) => {
                         const service = getService(comm.servico_id);
                         const client = service ? getClient(service.cliente_id) : undefined;
-                        const address = client?.endereco_obra;
+                        const address = service?.endereco_obra;
                         const formattedAddress = address ? `${address.street}, ${address.number}, ${address.neighborhood}, ${address.city} - ${address.state}` : '';
                         return (
                             <TableRow key={comm.id}>

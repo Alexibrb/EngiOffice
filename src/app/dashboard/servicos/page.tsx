@@ -66,6 +66,17 @@ import { useCompanyData } from '../layout';
 import { Separator } from '@/components/ui/separator';
 import { onAuthStateChanged } from 'firebase/auth';
 
+const addressSchema = z.object({
+  street: z.string().optional(),
+  number: z.string().optional(),
+  neighborhood: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  zip: z.string().optional().refine(val => !val || val.length === 9, {
+    message: 'CEP deve ter 8 dígitos.',
+  }),
+});
+
 const serviceSchema = z.object({
   descricao: z.string().min(1, { message: 'Descrição é obrigatória.' }),
   cliente_id: z.string().min(1, { message: 'Selecione um cliente.' }),
@@ -76,6 +87,11 @@ const serviceSchema = z.object({
   forma_pagamento: z.enum(['a_vista', 'a_prazo'], { required_error: 'Forma de pagamento é obrigatória.' }),
   status: z.enum(['em andamento', 'concluído', 'cancelado']),
   anexos: z.string().optional(),
+  endereco_obra: addressSchema.optional(),
+  coordenadas: z.object({
+    lat: z.coerce.number().optional(),
+    lng: z.coerce.number().optional(),
+  }).optional(),
 });
 
 const serviceTypeSchema = z.object({
@@ -206,6 +222,7 @@ function AddServiceTypeDialog({ isOpen, setIsOpen, onServiceTypeAdded }: {
 export default function ServicosPage() {
   const [services, setServices] = useState<Service[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
+  const [cities, setCities] = useState<City[]>([]);
   const [serviceTypes, setServiceTypes] = useState<ServiceType[]>([]);
   const [search, setSearch] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -242,6 +259,8 @@ export default function ServicosPage() {
       status: 'em andamento',
       anexos: '',
       data_cadastro: new Date(),
+      endereco_obra: { street: '', number: '', neighborhood: '', city: '', state: '', zip: '' },
+      coordenadas: { lat: 0, lng: 0 },
     },
   });
 
@@ -331,16 +350,27 @@ export default function ServicosPage() {
     }
   };
 
-  const fetchClients = async () => {
+  const fetchClientsAndCities = async () => {
     try {
-        const clientsSnapshot = await getDocs(collection(db, "clientes"));
+        const [clientsSnapshot, citiesSnapshot] = await Promise.all([
+          getDocs(collection(db, "clientes")),
+          getDocs(collection(db, "cidades"))
+        ]);
         const clientsData = clientsSnapshot.docs.map(doc => ({
             ...doc.data(),
             codigo_cliente: doc.id,
         })) as Client[];
         setClients(clientsData);
+
+        const citiesData = citiesSnapshot.docs.map(doc => ({
+          ...doc.data(),
+          id: doc.id,
+        })) as City[];
+        citiesData.sort((a,b) => a.nome_cidade.localeCompare(b.nome_cidade));
+        setCities(citiesData);
+
     } catch (error) {
-        console.error("Erro ao buscar clientes: ", error);
+        console.error("Erro ao buscar clientes ou cidades: ", error);
     }
   }
 
@@ -358,7 +388,7 @@ export default function ServicosPage() {
       servicesData.sort((a, b) => a.descricao.localeCompare(b.descricao));
       setServices(servicesData);
 
-      await fetchClients();
+      await fetchClientsAndCities();
       await fetchServiceTypes();
       await fetchFinancials();
 
@@ -403,6 +433,18 @@ export default function ServicosPage() {
         valor_pago: valorPago,
         saldo_devedor: saldoDevedor,
         lucro_distribuido: false,
+        endereco_obra: {
+            street: values.endereco_obra?.street || '',
+            number: values.endereco_obra?.number || '',
+            neighborhood: values.endereco_obra?.neighborhood || '',
+            city: values.endereco_obra?.city || '',
+            state: values.endereco_obra?.state || '',
+            zip: values.endereco_obra?.zip || '',
+        },
+        coordenadas: {
+          lat: values.coordenadas?.lat || 0,
+          lng: values.coordenadas?.lng || 0,
+        },
       };
 
       if (editingService) {
@@ -544,7 +586,9 @@ export default function ServicosPage() {
         forma_pagamento: 'a_vista',
         status: 'em andamento',
         anexos: '',
-        data_cadastro: new Date()
+        data_cadastro: new Date(),
+        endereco_obra: { street: '', number: '', neighborhood: '', city: '', state: '', zip: '' },
+        coordenadas: { lat: 0, lng: 0 },
     });
     setEditingService(null);
     setIsDialogOpen(true);
@@ -619,7 +663,7 @@ export default function ServicosPage() {
 
     // Corpo do Recibo
     doc.setFontSize(12);
-    const obraAddress = (client.endereco_obra && client.endereco_obra.street) ? `${client.endereco_obra.street}, ${client.endereco_obra.number} - ${client.endereco_obra.neighborhood}, ${client.endereco_obra.city} - ${client.endereco_obra.state}` : 'Endereço da obra não informado';
+    const obraAddress = (service.endereco_obra && service.endereco_obra.street) ? `${service.endereco_obra.street}, ${service.endereco_obra.number} - ${service.endereco_obra.neighborhood}, ${service.endereco_obra.city} - ${service.endereco_obra.state}` : 'Endereço da obra não informado';
     const receiptText = `Recebemos de ${client.nome_completo}, CPF/CNPJ nº ${client.cpf_cnpj || 'Não informado'}, a importância de R$ ${valueToDisplay.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} referente ao pagamento ${isPartialPayment ? 'parcial' : ''} pelo serviço de "${service.descricao}".\n\nEndereço da Obra: ${obraAddress}`;
     const splitText = doc.splitTextToSize(receiptText, pageWidth - 40);
     doc.text(splitText, 20, 90);
@@ -784,7 +828,7 @@ export default function ServicosPage() {
                     Adicionar Serviço
                     </Button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                     <DialogTitle className="font-headline">{editingService ? 'Editar Serviço' : 'Adicionar Novo Serviço'}</DialogTitle>
                     <DialogDescription>
@@ -940,27 +984,157 @@ export default function ServicosPage() {
                                 </FormItem>
                             )}
                             />
-                            <div className="md:col-span-2 space-y-4">
-                                {editingService && (
-                                    <div>
-                                        <FormLabel>Anexos Salvos</FormLabel>
-                                        <AnexosList urls={anexosValue?.split('\n').filter(Boolean) || []} toast={toast} />
-                                    </div>
-                                )}
-                                <FormField
+                        </div>
+
+                         <Separator />
+
+                            <div>
+                                <h3 className="text-lg font-medium mb-4">Endereço da Obra e Coordenadas</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <FormField
                                     control={form.control}
-                                    name="anexos"
+                                    name="endereco_obra.street"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>{editingService ? 'Adicionar ou Remover Anexos (URLs, um por linha)' : 'Anexos (URLs, um por linha)'}</FormLabel>
-                                            <FormControl>
-                                                <Textarea rows={3} {...field} placeholder="https://exemplo.com/documento.pdf\nC:\Projetos\Cliente_Alfa\Planta_Baixa.dwg" />
-                                            </FormControl>
-                                            <FormMessage />
+                                        <FormLabel>Rua</FormLabel>
+                                        <FormControl>
+                                            <Input {...field} />
+                                        </FormControl>
+                                        <FormMessage />
                                         </FormItem>
                                     )}
+                                    />
+                                    <FormField
+                                    control={form.control}
+                                    name="endereco_obra.number"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                        <FormLabel>Número</FormLabel>
+                                        <FormControl>
+                                            <Input {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                        </FormItem>
+                                    )}
+                                    />
+                                    <FormField
+                                    control={form.control}
+                                    name="endereco_obra.neighborhood"
+                                    render={({ field }) => (
+                                        <FormItem className="md:col-span-2">
+                                        <FormLabel>Bairro</FormLabel>
+                                        <FormControl>
+                                            <Input {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                        </FormItem>
+                                    )}
+                                    />
+                                    <FormField
+                                        control={form.control}
+                                        name="endereco_obra.city"
+                                        render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Cidade</FormLabel>
+                                            <div className="flex items-center gap-2">
+                                            <Select onValueChange={(value) => {
+                                                const selectedCity = cities.find(c => c.nome_cidade === value);
+                                                field.onChange(value);
+                                                form.setValue('endereco_obra.state', selectedCity?.estado || '');
+                                            }} value={field.value}>
+                                                <FormControl><SelectTrigger><SelectValue placeholder="Selecione a Cidade" /></SelectTrigger></FormControl>
+                                                <SelectContent><>
+                                                {cities.map(city => (<SelectItem key={city.id} value={city.nome_cidade}>{city.nome_cidade}</SelectItem>))}
+                                                </></SelectContent>
+                                            </Select>
+                                            </div>
+                                            <FormMessage />
+                                        </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                    control={form.control}
+                                    name="endereco_obra.state"
+                                    render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Estado</FormLabel>
+                                        <FormControl>
+                                        <Input {...field} disabled />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                    )}
                                 />
+                                <FormField
+                                    control={form.control}
+                                    name="endereco_obra.zip"
+                                    render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>CEP</FormLabel>
+                                        <FormControl>
+                                        <Input 
+                                            {...field}
+                                            onChange={(e) => {
+                                                const { value } = e.target;
+                                                field.onChange(formatCEP(value));
+                                            }}
+                                        />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                    )}
+                                />
+                                    <FormField
+                                    control={form.control}
+                                    name="coordenadas.lat"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                        <FormLabel>Latitude</FormLabel>
+                                        <FormControl>
+                                            <Input type="number" step="any" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                        </FormItem>
+                                    )}
+                                    />
+                                    <FormField
+                                    control={form.control}
+                                    name="coordenadas.lng"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                        <FormLabel>Longitude</FormLabel>
+                                        <FormControl>
+                                            <Input type="number" step="any" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                        </FormItem>
+                                    )}
+                                    />
+                                </div>
                             </div>
+                        
+                        <Separator />
+
+                        <div className="space-y-4">
+                            {editingService && (
+                                <div>
+                                    <FormLabel>Anexos Salvos</FormLabel>
+                                    <AnexosList urls={anexosValue?.split('\n').filter(Boolean) || []} toast={toast} />
+                                </div>
+                            )}
+                            <FormField
+                                control={form.control}
+                                name="anexos"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>{editingService ? 'Adicionar ou Remover Anexos (URLs, um por linha)' : 'Anexos (URLs, um por linha)'}</FormLabel>
+                                        <FormControl>
+                                            <Textarea rows={3} {...field} placeholder="https://exemplo.com/documento.pdf\nC:\Projetos\Cliente_Alfa\Planta_Baixa.dwg" />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
                         </div>
                         <DialogFooter>
                         <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
@@ -1033,7 +1207,7 @@ export default function ServicosPage() {
                 <Table>
                 <TableHeader>
                     <TableRow>
-                        <TableHead>Cliente / Endereços</TableHead>
+                        <TableHead>Cliente</TableHead>
                         <TableHead>Detalhes do Serviço</TableHead>
                         <TableHead>Valores</TableHead>
                         <TableHead>Status</TableHead>
@@ -1043,22 +1217,19 @@ export default function ServicosPage() {
                 <TableBody>
                     {filteredServices.length > 0 ? filteredServices.map((service) => {
                         const client = getClient(service.cliente_id);
-                        const residencial = client?.endereco_residencial;
-                        const obra = client?.endereco_obra;
-                        const formattedResidencial = (residencial && residencial.street) ? `Residencial: ${residencial.street}, ${residencial.number} - ${residencial.neighborhood}, ${residencial.city}` : '';
+                        const obra = service?.endereco_obra;
                         const formattedObra = (obra && obra.street) ? `Obra: ${obra.street}, ${obra.number} - ${obra.neighborhood}, ${obra.city}` : '';
                         const distributionStatus = getDistributionStatus(service);
-                        const coordenadas = (client?.coordenadas?.lat && client?.coordenadas?.lng) ? `Coords: ${client.coordenadas.lat}, ${client.coordenadas.lng}` : '';
+                        const coordenadas = (service?.coordenadas?.lat && service?.coordenadas?.lng) ? `Coords: ${service.coordenadas.lat}, ${service.coordenadas.lng}` : '';
 
                         return (
                             <TableRow key={service.id}>
                                 <TableCell className="align-top">
                                     <div className="font-bold">{client?.nome_completo || 'Desconhecido'}</div>
-                                    <div className="text-xs text-muted-foreground">{formattedResidencial}</div>
-                                    <div className="text-xs text-muted-foreground">{formattedObra}</div>
                                 </TableCell>
                                 <TableCell className="align-top">
                                   <div className="font-medium">{service.descricao}</div>
+                                  <div className="text-xs text-muted-foreground">{formattedObra}</div>
                                   <div className="text-xs text-muted-foreground">{coordenadas}</div>
                                   {(service.anexos && service.anexos.length > 0) && (
                                     <div className="text-xs text-muted-foreground mt-1 space-y-1">
@@ -1388,3 +1559,4 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, paymentValue, fi
         </Dialog>
     );
 }
+

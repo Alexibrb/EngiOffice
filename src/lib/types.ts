@@ -21,8 +21,6 @@ export type Client = {
   cpf_cnpj: string;
   telefone: string;
   endereco_residencial: Address;
-  endereco_obra: Address;
-  coordenadas: Geo;
   numero_art: string;
   historico_servicos: string[];
 };
@@ -65,6 +63,8 @@ export type Service = {
   status: 'em andamento' | 'concluído' | 'cancelado';
   anexos?: string[];
   lucro_distribuido?: boolean;
+  endereco_obra: Address;
+  coordenadas: Geo;
 };
 
 export type ServiceType = {
@@ -77,6 +77,7 @@ export type Account = {
     descricao: string;
     referencia_id: string; 
     tipo_referencia?: 'fornecedor' | 'funcionario';
+    servico_id?: string;
     valor: number;
     vencimento: Date; 
     status: 'pago' | 'pendente';
