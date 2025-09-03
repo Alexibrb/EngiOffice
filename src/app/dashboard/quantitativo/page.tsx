@@ -45,24 +45,24 @@ type SapataRow = {
   pav: string;
   tipo: string;
   bitola: string;
-  quant: number;
-  largura: number;
-  comprimento: number;
-  altura: number;
-  elosHoriz: number;
-  elosVert: number;
+  quant: string;
+  largura: string;
+  comprimento: string;
+  altura: string;
+  elosHoriz: string;
+  elosVert: string;
 };
 
 const initialSapataRow: Omit<SapataRow, 'id'> = {
   pav: 'Térreo',
   tipo: 'S1',
   bitola: '3/8',
-  quant: 1,
-  largura: 0,
-  comprimento: 0,
-  altura: 0,
-  elosHoriz: 0,
-  elosVert: 0,
+  quant: '1',
+  largura: '',
+  comprimento: '',
+  altura: '',
+  elosHoriz: '',
+  elosVert: '',
 };
 
 const COMPRIMENTO_BARRA_FERRO = 12; // metros
@@ -122,11 +122,10 @@ const SapataCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimento
     setRows(rows.filter(row => row.id !== id));
   };
 
-  const handleInputChange = (id: string, field: keyof SapataRow, value: string | number) => {
+  const handleInputChange = (id: string, field: keyof SapataRow, value: string) => {
     const newRows = rows.map(row => {
       if (row.id === id) {
-        const parsedValue = (typeof value === 'string' && (field === 'pav' || field === 'tipo' || field === 'bitola')) ? value : parseFloat(String(value)) || 0;
-        return { ...row, [field]: parsedValue };
+        return { ...row, [field]: value };
       }
       return row;
     });
@@ -140,19 +139,26 @@ const SapataCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimento
 
   const calculatedRows = useMemo(() => {
     return filteredRows.map(row => {
+      const quant = parseFloat(row.quant) || 0;
+      const largura = parseFloat(row.largura) || 0;
+      const comprimento = parseFloat(row.comprimento) || 0;
+      const altura = parseFloat(row.altura) || 0;
+      const elosHoriz = parseFloat(row.elosHoriz) || 0;
+      const elosVert = parseFloat(row.elosVert) || 0;
+
       const dobraCm = 7;
-      const larguraM = row.largura / 100;
-      const comprimentoM = row.comprimento / 100;
-      const alturaM = row.altura / 100;
+      const larguraM = largura / 100;
+      const comprimentoM = comprimento / 100;
+      const alturaM = altura / 100;
       
-      const larguraComDobraM = (row.largura + dobraCm) / 100;
-      const comprimentoComDobraM = (row.comprimento + dobraCm) / 100;
-      const alturaComDobraM = (row.altura + dobraCm) / 100;
+      const larguraComDobraM = (largura + dobraCm) / 100;
+      const comprimentoComDobraM = (comprimento + dobraCm) / 100;
+      const alturaComDobraM = (altura + dobraCm) / 100;
       
       const volumeUnitario = larguraM * comprimentoM * alturaM;
-      const volumeTotal = volumeUnitario * row.quant;
+      const volumeTotal = volumeUnitario * quant;
       
-      const totalLinearFerro = (((alturaComDobraM + larguraComDobraM) * 2 * row.elosVert) + ((comprimentoComDobraM + larguraComDobraM) * 2 * row.elosHoriz)) * row.quant;
+      const totalLinearFerro = (((alturaComDobraM + larguraComDobraM) * 2 * elosVert) + ((comprimentoComDobraM + larguraComDobraM) * 2 * elosHoriz)) * quant;
       const totalBarrasFerro = totalLinearFerro / COMPRIMENTO_BARRA_FERRO;
 
       const cimentoSacos = volumeTotal > 0 ? volumeTotal / 0.16 : 0;
@@ -305,22 +311,22 @@ type VigamentoRow = {
   pav: string;
   tipo: string;
   bitola: string;
-  quant: number;
-  comprimento: number; // m
-  largura: number; // cm
-  altura: number; // cm
-  quantDeFerro: number;
+  quant: string;
+  comprimento: string; // m
+  largura: string; // cm
+  altura: string; // cm
+  quantDeFerro: string;
 };
 
 const initialVigamentoRow: Omit<VigamentoRow, 'id'> = {
   pav: 'Térreo',
   tipo: 'V1',
   bitola: '3/8',
-  quant: 1,
-  comprimento: 0,
-  largura: 0,
-  altura: 0,
-  quantDeFerro: 0,
+  quant: '1',
+  comprimento: '',
+  largura: '',
+  altura: '',
+  quantDeFerro: '',
 };
 
 const VigamentoCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoFilter }, ref) => {
@@ -334,11 +340,10 @@ const VigamentoCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavime
     setRows(rows.filter(row => row.id !== id));
   };
 
-  const handleInputChange = (id: string, field: keyof VigamentoRow, value: string | number) => {
+  const handleInputChange = (id: string, field: keyof VigamentoRow, value: string) => {
     const newRows = rows.map(row => {
       if (row.id === id) {
-        const parsedValue = (typeof value === 'string' && (field === 'pav' || field === 'tipo' || field === 'bitola')) ? value : parseFloat(String(value)) || 0;
-        return { ...row, [field]: parsedValue };
+        return { ...row, [field]: value };
       }
       return row;
     });
@@ -352,22 +357,28 @@ const VigamentoCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavime
 
   const calculatedRows = useMemo(() => {
     return filteredRows.map(row => {
-      const larguraM = row.largura / 100;
-      const alturaM = row.altura / 100;
-      const comprimentoM = row.comprimento;
+      const quant = parseFloat(row.quant) || 0;
+      const comprimento = parseFloat(row.comprimento) || 0;
+      const largura = parseFloat(row.largura) || 0;
+      const altura = parseFloat(row.altura) || 0;
+      const quantDeFerro = parseFloat(row.quantDeFerro) || 0;
+
+      const larguraM = largura / 100;
+      const alturaM = altura / 100;
+      const comprimentoM = comprimento;
       
       const volumeUnitario = larguraM * alturaM * comprimentoM;
-      const volumeTotal = volumeUnitario * row.quant;
+      const volumeTotal = volumeUnitario * quant;
       
-      const totalLinearFerro = (comprimentoM + 0.5) * row.quantDeFerro * row.quant;
+      const totalLinearFerro = (comprimentoM + 0.5) * quantDeFerro * quant;
       const totalBarrasFerro = totalLinearFerro / COMPRIMENTO_BARRA_FERRO;
 
       const cimentoSacos = volumeTotal > 0 ? volumeTotal / 0.16 : 0;
       const areiaM3 = (cimentoSacos * 5 * 18) / 1000;
       const britaM3 = (cimentoSacos * 6 * 18) / 1000;
 
-      const quantEstribosTotal = (comprimentoM > 0 ? comprimentoM / 0.15 : 0) * row.quant;
-      const tamEstriboCm = ((row.largura - 3) + (row.altura - 3)) * 2 + 5;
+      const quantEstribosTotal = (comprimentoM > 0 ? comprimentoM / 0.15 : 0) * quant;
+      const tamEstriboCm = ((largura - 3) + (altura - 3)) * 2 + 5;
       const tamEstriboM = tamEstriboCm / 100;
       const totalLinearEstribos = tamEstriboM * quantEstribosTotal;
       const totalBarrasEstribos = totalLinearEstribos > 0 ? totalLinearEstribos / COMPRIMENTO_BARRA_FERRO : 0;
@@ -522,22 +533,22 @@ type PilarRow = {
   pav: string;
   tipo: string;
   bitola: string;
-  quant: number;
-  comprimento: number; // m - altura do pilar
-  largura: number; // cm
-  altura: number; // cm - profundidade do pilar
-  quantDeFerro: number;
+  quant: string;
+  comprimento: string; // m - altura do pilar
+  largura: string; // cm
+  altura: string; // cm - profundidade do pilar
+  quantDeFerro: string;
 };
 
 const initialPilarRow: Omit<PilarRow, 'id'> = {
   pav: 'Térreo',
   tipo: 'P1',
   bitola: '3/8',
-  quant: 1,
-  comprimento: 0,
-  largura: 0,
-  altura: 0,
-  quantDeFerro: 0,
+  quant: '1',
+  comprimento: '',
+  largura: '',
+  altura: '',
+  quantDeFerro: '',
 };
 
 const PilarCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoFilter }, ref) => {
@@ -551,11 +562,10 @@ const PilarCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoF
     setRows(rows.filter(row => row.id !== id));
   };
 
-  const handleInputChange = (id: string, field: keyof PilarRow, value: string | number) => {
+  const handleInputChange = (id: string, field: keyof PilarRow, value: string) => {
     const newRows = rows.map(row => {
       if (row.id === id) {
-        const parsedValue = (typeof value === 'string' && (field === 'pav' || field === 'tipo' || field === 'bitola')) ? value : parseFloat(String(value)) || 0;
-        return { ...row, [field]: parsedValue };
+        return { ...row, [field]: value };
       }
       return row;
     });
@@ -569,36 +579,42 @@ const PilarCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoF
 
   const calculatedRows = useMemo(() => {
     return filteredRows.map(row => {
-      const larguraM = row.largura / 100;
-      const alturaM = row.altura / 100;
-      const comprimentoM = row.comprimento;
+        const quant = parseFloat(row.quant) || 0;
+        const comprimento = parseFloat(row.comprimento) || 0;
+        const largura = parseFloat(row.largura) || 0;
+        const altura = parseFloat(row.altura) || 0;
+        const quantDeFerro = parseFloat(row.quantDeFerro) || 0;
+
+        const larguraM = largura / 100;
+        const alturaM = altura / 100;
+        const comprimentoM = comprimento;
       
-      const volumeUnitario = larguraM * alturaM * comprimentoM;
-      const volumeTotal = volumeUnitario * row.quant;
+        const volumeUnitario = larguraM * alturaM * comprimentoM;
+        const volumeTotal = volumeUnitario * quant;
       
-      const totalLinearFerro = (comprimentoM + 0.5) * row.quantDeFerro * row.quant;
-      const totalBarrasFerro = totalLinearFerro / COMPRIMENTO_BARRA_FERRO;
+        const totalLinearFerro = (comprimentoM + 0.5) * quantDeFerro * quant;
+        const totalBarrasFerro = totalLinearFerro / COMPRIMENTO_BARRA_FERRO;
 
-      const cimentoSacos = volumeTotal > 0 ? volumeTotal / 0.16 : 0;
-      const areiaM3 = (cimentoSacos * 5 * 18) / 1000;
-      const britaM3 = (cimentoSacos * 6 * 18) / 1000;
+        const cimentoSacos = volumeTotal > 0 ? volumeTotal / 0.16 : 0;
+        const areiaM3 = (cimentoSacos * 5 * 18) / 1000;
+        const britaM3 = (cimentoSacos * 6 * 18) / 1000;
 
-      const quantEstribosTotal = (comprimentoM > 0 ? comprimentoM / 0.15 : 0) * row.quant;
-      const tamEstriboCm = ((row.largura - 3) + (row.altura - 3)) * 2 + 5;
-      const tamEstriboM = tamEstriboCm / 100;
-      const totalLinearEstribos = tamEstriboM * quantEstribosTotal;
-      const totalBarrasEstribos = totalLinearEstribos > 0 ? totalLinearEstribos / COMPRIMENTO_BARRA_FERRO : 0;
+        const quantEstribosTotal = (comprimentoM > 0 ? comprimentoM / 0.15 : 0) * quant;
+        const tamEstriboCm = ((largura - 3) + (altura - 3)) * 2 + 5;
+        const tamEstriboM = tamEstriboCm / 100;
+        const totalLinearEstribos = tamEstriboM * quantEstribosTotal;
+        const totalBarrasEstribos = totalLinearEstribos > 0 ? totalLinearEstribos / COMPRIMENTO_BARRA_FERRO : 0;
 
-      return {
-        ...row,
-        volume: volumeTotal,
-        totalLinear: totalLinearFerro,
-        totalBarras: totalBarrasFerro,
-        cimento: cimentoSacos,
-        areia: areiaM3,
-        brita: britaM3,
-        quantFerro3_16: totalBarrasEstribos,
-      };
+        return {
+            ...row,
+            volume: volumeTotal,
+            totalLinear: totalLinearFerro,
+            totalBarras: totalBarrasFerro,
+            cimento: cimentoSacos,
+            areia: areiaM3,
+            brita: britaM3,
+            quantFerro3_16: totalBarrasEstribos,
+        };
     });
   }, [filteredRows]);
 
@@ -738,16 +754,16 @@ type LajeRow = {
   pav: string;
   descricao: string;
   tipo: 'Laje' | 'Contrapiso';
-  espessuraConcreto: number; // cm
-  area: number; // m²
+  espessuraConcreto: string; // cm
+  area: string; // m²
 };
 
 const initialLajeRow: Omit<LajeRow, 'id'> = {
   pav: 'Térreo',
   descricao: 'Laje 1',
   tipo: 'Laje',
-  espessuraConcreto: 0,
-  area: 0,
+  espessuraConcreto: '',
+  area: '',
 };
 
 const LajeCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoFilter }, ref) => {
@@ -761,11 +777,10 @@ const LajeCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoFi
     setRows(rows.filter(row => row.id !== id));
   };
 
-  const handleInputChange = (id: string, field: keyof LajeRow, value: string | number) => {
+  const handleInputChange = (id: string, field: keyof LajeRow, value: string) => {
     const newRows = rows.map(row => {
       if (row.id === id) {
-        const parsedValue = (typeof value === 'string' && (field === 'pav' || field === 'descricao' || field === 'tipo')) ? value : parseFloat(String(value)) || 0;
-        return { ...row, [field]: parsedValue };
+        return { ...row, [field]: value };
       }
       return row;
     });
@@ -779,8 +794,11 @@ const LajeCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoFi
 
   const calculatedRows = useMemo(() => {
     return filteredRows.map(row => {
-      const espessuraM = row.espessuraConcreto / 100;
-      const volumeTotal = row.area * espessuraM;
+      const espessuraConcreto = parseFloat(row.espessuraConcreto) || 0;
+      const area = parseFloat(row.area) || 0;
+
+      const espessuraM = espessuraConcreto / 100;
+      const volumeTotal = area * espessuraM;
       const cimentoSacos = volumeTotal > 0 ? volumeTotal / 0.14 : 0;
       const areiaM3 = cimentoSacos > 0 ? (cimentoSacos * 4 * 18) / 1000 : 0;
       const britaM3 = cimentoSacos > 0 ? (cimentoSacos * 5 * 18) / 1000 : 0;
@@ -806,12 +824,13 @@ const LajeCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoFi
     };
 
     calculatedRows.forEach(row => {
+        const area = parseFloat(row.area) || 0;
         (totals.volume as number) += row.volume;
         (totals.cimento as number) += row.cimento;
         (totals.areia as number) += row.areia;
         (totals.brita as number) += row.brita;
         if (row.tipo === 'Laje') {
-            (totals.area as number) += row.area;
+            (totals.area as number) += area;
         }
     });
 
@@ -822,7 +841,7 @@ const LajeCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoFi
         cimento: row.cimento,
         areia: row.areia,
         brita: row.brita,
-        area: row.area
+        area: parseFloat(row.area) || 0,
     }));
 
     return totals;
@@ -927,19 +946,19 @@ type AlvenariaRow = {
   id: string;
   pav: string;
   descricao: string;
-  area: number; // m²
-  larguraBloco: number; // cm
-  alturaBloco: number; // cm
-  junta: number; // cm
+  area: string; // m²
+  larguraBloco: string; // cm
+  alturaBloco: string; // cm
+  junta: string; // cm
 };
 
 const initialAlvenariaRow: Omit<AlvenariaRow, 'id'> = {
   pav: 'Térreo',
   descricao: 'Parede 1',
-  area: 0,
-  larguraBloco: 0,
-  alturaBloco: 0,
-  junta: 1.5,
+  area: '',
+  larguraBloco: '',
+  alturaBloco: '',
+  junta: '1.5',
 };
 
 const AlvenariaCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoFilter }, ref) => {
@@ -953,11 +972,10 @@ const AlvenariaCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavime
     setRows(rows.filter(row => row.id !== id));
   };
 
-  const handleInputChange = (id: string, field: keyof AlvenariaRow, value: string | number) => {
+  const handleInputChange = (id: string, field: keyof AlvenariaRow, value: string) => {
     const newRows = rows.map(row => {
       if (row.id === id) {
-        const parsedValue = (typeof value === 'string' && (field === 'descricao' || field === 'pav')) ? value : parseFloat(String(value)) || 0;
-        return { ...row, [field]: parsedValue };
+        return { ...row, [field]: value };
       }
       return row;
     });
@@ -971,33 +989,38 @@ const AlvenariaCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavime
   
   const calculatedRows = useMemo(() => {
     return filteredRows.map(row => {
-      const A = row.area;
-      const L = row.larguraBloco / 100; // m
-      const H = row.alturaBloco / 100; // m
-      const j_cm = row.junta;
+        const area = parseFloat(row.area) || 0;
+        const larguraBloco = parseFloat(row.larguraBloco) || 0;
+        const alturaBloco = parseFloat(row.alturaBloco) || 0;
+        const junta = parseFloat(row.junta) || 0;
+
+        const A = area;
+        const L = larguraBloco / 100; // m
+        const H = alturaBloco / 100; // m
+        const j_cm = junta;
       
-      const areaBlocoComJunta = (L > 0 && H > 0) ? (L + (j_cm / 100)) * (H + (j_cm / 100)) : 0;
-      const N_blocos = areaBlocoComJunta > 0 ? A / areaBlocoComJunta : 0;
-      const N_final = N_blocos * (1 + 0.05); // 5% de perda
+        const areaBlocoComJunta = (L > 0 && H > 0) ? (L + (j_cm / 100)) * (H + (j_cm / 100)) : 0;
+        const N_blocos = areaBlocoComJunta > 0 ? A / areaBlocoComJunta : 0;
+        const N_final = N_blocos * (1 + 0.05); // 5% de perda
       
-      const V_arg = A * (0.02 * j_cm); 
-      const V_final = V_arg * (1 + 0.10); // 10% de perda
+        const V_arg = A * (0.02 * j_cm); 
+        const V_final = V_arg * (1 + 0.10); // 10% de perda
       
-      const Cc = 430; // kg/m³
-      const Ca = 1.2; // m³/m³
+        const Cc = 430; // kg/m³
+        const Ca = 1.2; // m³/m³
       
-      const Q_cimento = V_final * Cc;
-      const Sacos = Q_cimento > 0 ? Q_cimento / 50 : 0;
-      const Q_areia = V_final * Ca;
+        const Q_cimento = V_final * Cc;
+        const Sacos = Q_cimento > 0 ? Q_cimento / 50 : 0;
+        const Q_areia = V_final * Ca;
       
 
-      return {
-        ...row,
-        blocos: N_final,
-        argamassa: V_final,
-        cimento: Sacos,
-        areia: Q_areia,
-      };
+        return {
+            ...row,
+            blocos: N_final,
+            argamassa: V_final,
+            cimento: Sacos,
+            areia: Q_areia,
+        };
     });
   }, [filteredRows]);
 
@@ -1103,17 +1126,17 @@ type RebocoRow = {
   id: string;
   pav: string;
   descricao: string;
-  area: number; // m²
-  espessura: number; // cm
-  lados: 1 | 2;
+  area: string; // m²
+  espessura: string; // cm
+  lados: '1' | '2';
 };
 
 const initialRebocoRow: Omit<RebocoRow, 'id'> = {
   pav: 'Térreo',
   descricao: 'Parede 1',
-  area: 0,
-  espessura: 0,
-  lados: 1,
+  area: '',
+  espessura: '',
+  lados: '1',
 };
 
 const RebocoCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoFilter }, ref) => {
@@ -1127,11 +1150,10 @@ const RebocoCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimento
     setRows(rows.filter(row => row.id !== id));
   };
 
-  const handleInputChange = (id: string, field: keyof RebocoRow, value: string | number) => {
+  const handleInputChange = (id: string, field: keyof RebocoRow, value: string) => {
     const newRows = rows.map(row => {
       if (row.id === id) {
-        const parsedValue = (typeof value === 'string' && (field === 'descricao' || field === 'pav')) ? value : parseFloat(String(value)) || 0;
-        return { ...row, [field]: parsedValue };
+        return { ...row, [field]: value };
       }
       return row;
     });
@@ -1145,8 +1167,12 @@ const RebocoCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimento
   
   const calculatedRows = useMemo(() => {
     return filteredRows.map(row => {
-      const A = row.area * row.lados;
-      const e = row.espessura / 100; // m
+      const area = parseFloat(row.area) || 0;
+      const espessura = parseFloat(row.espessura) || 0;
+      const lados = parseFloat(row.lados) || 1;
+
+      const A = area * lados;
+      const e = espessura / 100; // m
 
       const Cc = 430;
       const Ca = 1.2;
@@ -1225,7 +1251,7 @@ const RebocoCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimento
                   <TableCell><Input type="number" step="0.1" value={row.area} onChange={(e) => handleInputChange(row.id, 'area', e.target.value)} /></TableCell>
                   <TableCell><Input type="number" step="0.1" value={row.espessura} onChange={(e) => handleInputChange(row.id, 'espessura', e.target.value)} /></TableCell>
                   <TableCell>
-                     <Select value={String(row.lados)} onValueChange={(value) => handleInputChange(row.id, 'lados', parseInt(value))}>
+                     <Select value={String(row.lados)} onValueChange={(value) => handleInputChange(row.id, 'lados', value as '1' | '2')}>
                         <SelectTrigger className="w-[80px]">
                             <SelectValue />
                         </SelectTrigger>
@@ -1602,3 +1628,4 @@ export default function QuantitativoPage() {
     </div>
   );
 }
+
