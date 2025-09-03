@@ -146,22 +146,20 @@ const SapataCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimento
       const elosHoriz = parseFloat(row.elosHoriz) || 0;
       const elosVert = parseFloat(row.elosVert) || 0;
 
-      // Concrete cover (cobrimento)
       const folgaCm = 20;
 
       const larguraM = largura / 100;
       const comprimentoM = comprimento / 100;
       const alturaM = altura / 100;
 
-      // Calculate bar lengths considering concrete cover
-      const comprimentoBarraVerticalM = (comprimento - folgaCm) / 100;
-      const comprimentoBarraHorizontalM = (largura - folgaCm) / 100;
+      const comprimentoBarraVerticalM = (comprimento > folgaCm) ? (comprimento - folgaCm) / 100 : 0;
+      const comprimentoBarraHorizontalM = (largura > folgaCm) ? (largura - folgaCm) / 100 : 0;
 
       const volumeUnitario = larguraM * comprimentoM * alturaM;
       const volumeTotal = volumeUnitario * quant;
       
       const totalLinearFerro = ((comprimentoBarraHorizontalM * elosHoriz) + (comprimentoBarraVerticalM * elosVert)) * quant;
-      const totalBarrasFerro = totalLinearFerro / COMPRIMENTO_BARRA_FERRO;
+      const totalBarrasFerro = totalLinearFerro > 0 ? totalLinearFerro / COMPRIMENTO_BARRA_FERRO : 0;
 
       const cimentoSacos = volumeTotal > 0 ? volumeTotal / 0.16 : 0;
       const areiaM3 = (cimentoSacos * 5 * 18) / 1000;
@@ -372,18 +370,16 @@ const VigamentoCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavime
       const volumeUnitario = larguraM * alturaM * comprimentoM;
       const volumeTotal = volumeUnitario * quant;
       
-      const totalLinearFerro = (comprimentoM + 0.5) * quantDeFerro * quant;
-      const totalBarrasFerro = totalLinearFerro / COMPRIMENTO_BARRA_FERRO;
+      const totalLinearFerro = (comprimentoM > 0 ? (comprimentoM + 0.5) : 0) * quantDeFerro * quant;
+      const totalBarrasFerro = totalLinearFerro > 0 ? totalLinearFerro / COMPRIMENTO_BARRA_FERRO : 0;
 
       const cimentoSacos = volumeTotal > 0 ? volumeTotal / 0.16 : 0;
       const areiaM3 = (cimentoSacos * 5 * 18) / 1000;
       const britaM3 = (cimentoSacos * 6 * 18) / 1000;
 
-      const quantEstribosTotal = (comprimentoM > 0 ? comprimentoM / 0.15 : 0) * quant;
-      const tamEstriboCm = ((largura - 3) + (altura - 3)) * 2 + 5;
-      const tamEstriboM = tamEstriboCm / 100;
-      const totalLinearEstribos = tamEstriboM * quantEstribosTotal;
-      const totalBarrasEstribos = totalLinearEstribos > 0 ? totalLinearEstribos / COMPRIMENTO_BARRA_FERRO : 0;
+      const totalBarrasEstribos = (comprimentoM > 0 && COMPRIMENTO_BARRA_FERRO > 0) 
+        ? ((comprimentoM / 0.15) * (((largura + altura + 4) * 2) / 100) * quant) / COMPRIMENTO_BARRA_FERRO
+        : 0;
 
       return {
         ...row,
@@ -594,18 +590,16 @@ const PilarCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoF
         const volumeUnitario = larguraM * alturaM * comprimentoM;
         const volumeTotal = volumeUnitario * quant;
       
-        const totalLinearFerro = (comprimentoM + 0.5) * quantDeFerro * quant;
-        const totalBarrasFerro = totalLinearFerro / COMPRIMENTO_BARRA_FERRO;
+        const totalLinearFerro = (comprimentoM > 0 ? (comprimentoM + 0.5) : 0) * quantDeFerro * quant;
+        const totalBarrasFerro = totalLinearFerro > 0 ? totalLinearFerro / COMPRIMENTO_BARRA_FERRO : 0;
 
         const cimentoSacos = volumeTotal > 0 ? volumeTotal / 0.16 : 0;
         const areiaM3 = (cimentoSacos * 5 * 18) / 1000;
         const britaM3 = (cimentoSacos * 6 * 18) / 1000;
 
-        const quantEstribosTotal = (comprimentoM > 0 ? comprimentoM / 0.15 : 0) * quant;
-        const tamEstriboCm = ((largura - 3) + (altura - 3)) * 2 + 5;
-        const tamEstriboM = tamEstriboCm / 100;
-        const totalLinearEstribos = tamEstriboM * quantEstribosTotal;
-        const totalBarrasEstribos = totalLinearEstribos > 0 ? totalLinearEstribos / COMPRIMENTO_BARRA_FERRO : 0;
+        const totalBarrasEstribos = (comprimentoM > 0 && COMPRIMENTO_BARRA_FERRO > 0) 
+          ? ((comprimentoM / 0.15) * (((largura + altura + 4) * 2) / 100) * quant) / COMPRIMENTO_BARRA_FERRO
+          : 0;
 
         return {
             ...row,
