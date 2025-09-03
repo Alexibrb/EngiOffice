@@ -33,7 +33,6 @@ import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { UserNav } from './user-nav';
 
-
 const dashboardLink = { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard };
 
 const cadastroLinks = [
@@ -65,7 +64,7 @@ const aiLinks = [
     label: 'Sugestões IA',
     icon: Sparkles,
   },
-]
+];
 
 function NavGroup({
   label,

@@ -1,4 +1,5 @@
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from './ui/button';
 import {
   Menu,
