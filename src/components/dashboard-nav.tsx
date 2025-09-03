@@ -35,35 +35,49 @@ import { UserNav } from './user-nav';
 
 const dashboardLink = { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard };
 
-const cadastroLinks = [
-  { href: '/dashboard/clientes', label: 'Clientes', icon: Users },
-  { href: '/dashboard/servicos', label: 'Serviços', icon: Wrench },
-  { href: '/dashboard/fornecedores', label: 'Fornecedores', icon: Truck },
-  { href: '/dashboard/funcionarios', label: 'Funcionários', icon: Briefcase },
-];
-
-const financeiroLinks = [
-  { href: '/dashboard/contas-a-pagar', label: 'Contas a Pagar', icon: ArrowDown },
-  { href: '/dashboard/contas-a-receber', label: 'Contas a Receber', icon: ArrowUp },
-  { href: '/dashboard/comissoes', label: 'Comissões', icon: HandCoins },
-];
-
-const relatoriosLinks = [
-    { href: '/dashboard/relatorios', label: 'Relatórios', icon: FileText },
-    { href: '/dashboard/analytics', label: 'Analytics', icon: LineChart },
-];
-
-const calculosLinks = [
-    { href: '/dashboard/quantitativo', label: 'Quantitativo', icon: ClipboardList },
-    { href: '/dashboard/calculadora', label: 'Calculadora', icon: Calculator },
-];
-
-const aiLinks = [
-    {
-    href: '/dashboard/timeline-sugestoes',
-    label: 'Sugestões IA',
-    icon: Sparkles,
+const navLinks = [
+  {
+    group: 'Cadastros',
+    icon: Building2,
+    links: [
+      { href: '/dashboard/clientes', label: 'Clientes', icon: Users },
+      { href: '/dashboard/servicos', label: 'Serviços', icon: Wrench },
+      { href: '/dashboard/fornecedores', label: 'Fornecedores', icon: Truck },
+      { href: '/dashboard/funcionarios', label: 'Funcionários', icon: Briefcase },
+    ],
   },
+  {
+    group: 'Financeiro',
+    icon: Banknote,
+    links: [
+      { href: '/dashboard/contas-a-pagar', label: 'Contas a Pagar', icon: ArrowDown },
+      { href: '/dashboard/contas-a-receber', label: 'Contas a Receber', icon: ArrowUp },
+      { href: '/dashboard/comissoes', label: 'Comissões', icon: HandCoins },
+    ],
+  },
+  {
+    group: 'Relatórios',
+    icon: Presentation,
+    links: [
+        { href: '/dashboard/relatorios', label: 'Relatórios', icon: FileText },
+        { href: '/dashboard/analytics', label: 'Analytics', icon: LineChart },
+    ],
+  },
+  {
+    group: 'Cálculos',
+    icon: SquareFunction,
+    links: [
+        { href: '/dashboard/quantitativo', label: 'Quantitativo', icon: ClipboardList },
+        { href: '/dashboard/calculadora', label: 'Calculadora', icon: Calculator },
+    ],
+  },
+    {
+    group: 'IA',
+    icon: Sparkles,
+    links: [
+        { href: '/dashboard/timeline-sugestoes', label: 'Sugestões IA', icon: Sparkles },
+    ]
+  }
 ];
 
 function NavGroup({
@@ -138,20 +152,9 @@ export function DashboardNav() {
             <dashboardLink.icon className="h-5 w-5" />
             {dashboardLink.label}
          </Link>
-        <NavGroup label="Cadastros" icon={Building2} links={cadastroLinks} pathname={pathname} />
-        <NavGroup label="Financeiro" icon={Banknote} links={financeiroLinks} pathname={pathname} />
-        <NavGroup label="Relatórios" icon={Presentation} links={relatoriosLinks} pathname={pathname} />
-        <NavGroup label="Cálculos" icon={SquareFunction} links={calculosLinks} pathname={pathname} />
-        <Link
-            href={aiLinks[0].href}
-            className={cn(
-                "flex items-center gap-3 rounded-md p-2 text-base font-medium hover:bg-accent",
-                pathname === aiLinks[0].href && "bg-accent text-accent-foreground"
-            )}
-            >
-            <aiLinks[0].icon className="h-5 w-5" />
-            {aiLinks[0].label}
-         </Link>
+         {navLinks.map((group) => (
+            <NavGroup key={group.group} label={group.group} icon={group.icon} links={group.links} pathname={pathname} />
+         ))}
        </nav>
         <div className="mt-auto border-t p-4">
           <UserNav />
