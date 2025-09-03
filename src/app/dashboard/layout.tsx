@@ -12,6 +12,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import type { CompanyData } from '@/lib/types';
 import Image from 'next/image';
 import { ThemeSwitcher } from '@/components/theme-switcher';
+import { SidebarProvider } from '@/components/ui/sidebar';
 
 
 const CompanyDataContext = createContext<CompanyData | null>(null);
@@ -104,21 +105,23 @@ export default function DashboardLayout({
   }
 
   return (
-    <CompanyDataContext.Provider value={companyData}>
-        <div className="flex min-h-screen w-full">
-          <aside className="hidden md:block w-72 border-r bg-background">
-            <DashboardNav />
-          </aside>
-          <div className="flex flex-1 flex-col">
-            <header className="sticky top-0 z-30 flex h-auto flex-col border-b bg-background">
-                <CompanyHeader companyData={companyData} />
-            </header>
-            <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
-              <Header />
-              {children}
-            </main>
+    <SidebarProvider>
+      <CompanyDataContext.Provider value={companyData}>
+          <div className="flex min-h-screen w-full">
+            <aside className="hidden md:block w-72 border-r bg-background">
+              <DashboardNav />
+            </aside>
+            <div className="flex flex-1 flex-col">
+              <header className="sticky top-0 z-30 flex h-auto flex-col border-b bg-background">
+                  <CompanyHeader companyData={companyData} />
+              </header>
+              <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
+                <Header />
+                {children}
+              </main>
+            </div>
           </div>
-        </div>
-    </CompanyDataContext.Provider>
+      </CompanyDataContext.Provider>
+    </SidebarProvider>
   );
 }
