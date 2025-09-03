@@ -146,19 +146,21 @@ const SapataCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimento
       const elosHoriz = parseFloat(row.elosHoriz) || 0;
       const elosVert = parseFloat(row.elosVert) || 0;
 
-      const dobraCm = 7;
+      // Concrete cover (cobrimento)
+      const folgaCm = 20;
+
       const larguraM = largura / 100;
       const comprimentoM = comprimento / 100;
       const alturaM = altura / 100;
-      
-      const larguraComDobraM = (largura + dobraCm) / 100;
-      const comprimentoComDobraM = (comprimento + dobraCm) / 100;
-      const alturaComDobraM = (altura + dobraCm) / 100;
-      
+
+      // Calculate bar lengths considering concrete cover
+      const comprimentoBarraVerticalM = (comprimento - folgaCm) / 100;
+      const comprimentoBarraHorizontalM = (largura - folgaCm) / 100;
+
       const volumeUnitario = larguraM * comprimentoM * alturaM;
       const volumeTotal = volumeUnitario * quant;
       
-      const totalLinearFerro = (((alturaComDobraM + larguraComDobraM) * 2 * elosVert) + ((comprimentoComDobraM + larguraComDobraM) * 2 * elosHoriz)) * quant;
+      const totalLinearFerro = ((comprimentoBarraHorizontalM * elosHoriz) + (comprimentoBarraVerticalM * elosVert)) * quant;
       const totalBarrasFerro = totalLinearFerro / COMPRIMENTO_BARRA_FERRO;
 
       const cimentoSacos = volumeTotal > 0 ? volumeTotal / 0.16 : 0;
@@ -229,8 +231,8 @@ const SapataCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimento
                 <TableHead>Largura (cm)</TableHead>
                 <TableHead>Compr. (cm)</TableHead>
                 <TableHead>Altura (cm)</TableHead>
-                <TableHead>Elos Horiz.</TableHead>
-                <TableHead>Elos Vert.</TableHead>
+                <TableHead>Barras Horiz.</TableHead>
+                <TableHead>Barras Vert.</TableHead>
                 <TableHead>Volume (m³)</TableHead>
                 <TableHead>Total Linear (m)</TableHead>
                 <TableHead className="font-bold bg-primary/10">Barras de 12m</TableHead>
@@ -1628,4 +1630,3 @@ export default function QuantitativoPage() {
     </div>
   );
 }
-
