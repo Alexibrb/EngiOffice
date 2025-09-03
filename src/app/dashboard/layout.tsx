@@ -7,7 +7,6 @@ import { onAuthStateChanged, User as FirebaseAuthUser } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { DashboardNav } from '@/components/dashboard-nav';
 import { Header } from '@/components/header';
-import { SidebarProvider } from '@/components/ui/sidebar';
 import { Loader2 } from 'lucide-react';
 import { doc, getDoc } from 'firebase/firestore';
 import type { CompanyData } from '@/lib/types';
@@ -106,11 +105,10 @@ export default function DashboardLayout({
 
   return (
     <CompanyDataContext.Provider value={companyData}>
-      <SidebarProvider>
         <div className="flex min-h-screen w-full">
-          <div className="hidden md:block">
+          <aside className="hidden md:block w-72 border-r bg-background">
             <DashboardNav />
-          </div>
+          </aside>
           <div className="flex flex-1 flex-col">
             <header className="sticky top-0 z-30 flex h-auto flex-col border-b bg-background">
                 <CompanyHeader companyData={companyData} />
@@ -121,7 +119,6 @@ export default function DashboardLayout({
             </main>
           </div>
         </div>
-      </SidebarProvider>
     </CompanyDataContext.Provider>
   );
 }

@@ -32,7 +32,7 @@ import {
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { UserNav } from './user-nav';
-
+import { Separator } from './ui/separator';
 
 const dashboardLink = { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard };
 
@@ -117,7 +117,7 @@ function NavGroup({
 }
 
 
-export function DashboardNav() {
+export function MobileNav() {
   const pathname = usePathname();
 
   return (
@@ -139,10 +139,12 @@ export function DashboardNav() {
             <dashboardLink.icon className="h-5 w-5" />
             {dashboardLink.label}
          </Link>
+        <Separator />
         <NavGroup label="Cadastros" icon={Building2} links={cadastroLinks} pathname={pathname} />
         <NavGroup label="Financeiro" icon={Banknote} links={financeiroLinks} pathname={pathname} />
         <NavGroup label="Relatórios" icon={Presentation} links={relatoriosLinks} pathname={pathname} />
         <NavGroup label="Cálculos" icon={SquareFunction} links={calculosLinks} pathname={pathname} />
+        <Separator />
         <Link
             href={aiLinks[0].href}
             className={cn(

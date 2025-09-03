@@ -1,9 +1,9 @@
-import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from './ui/button';
 import {
   Menu,
 } from 'lucide-react';
-import { DashboardNav } from './dashboard-nav';
+import { MobileNav } from './mobile-nav';
 
 export function Header() {
   return (
@@ -16,14 +16,10 @@ export function Header() {
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="sm:max-w-xs p-0">
-                <SheetHeader className="p-4">
-                  <SheetTitle className="sr-only">Menu de Navegação</SheetTitle>
-                </SheetHeader>
-                <DashboardNav />
+              <MobileNav />
             </SheetContent>
           </Sheet>
       <div className="flex-1" />
-      {/* UserNav is now in DashboardNav */}
     </div>
   );
 }
