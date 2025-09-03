@@ -146,7 +146,9 @@ const AnexosList = ({ urls, toast }: { urls: string[], toast: any }) => {
 
                 {isWebUrl && (
                   <a href={url} target="_blank" rel="noopener noreferrer">
-                      <ExternalLink className="h-4 w-4 text-muted-foreground" />
+                      <Button variant="ghost" size="icon" className="h-6 w-6">
+                        <ExternalLink className="h-4 w-4 text-muted-foreground" />
+                      </Button>
                   </a>
                 )}
             </div>
@@ -957,7 +959,7 @@ export default function ServicosPage() {
                                 <FormItem>
                                 <FormLabel>Quantidade (m²)</FormLabel>
                                 <FormControl>
-                                    <Input type="number" step="0.01" {...field} />
+                                    <Input type="number" step="0.01" {...field} value={field.value || 0}/>
                                 </FormControl>
                                 <FormMessage />
                                 </FormItem>
@@ -1578,5 +1580,6 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, paymentValue, fi
         </Dialog>
     );
 }
+
 
 
