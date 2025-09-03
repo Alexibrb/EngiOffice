@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -303,6 +302,7 @@ export default function RelatoriosPage() {
     let foot: any[][] | undefined = undefined;
     let fileName = '';
     let reportTitle = '';
+    let doc: jsPDF;
 
     if (data.length === 0) {
       toast({ variant: "destructive", title: "Nenhum dado", description: `Não há dados para gerar o relatório com os filtros atuais.` });
@@ -311,18 +311,19 @@ export default function RelatoriosPage() {
 
     switch (selectedReport) {
       case 'clients':
+        doc = new jsPDF();
         reportTitle = 'Relatório de Clientes';
         head = [['Dados Pessoais', 'Endereço Residencial']];
         body = data.map((item: Client) => {
             const residencial = item.endereco_residencial;
-            return [
-                `${item.nome_completo}\nRG: ${item.rg || '-'}\nCPF/CNPJ: ${item.cpf_cnpj || '-'}`,
-                residencial ? `${residencial.street}, ${residencial.number}\n${residencial.neighborhood}, ${residencial.city} - ${residencial.state}\nCEP: ${residencial.zip}` : 'N/A',
-            ];
+            const dadosPessoais = `${item.nome_completo}\nRG: ${item.rg || '-'}\nCPF/CNPJ: ${item.cpf_cnpj || '-'}`;
+            const endereco = residencial ? `${residencial.street}, ${residencial.number}\n${residencial.neighborhood}, ${residencial.city} - ${residencial.state}\nCEP: ${residencial.zip}` : 'N/A';
+            return [dadosPessoais, endereco];
         });
         fileName = 'relatorio_clientes.pdf';
         break;
       case 'suppliers':
+        doc = new jsPDF();
         reportTitle = 'Relatório de Fornecedores';
         head = [['Fornecedor', 'Contato', 'Endereço', 'Produtos/Serviços']];
         body = data.map((item: Supplier) => {
@@ -336,30 +337,28 @@ export default function RelatoriosPage() {
         fileName = 'relatorio_fornecedores.pdf';
         break;
       case 'services':
+        doc = new jsPDF({ orientation: 'landscape' });
         reportTitle = 'Relatório de Serviços';
-        head = [['Cliente / Obra', 'Detalhes do Serviço', 'Valores']];
+        head = [['Cliente', 'Descrição', 'Endereço da Obra', 'Data', 'Valor Total', 'Saldo Devedor']];
         body = data.map((item: Service) => {
             const client = getClient(item.cliente_id);
             const obra = item.endereco_obra;
-            const formattedObra = obra && obra.street ? `Endereço da Obra:\n${obra.street}, ${obra.number}\n${obra.neighborhood}, ${obra.city}` : 'Endereço da obra não informado';
-            
-            const clientInfo = `${client?.nome_completo || 'Desconhecido'}\nRG: ${client?.rg || '-'}\nCPF/CNPJ: ${client?.cpf_cnpj || '-'}\nTelefone: ${client?.telefone || '-'}\n\n${formattedObra}`;
-
-            const m2 = item.quantidade_m2 ? `\nQuantidade (m²): ${item.quantidade_m2}` : '';
-            const anexos = item.anexos && item.anexos.length > 0 ? `\nAnexos: ${item.anexos.join(', ')}` : '';
-
-            const valores = `Total: R$ ${item.valor_total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}\nSaldo: R$ ${item.saldo_devedor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+            const formattedObra = obra && obra.street ? `${obra.street}, ${obra.number}, ${obra.city}` : 'N/A';
             
             return [
-                clientInfo, 
-                `${item.descricao}${m2}${anexos}`,
-                valores
+                client?.nome_completo || 'Desconhecido',
+                item.descricao,
+                formattedObra,
+                item.data_cadastro ? format(item.data_cadastro, "dd/MM/yyyy") : '-',
+                `R$ ${item.valor_total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+                `R$ ${item.saldo_devedor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
             ];
         });
-        foot = [['Total Geral', '', `Total: R$ ${(totals.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}\nSaldo: R$ ${(totals.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`]];
+        foot = [['Total Geral', '', '', '', `R$ ${(totals.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, `R$ ${(totals.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`]];
         fileName = 'relatorio_servicos.pdf';
         break;
       case 'accountsPayable':
+        doc = new jsPDF();
         reportTitle = 'Relatório de Contas a Pagar';
         head = [['Descrição', 'Favorecido', 'Vencimento', 'Valor', 'Status']];
         body = data.map((item: Account) => [item.descricao, getPayeeName(item), item.vencimento ? format(item.vencimento, "dd/MM/yyyy") : '-', `R$ ${item.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, item.status]);
@@ -367,6 +366,7 @@ export default function RelatoriosPage() {
         fileName = 'relatorio_contas_a_pagar.pdf';
         break;
        case 'commissions':
+        doc = new jsPDF();
         reportTitle = 'Relatório de Comissões';
         head = [['Funcionário', 'Cliente', 'Serviço Referente', 'Data', 'Valor da Comissão', 'Status']];
         body = data.map((item: Commission) => {
@@ -390,7 +390,6 @@ export default function RelatoriosPage() {
       default: return;
     }
 
-    const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
     let currentY = 15;
 
