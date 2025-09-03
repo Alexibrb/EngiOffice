@@ -20,7 +20,7 @@ import {
   TableRow,
   TableFooter,
 } from '@/components/ui/table';
-import type { Client, Supplier, Service, Account, Employee, CompanyData } from '@/lib/types';
+import type { Client, Supplier, Service, Account, Employee, CompanyData, Commission } from '@/lib/types';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Download, Search, XCircle, Calendar as CalendarIcon, ChevronDown, ChevronRight, Link as LinkIcon } from 'lucide-react';
@@ -312,57 +312,51 @@ export default function RelatoriosPage() {
     switch (selectedReport) {
       case 'clients':
         reportTitle = 'Relatório de Clientes';
-        head = [['Cliente', 'Contato', 'Endereço Residencial']];
-        body = data.flatMap((item: Client) => {
+        head = [['Dados Pessoais', 'Endereço Residencial']];
+        body = data.map((item: Client) => {
             const residencial = item.endereco_residencial;
-            const row = [
-                { content: `${item.nome_completo}\nCPF/CNPJ: ${item.cpf_cnpj || '-'}`, styles: { fontStyle: 'bold' } },
-                `${item.telefone || '-'}\n${item.email || ''}`,
+            return [
+                `${item.nome_completo}\nRG: ${item.rg || '-'}\nCPF/CNPJ: ${item.cpf_cnpj || '-'}`,
                 residencial ? `${residencial.street}, ${residencial.number}\n${residencial.neighborhood}, ${residencial.city} - ${residencial.state}\nCEP: ${residencial.zip}` : 'N/A',
             ];
-            return [row];
         });
         fileName = 'relatorio_clientes.pdf';
         break;
       case 'suppliers':
         reportTitle = 'Relatório de Fornecedores';
         head = [['Fornecedor', 'Contato', 'Endereço', 'Produtos/Serviços']];
-        body = data.flatMap((item: Supplier) => {
-            const row = [
+        body = data.map((item: Supplier) => {
+            return [
                 { content: `${item.razao_social}\nCNPJ: ${item.cnpj || '-'}`, styles: { fontStyle: 'bold' } },
                 `${item.telefone || '-'}\n${item.email || ''}`,
                 item.endereco || 'N/A',
                 item.produtos_servicos?.join(', ') || 'N/A'
             ];
-            return [row];
         });
         fileName = 'relatorio_fornecedores.pdf';
         break;
       case 'services':
         reportTitle = 'Relatório de Serviços';
-        head = [['Cliente', 'Detalhes do Serviço', 'Endereço da Obra', 'Valores', 'Status']];
+        head = [['Cliente / Obra', 'Detalhes do Serviço', 'Valores']];
         body = data.map((item: Service) => {
             const client = getClient(item.cliente_id);
             const obra = item.endereco_obra;
-            const formattedObra = obra ? `${obra.street}, ${obra.number} - ${obra.neighborhood}, ${obra.city}` : '';
+            const formattedObra = obra && obra.street ? `Endereço da Obra:\n${obra.street}, ${obra.number}\n${obra.neighborhood}, ${obra.city}` : 'Endereço da obra não informado';
             
+            const clientInfo = `${client?.nome_completo || 'Desconhecido'}\nRG: ${client?.rg || '-'}\nCPF/CNPJ: ${client?.cpf_cnpj || '-'}\nTelefone: ${client?.telefone || '-'}\n\n${formattedObra}`;
+
             const m2 = item.quantidade_m2 ? `\nQuantidade (m²): ${item.quantidade_m2}` : '';
-            const coordenadas = (item.coordenadas?.lat && item.coordenadas?.lng) ? `\nCoords: ${item.coordenadas.lat}, ${item.coordenadas.lng}` : '';
             const anexos = item.anexos && item.anexos.length > 0 ? `\nAnexos: ${item.anexos.join(', ')}` : '';
 
             const valores = `Total: R$ ${item.valor_total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}\nSaldo: R$ ${item.saldo_devedor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
-            const statusServico = `Serviço: ${item.status}`;
-            const statusDistribuicao = `Distribuição: ${getDistributionStatus(item).text}`;
-
+            
             return [
-                `${client?.nome_completo || 'Desconhecido'}`, 
-                `${item.descricao}${m2}${coordenadas}${anexos}`,
-                formattedObra,
-                valores,
-                `${statusServico}\n${statusDistribuicao}`
+                clientInfo, 
+                `${item.descricao}${m2}${anexos}`,
+                valores
             ];
         });
-        foot = [['Total', '', '', `Total: R$ ${(totals.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}\nSaldo: R$ ${(totals.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, '']];
+        foot = [['Total Geral', '', `Total: R$ ${(totals.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}\nSaldo: R$ ${(totals.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`]];
         fileName = 'relatorio_servicos.pdf';
         break;
       case 'accountsPayable':
@@ -374,7 +368,7 @@ export default function RelatoriosPage() {
         break;
        case 'commissions':
         reportTitle = 'Relatório de Comissões';
-        head = [['Funcionário', 'Cliente', 'Serviço Referente', 'Valor da Comissão', 'Status']];
+        head = [['Funcionário', 'Cliente', 'Serviço Referente', 'Data', 'Valor da Comissão', 'Status']];
         body = data.map((item: Commission) => {
             const service = getService(item.servico_id);
             const client = service ? getClient(service.cliente_id) : undefined;
@@ -385,11 +379,12 @@ export default function RelatoriosPage() {
                 getEmployeeName(item.funcionario_id), 
                 client?.nome_completo || 'Desconhecido',
                 `${service?.descricao || 'Desconhecido'}\n${formattedAddress}`,
+                item.data ? format(item.data, "dd/MM/yyyy") : '-',
                 `R$ ${item.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 
                 item.status
             ];
         });
-        foot = [['Total', '', '', `R$ ${(totals.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, '']];
+        foot = [['Total', '', '', '',`R$ ${(totals.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, '']];
         fileName = 'relatorio_comissoes.pdf';
         break;
       default: return;
@@ -621,6 +616,7 @@ export default function RelatoriosPage() {
                                 <TableCell className="align-top">
                                     <div className="font-medium">Total: R$ {(s.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
                                     <div className="text-sm text-red-500">Saldo: R$ {(s.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                                    {s.quantidade_m2 ? <div className="text-xs text-muted-foreground">Área: {s.quantidade_m2} m²</div> : null}
                                 </TableCell>
                                 <TableCell className="align-top space-y-1">
                                     <Badge variant={s.status === 'concluído' ? 'secondary' : s.status === 'cancelado' ? 'destructive' : 'default'}>{s.status}</Badge>
@@ -700,6 +696,7 @@ export default function RelatoriosPage() {
                         <TableHead>Funcionário</TableHead>
                         <TableHead>Cliente</TableHead>
                         <TableHead>Serviço Referente</TableHead>
+                        <TableHead>Data</TableHead>
                         <TableHead className="text-right">Valor da Comissão</TableHead>
                         <TableHead>Status</TableHead>
                     </TableRow>
@@ -718,15 +715,16 @@ export default function RelatoriosPage() {
                                     <div className="font-medium">{service?.descricao || 'Desconhecido'}</div>
                                     <div className="text-xs text-muted-foreground">{formattedAddress}</div>
                                 </TableCell>
+                                <TableCell>{comm.data ? format(comm.data, "dd/MM/yyyy") : '-'}</TableCell>
                                 <TableCell className="text-right text-green-500">R$ {comm.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
                                 <TableCell><Badge variant={comm.status === 'pago' ? 'secondary' : 'destructive'}>{comm.status}</Badge></TableCell>
                             </TableRow>
                         )
-                    }) : (<TableRow><TableCell colSpan={5} className="h-24 text-center">Nenhuma comissão encontrada.</TableCell></TableRow>)}
+                    }) : (<TableRow><TableCell colSpan={6} className="h-24 text-center">Nenhuma comissão encontrada.</TableCell></TableRow>)}
                   </TableBody>
                    <TableFooter>
                     <TableRow>
-                      <TableCell colSpan={3} className="font-bold">Total</TableCell>
+                      <TableCell colSpan={4} className="font-bold">Total</TableCell>
                       <TableCell className="text-right font-bold text-green-500">R$ {(totals.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
                       <TableCell></TableCell>
                     </TableRow>
