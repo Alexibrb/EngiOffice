@@ -993,22 +993,22 @@ const AlvenariaCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavime
         const A = area;
         const L = larguraBloco / 100; // m
         const H = alturaBloco / 100; // m
-        const j_cm = junta;
+        const j_m = junta / 100; // m
       
-        const areaBlocoComJunta = (L > 0 && H > 0) ? (L + (j_cm / 100)) * (H + (j_cm / 100)) : 0;
+        const areaBlocoComJunta = (L > 0 && H > 0) ? (L + j_m) * (H + j_m) : 0;
         const N_blocos = areaBlocoComJunta > 0 ? A / areaBlocoComJunta : 0;
         const N_final = N_blocos * (1 + 0.05); // 5% de perda
       
-        const V_arg = A * (0.02 * j_cm); 
+        // Traço 1:8 (cimento:areia) com consumo de cimento de 216 kg/m³ de argamassa
+        const Cc_alvenaria = 216; // kg/m³
+        const Ca_alvenaria = 1.08; // m³/m³
+        
+        const V_arg = A * j_m; 
         const V_final = V_arg * (1 + 0.10); // 10% de perda
       
-        const Cc = 430; // kg/m³
-        const Ca = 1.2; // m³/m³
-      
-        const Q_cimento = V_final * Cc;
+        const Q_cimento = V_final * Cc_alvenaria;
         const Sacos = Q_cimento > 0 ? Q_cimento / 50 : 0;
-        const Q_areia = V_final * Ca;
-      
+        const Q_areia = V_final * Ca_alvenaria;
 
         return {
             ...row,
@@ -1170,15 +1170,16 @@ const RebocoCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimento
       const A = area * lados;
       const e = espessura / 100; // m
 
-      const Cc = 430;
-      const Ca = 1.2;
+      // Traço 1:4 (cimento:areia) com consumo de cimento de 324 kg/m³ de argamassa
+      const Cc_reboco = 324;
+      const Ca_reboco = 1.3;
 
       const V_arg = A * e; 
       const V_final = V_arg * (1 + 0.10); // 10% de perda
       
-      const Q_cimento = V_final * Cc;
+      const Q_cimento = V_final * Cc_reboco;
       const Sacos = Q_cimento > 0 ? Q_cimento / 50 : 0;
-      const Q_areia = V_final * Ca;
+      const Q_areia = V_final * Ca_reboco;
       
       return {
         ...row,
