@@ -346,8 +346,9 @@ export default function RelatoriosPage() {
             const obra = item.endereco_obra;
             const formattedObra = obra ? `${obra.street}, ${obra.number} - ${obra.neighborhood}, ${obra.city}` : '';
             
-            const coordenadas = (item.coordenadas?.lat && item.coordenadas?.lng) ? `Coords: ${item.coordenadas.lat}, ${item.coordenadas.lng}` : '';
-            const anexos = item.anexos && item.anexos.length > 0 ? `Anexos: ${item.anexos.join(', ')}` : '';
+            const m2 = item.quantidade_m2 ? `\nQuantidade (m²): ${item.quantidade_m2}` : '';
+            const coordenadas = (item.coordenadas?.lat && item.coordenadas?.lng) ? `\nCoords: ${item.coordenadas.lat}, ${item.coordenadas.lng}` : '';
+            const anexos = item.anexos && item.anexos.length > 0 ? `\nAnexos: ${item.anexos.join(', ')}` : '';
 
             const valores = `Total: R$ ${item.valor_total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}\nSaldo: R$ ${item.saldo_devedor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
             const statusServico = `Serviço: ${item.status}`;
@@ -355,7 +356,7 @@ export default function RelatoriosPage() {
 
             return [
                 `${client?.nome_completo || 'Desconhecido'}`, 
-                `${item.descricao}\n${coordenadas}\n${anexos}`,
+                `${item.descricao}${m2}${coordenadas}${anexos}`,
                 formattedObra,
                 valores,
                 `${statusServico}\n${statusDistribuicao}`
