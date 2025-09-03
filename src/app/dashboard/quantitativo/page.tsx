@@ -226,9 +226,7 @@ const SapataCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimento
                 <TableHead>Tipo</TableHead>
                 <TableHead>Bitola do ferro</TableHead>
                 <TableHead>Quant.</TableHead>
-                <TableHead>Largura (cm)</TableHead>
-                <TableHead>Compr. (cm)</TableHead>
-                <TableHead>Altura (cm)</TableHead>
+                <TableHead>Dimensões (L x C x A cm)</TableHead>
                 <TableHead>Barras Horiz.</TableHead>
                 <TableHead>Barras Vert.</TableHead>
                 <TableHead>Volume (m³)</TableHead>
@@ -261,9 +259,15 @@ const SapataCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimento
                     </Select>
                   </TableCell>
                   <TableCell><Input type="number" value={row.quant} onChange={(e) => handleInputChange(row.id, 'quant', e.target.value)} /></TableCell>
-                  <TableCell><Input type="number" step="1" value={row.largura} onChange={(e) => handleInputChange(row.id, 'largura', e.target.value)} /></TableCell>
-                  <TableCell><Input type="number" step="1" value={row.comprimento} onChange={(e) => handleInputChange(row.id, 'comprimento', e.target.value)} /></TableCell>
-                  <TableCell><Input type="number" step="1" value={row.altura} onChange={(e) => handleInputChange(row.id, 'altura', e.target.value)} /></TableCell>
+                   <TableCell className="min-w-[200px]">
+                    <div className="flex items-center gap-1">
+                      <Input type="number" step="1" placeholder="L" value={row.largura} onChange={(e) => handleInputChange(row.id, 'largura', e.target.value)} />
+                      <span className="text-muted-foreground">x</span>
+                      <Input type="number" step="1" placeholder="C" value={row.comprimento} onChange={(e) => handleInputChange(row.id, 'comprimento', e.target.value)} />
+                      <span className="text-muted-foreground">x</span>
+                      <Input type="number" step="1" placeholder="A" value={row.altura} onChange={(e) => handleInputChange(row.id, 'altura', e.target.value)} />
+                    </div>
+                  </TableCell>
                   <TableCell><Input type="number" value={row.elosHoriz} onChange={(e) => handleInputChange(row.id, 'elosHoriz', e.target.value)} /></TableCell>
                   <TableCell><Input type="number" value={row.elosVert} onChange={(e) => handleInputChange(row.id, 'elosVert', e.target.value)} /></TableCell>
                   <TableCell>{row.volume.toFixed(3)}</TableCell>
@@ -282,7 +286,7 @@ const SapataCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimento
             </TableBody>
             <TableFooter>
               <TableRow>
-                  <TableCell colSpan={9} className="font-bold text-right">Totais</TableCell>
+                  <TableCell colSpan={7} className="font-bold text-right">Totais</TableCell>
                   <TableCell className="font-bold">{(displayTotals.volume as number).toFixed(3)}</TableCell>
                   <TableCell className="font-bold">{(displayTotals.totalLinear as number).toFixed(2)}</TableCell>
                   <TableCell className="font-bold bg-primary/10">{Object.values(displayTotals.ferro as Record<string, number>).reduce((a, b) => a + b, 0).toFixed(2)}</TableCell>
@@ -376,10 +380,8 @@ const VigamentoCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavime
       const cimentoSacos = volumeTotal > 0 ? volumeTotal / 0.16 : 0;
       const areiaM3 = (cimentoSacos * 5 * 18) / 1000;
       const britaM3 = (cimentoSacos * 6 * 18) / 1000;
-
-      const totalBarrasEstribos = (comprimentoM > 0 && COMPRIMENTO_BARRA_FERRO > 0) 
-        ? ((comprimentoM / 0.15) * (((largura + altura + 4) * 2) / 100) * quant) / COMPRIMENTO_BARRA_FERRO
-        : 0;
+      
+      const totalBarrasEstribos = (comprimentoM / 0.15) * (((largura + altura + 4) * 2) / 100) * quant / 12;
 
       return {
         ...row,
@@ -445,9 +447,7 @@ const VigamentoCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavime
                 <TableHead>Tipo</TableHead>
                 <TableHead>Bitola do ferro</TableHead>
                 <TableHead>Quant.</TableHead>
-                <TableHead>Compr. (m)</TableHead>
-                <TableHead>Largura (cm)</TableHead>
-                <TableHead>Altura (cm)</TableHead>
+                <TableHead>Dimensões (C(m) x L x A cm)</TableHead>
                 <TableHead>Quant. de Ferro</TableHead>
                 <TableHead>Volume (m³)</TableHead>
                 <TableHead>Total Linear (m)</TableHead>
@@ -480,9 +480,15 @@ const VigamentoCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavime
                     </Select>
                   </TableCell>
                   <TableCell><Input type="number" value={row.quant} onChange={(e) => handleInputChange(row.id, 'quant', e.target.value)} /></TableCell>
-                  <TableCell><Input type="number" step="0.1" value={row.comprimento} onChange={(e) => handleInputChange(row.id, 'comprimento', e.target.value)} /></TableCell>
-                  <TableCell><Input type="number" step="1" value={row.largura} onChange={(e) => handleInputChange(row.id, 'largura', e.target.value)} /></TableCell>
-                  <TableCell><Input type="number" step="1" value={row.altura} onChange={(e) => handleInputChange(row.id, 'altura', e.target.value)} /></TableCell>
+                  <TableCell className="min-w-[200px]">
+                    <div className="flex items-center gap-1">
+                      <Input type="number" step="0.1" placeholder="C" value={row.comprimento} onChange={(e) => handleInputChange(row.id, 'comprimento', e.target.value)} />
+                      <span className="text-muted-foreground">x</span>
+                      <Input type="number" step="1" placeholder="L" value={row.largura} onChange={(e) => handleInputChange(row.id, 'largura', e.target.value)} />
+                      <span className="text-muted-foreground">x</span>
+                      <Input type="number" step="1" placeholder="A" value={row.altura} onChange={(e) => handleInputChange(row.id, 'altura', e.target.value)} />
+                    </div>
+                  </TableCell>
                   <TableCell><Input type="number" value={row.quantDeFerro} onChange={(e) => handleInputChange(row.id, 'quantDeFerro', e.target.value)} /></TableCell>
                   <TableCell>{row.volume.toFixed(3)}</TableCell>
                   <TableCell>{row.totalLinear.toFixed(2)}</TableCell>
@@ -501,7 +507,7 @@ const VigamentoCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavime
             </TableBody>
             <TableFooter>
               <TableRow>
-                  <TableCell colSpan={8} className="font-bold text-right">Totais</TableCell>
+                  <TableCell colSpan={6} className="font-bold text-right">Totais</TableCell>
                   <TableCell className="font-bold">{(displayTotals.volume as number).toFixed(3)}</TableCell>
                   <TableCell className="font-bold">{(displayTotals.totalLinear as number).toFixed(2)}</TableCell>
                   <TableCell className="font-bold bg-primary/10">{Object.values(displayTotals.ferro as Record<string, number>).reduce((a, b) => a + b, 0).toFixed(2)}</TableCell>
@@ -597,9 +603,7 @@ const PilarCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoF
         const areiaM3 = (cimentoSacos * 5 * 18) / 1000;
         const britaM3 = (cimentoSacos * 6 * 18) / 1000;
 
-        const totalBarrasEstribos = (comprimentoM > 0 && COMPRIMENTO_BARRA_FERRO > 0) 
-          ? ((comprimentoM / 0.15) * (((largura + altura + 4) * 2) / 100) * quant) / COMPRIMENTO_BARRA_FERRO
-          : 0;
+        const totalBarrasEstribos = (comprimentoM / 0.15) * (((largura + altura + 4) * 2) / 100) * quant / 12;
 
         return {
             ...row,
@@ -664,9 +668,7 @@ const PilarCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoF
                 <TableHead>Tipo</TableHead>
                 <TableHead>Bitola do ferro</TableHead>
                 <TableHead>Quant.</TableHead>
-                <TableHead>Altura (m)</TableHead>
-                <TableHead>Largura (cm)</TableHead>
-                <TableHead>Profundidade (cm)</TableHead>
+                <TableHead>Dimensões (A(m) x L x P cm)</TableHead>
                 <TableHead>Quant. de Ferro</TableHead>
                 <TableHead>Volume (m³)</TableHead>
                 <TableHead>Total Linear (m)</TableHead>
@@ -699,9 +701,15 @@ const PilarCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoF
                     </Select>
                   </TableCell>
                   <TableCell><Input type="number" value={row.quant} onChange={(e) => handleInputChange(row.id, 'quant', e.target.value)} /></TableCell>
-                  <TableCell><Input type="number" step="0.1" value={row.comprimento} onChange={(e) => handleInputChange(row.id, 'comprimento', e.target.value)} /></TableCell>
-                  <TableCell><Input type="number" step="1" value={row.largura} onChange={(e) => handleInputChange(row.id, 'largura', e.target.value)} /></TableCell>
-                  <TableCell><Input type="number" step="1" value={row.altura} onChange={(e) => handleInputChange(row.id, 'altura', e.target.value)} /></TableCell>
+                  <TableCell className="min-w-[200px]">
+                    <div className="flex items-center gap-1">
+                      <Input type="number" step="0.1" placeholder="A" value={row.comprimento} onChange={(e) => handleInputChange(row.id, 'comprimento', e.target.value)} />
+                      <span className="text-muted-foreground">x</span>
+                      <Input type="number" step="1" placeholder="L" value={row.largura} onChange={(e) => handleInputChange(row.id, 'largura', e.target.value)} />
+                      <span className="text-muted-foreground">x</span>
+                      <Input type="number" step="1" placeholder="P" value={row.altura} onChange={(e) => handleInputChange(row.id, 'altura', e.target.value)} />
+                    </div>
+                  </TableCell>
                   <TableCell><Input type="number" value={row.quantDeFerro} onChange={(e) => handleInputChange(row.id, 'quantDeFerro', e.target.value)} /></TableCell>
                   <TableCell>{row.volume.toFixed(3)}</TableCell>
                   <TableCell>{row.totalLinear.toFixed(2)}</TableCell>
@@ -720,7 +728,7 @@ const PilarCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoF
             </TableBody>
             <TableFooter>
               <TableRow>
-                  <TableCell colSpan={8} className="font-bold text-right">Totais</TableCell>
+                  <TableCell colSpan={6} className="font-bold text-right">Totais</TableCell>
                   <TableCell className="font-bold">{(displayTotals.volume as number).toFixed(3)}</TableCell>
                   <TableCell className="font-bold">{(displayTotals.totalLinear as number).toFixed(2)}</TableCell>
                   <TableCell className="font-bold bg-primary/10">{Object.values(displayTotals.ferro as Record<string, number>).reduce((a, b) => a + b, 0).toFixed(2)}</TableCell>
@@ -999,16 +1007,13 @@ const AlvenariaCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavime
         const N_blocos = areaBlocoComJunta > 0 ? A / areaBlocoComJunta : 0;
         const N_final = N_blocos * (1 + 0.05); // 5% de perda
       
-        // Traço 1:8 (cimento:areia) com consumo de cimento de 216 kg/m³ de argamassa
-        const Cc_alvenaria = 216; // kg/m³
-        const Ca_alvenaria = 1.08; // m³/m³
-        
+        // Traço 1:2:8 (cimento:cal:areia)
         const V_arg = A * j_m; 
         const V_final = V_arg * (1 + 0.10); // 10% de perda
-      
-        const Q_cimento = V_final * Cc_alvenaria;
+        
+        const Q_cimento = V_final * 193; // kg/m³
         const Sacos = Q_cimento > 0 ? Q_cimento / 50 : 0;
-        const Q_areia = V_final * Ca_alvenaria;
+        const Q_areia = V_final * 1.06; // m³/m³
 
         return {
             ...row,
@@ -1170,16 +1175,13 @@ const RebocoCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimento
       const A = area * lados;
       const e = espessura / 100; // m
 
-      // Traço 1:4 (cimento:areia) com consumo de cimento de 324 kg/m³ de argamassa
-      const Cc_reboco = 324;
-      const Ca_reboco = 1.3;
-
+      // Traço 1:2:9 (cimento:cal:areia)
       const V_arg = A * e; 
       const V_final = V_arg * (1 + 0.10); // 10% de perda
       
-      const Q_cimento = V_final * Cc_reboco;
+      const Q_cimento = V_final * 174; //kg/m³
       const Sacos = Q_cimento > 0 ? Q_cimento / 50 : 0;
-      const Q_areia = V_final * Ca_reboco;
+      const Q_areia = V_final * 1.04; // m³/m³
       
       return {
         ...row,
@@ -1625,3 +1627,5 @@ export default function QuantitativoPage() {
     </div>
   );
 }
+
+    
