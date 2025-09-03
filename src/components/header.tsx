@@ -1,4 +1,4 @@
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from './ui/button';
 import {
   Menu,
@@ -16,6 +16,9 @@ export function Header() {
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="sm:max-w-xs p-0">
+                <SheetHeader className="p-4">
+                  <SheetTitle className="sr-only">Menu de Navegação</SheetTitle>
+                </SheetHeader>
                 <DashboardNav />
             </SheetContent>
           </Sheet>
