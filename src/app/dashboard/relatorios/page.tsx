@@ -344,23 +344,30 @@ export default function RelatoriosPage() {
         
         data.forEach((item: Service) => {
             const client = getClient(item.cliente_id);
-            const obra = item.endereco_obra;
-            let formattedObra = obra && obra.street ? `${obra.street}, ${obra.number}, ${obra.neighborhood}, ${obra.city} - ${obra.state}` : 'N/A';
-            const coords = item.coordenadas && item.coordenadas.lat ? ` - Coords.: ${item.coordenadas.lat}, ${item.coordenadas.lng}` : '';
-            formattedObra += coords;
-
+            
+            // Main data row
             const mainRow = [
-                { content: client?.nome_completo || 'Desconhecido', styles: { fontStyle: 'bold' } },
+                client?.nome_completo || 'Desconhecido',
                 item.descricao,
                 item.data_cadastro ? format(item.data_cadastro, "dd/MM/yyyy") : '-',
                 item.quantidade_m2 ? item.quantidade_m2.toLocaleString('pt-BR') : '0',
                 `R$ ${item.valor_total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
                 `R$ ${item.saldo_devedor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
             ];
-            body.push(mainRow as any[]);
+            body.push(mainRow);
             
+            // Address row
+            const obra = item.endereco_obra;
+            let formattedObra = obra && obra.street ? `Endereço: ${obra.street}, ${obra.number}, ${obra.neighborhood}, ${obra.city} - ${obra.state}` : 'Endereço da obra não informado';
+            const coords = item.coordenadas && item.coordenadas.lat ? ` - Coords.: ${item.coordenadas.lat}, ${item.coordenadas.lng}` : '';
+            formattedObra += coords;
+
+            if (item.anexos && item.anexos.length > 0) {
+              formattedObra += `\nAnexos: ${item.anexos.join(', ')}`;
+            }
+
             const addressRow = [{ content: formattedObra, colSpan: 6, styles: { textColor: [100, 100, 100], fontSize: 9 } }];
-            body.push(addressRow as any[]);
+            body.push(addressRow);
         });
 
         foot = [['Total Geral', '', '', '', `R$ ${(totals.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, `R$ ${(totals.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`]];
