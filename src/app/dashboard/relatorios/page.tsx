@@ -339,22 +339,23 @@ export default function RelatoriosPage() {
       case 'services':
         doc = new jsPDF({ orientation: 'landscape' });
         reportTitle = 'Relatório de Serviços';
-        head = [['Cliente', 'Descrição', 'Endereço da Obra', 'Data', 'Valor Total', 'Saldo Devedor']];
+        head = [['Cliente', 'Descrição', 'Endereço da Obra', 'Data', 'Área (m²)', 'Valor Total', 'Saldo Devedor']];
         body = data.map((item: Service) => {
             const client = getClient(item.cliente_id);
             const obra = item.endereco_obra;
-            const formattedObra = obra && obra.street ? `${obra.street}, ${obra.number}, ${obra.city}` : 'N/A';
+            const formattedObra = obra && obra.street ? `${obra.street}, ${obra.number}, ${obra.neighborhood}, ${obra.city} - ${obra.state}` : 'N/A';
             
             return [
                 client?.nome_completo || 'Desconhecido',
                 item.descricao,
                 formattedObra,
                 item.data_cadastro ? format(item.data_cadastro, "dd/MM/yyyy") : '-',
+                item.quantidade_m2 ? item.quantidade_m2.toLocaleString('pt-BR') : '0',
                 `R$ ${item.valor_total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
                 `R$ ${item.saldo_devedor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
             ];
         });
-        foot = [['Total Geral', '', '', '', `R$ ${(totals.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, `R$ ${(totals.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`]];
+        foot = [['Total Geral', '', '', '', '', `R$ ${(totals.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, `R$ ${(totals.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`]];
         fileName = 'relatorio_servicos.pdf';
         break;
       case 'accountsPayable':
@@ -776,3 +777,5 @@ export default function RelatoriosPage() {
     </div>
   );
 }
+
+    
