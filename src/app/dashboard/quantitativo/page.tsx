@@ -1360,16 +1360,6 @@ export default function QuantitativoPage() {
                 doc.setFont('helvetica', 'normal');
                 doc.text(selectedClient.nome_completo, 30, currentY);
                 currentY += 5;
-
-                const obra = selectedClient.endereco_obra;
-                if (obra && obra.street) {
-                    doc.setFont('helvetica', 'bold');
-                    doc.text('Obra:', 14, currentY);
-                    doc.setFont('helvetica', 'normal');
-                    const address = `${obra.street}, ${obra.number} - ${obra.neighborhood}, ${obra.city} - ${obra.state}`;
-                    doc.text(address, 30, currentY);
-                    currentY += 5;
-                }
             }
             
             doc.setFont('helvetica', 'bold');
@@ -1576,6 +1566,9 @@ export default function QuantitativoPage() {
        <Card>
         <CardHeader>
           <CardTitle>Identificação do Projeto</CardTitle>
+          <CardDescription>
+            Selecione um cliente para associar este orçamento. Esta informação será usada no PDF exportado.
+          </CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
@@ -1592,16 +1585,6 @@ export default function QuantitativoPage() {
                     ))}
                 </SelectContent>
             </Select>
-          </div>
-          <div className="space-y-2">
-            <Label>Endereço da Obra</Label>
-            <div className="min-h-[40px] p-2 border rounded-md bg-muted text-sm">
-                {selectedClient ? (
-                    <span>{`${selectedClient.endereco_obra.street}, ${selectedClient.endereco_obra.number} - ${selectedClient.endereco_obra.neighborhood}, ${selectedClient.endereco_obra.city} - ${selectedClient.endereco_obra.state}`}</span>
-                ) : (
-                    <span className="text-muted-foreground">Selecione um cliente para ver o endereço</span>
-                )}
-            </div>
           </div>
         </CardContent>
       </Card>
