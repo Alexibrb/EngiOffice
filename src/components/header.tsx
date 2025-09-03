@@ -17,6 +17,9 @@ export function Header() {
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="sm:max-w-xs p-0">
+              <SheetHeader>
+                <SheetTitle className="sr-only">Menu de Navegação</SheetTitle>
+              </SheetHeader>
               <MobileNav />
             </SheetContent>
           </Sheet>
