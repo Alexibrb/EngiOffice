@@ -340,8 +340,7 @@ export default function RelatoriosPage() {
         doc = new jsPDF({ orientation: 'landscape' });
         reportTitle = 'Relatório de Serviços';
         head = [['Cliente / Descrição / Endereço', 'Data', 'Área (m²)', 'Valor Total', 'Saldo Devedor']];
-        body = [];
-        data.forEach((item: Service) => {
+        body = data.map((item: Service) => {
             const client = getClient(item.cliente_id);
             const obra = item.endereco_obra;
             let formattedObra = obra && obra.street ? `${obra.street}, ${obra.number}, ${obra.neighborhood}, ${obra.city} - ${obra.state}` : 'N/A';
@@ -350,26 +349,19 @@ export default function RelatoriosPage() {
                 formattedObra += ` - ${coords}`;
             }
 
-            const row1Content = [
-                { content: client?.nome_completo || 'Desconhecido', styles: { fontStyle: 'bold' } },
-                { content: item.descricao, styles: { fontStyle: 'normal' } },
-                { content: formattedObra, styles: { fontStyle: 'normal', fontSize: 9 } }
+            const mainContent = [
+                { content: client?.nome_completo || 'Desconhecido', fontStyle: 'bold' },
+                { content: item.descricao, fontStyle: 'normal' },
+                { content: formattedObra, fontStyle: 'normal', fontSize: 9 }
             ].map(c => c.content).join('\n');
 
-            const row1 = [
-                row1Content,
-                 '', '', '', '' 
-            ];
-            body.push(row1);
-
-            const row2 = [
-                '',
+            return [
+                mainContent,
                 item.data_cadastro ? format(item.data_cadastro, "dd/MM/yyyy") : '-',
                 item.quantidade_m2 ? item.quantidade_m2.toLocaleString('pt-BR') : '0',
                 `R$ ${item.valor_total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
                 `R$ ${item.saldo_devedor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
             ];
-            body.push(row2);
         });
 
         foot = [['Total Geral', '', '', `R$ ${(totals.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, `R$ ${(totals.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`]];
@@ -794,5 +786,3 @@ export default function RelatoriosPage() {
     </div>
   );
 }
-
-    
