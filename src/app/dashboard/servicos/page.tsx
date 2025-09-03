@@ -601,6 +601,7 @@ export default function ServicosPage() {
     setEditingService(service);
     form.reset({
         ...service,
+        quantidade_m2: service.quantidade_m2 || 0, // Ensure it's not undefined
         data_cadastro: service.data_cadastro instanceof Date ? service.data_cadastro : new Date(service.data_cadastro),
         anexos: service.anexos?.join('\n')
     });
@@ -1266,7 +1267,7 @@ export default function ServicosPage() {
                                  <TableCell className="align-top space-y-1">
                                     <Badge variant={service.status === 'concluído' ? 'secondary' : service.status === 'cancelado' ? 'destructive' : 'default'}>{service.status}</Badge>
                                     <Badge variant={distributionStatus.variant}>{distributionStatus.text}</Badge>
-                                </TableCell>
+                                 </TableCell>
                                 <TableCell className="align-top">
                                     <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
@@ -1576,4 +1577,5 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, paymentValue, fi
         </Dialog>
     );
 }
+
 
