@@ -59,6 +59,7 @@ export type Service = {
   valor_total: number;
   valor_pago: number;
   saldo_devedor: number;
+  quantidade_m2?: number;
   forma_pagamento: 'a_vista' | 'a_prazo';
   status: 'em andamento' | 'concluído' | 'cancelado';
   anexos?: string[];

@@ -84,6 +84,7 @@ const serviceSchema = z.object({
     required_error: "A data de cadastro é obrigatória.",
   }),
   valor_total: z.coerce.number().min(0.01, 'O valor total deve ser maior que zero.'),
+  quantidade_m2: z.coerce.number().optional(),
   forma_pagamento: z.enum(['a_vista', 'a_prazo'], { required_error: 'Forma de pagamento é obrigatória.' }),
   status: z.enum(['em andamento', 'concluído', 'cancelado']),
   anexos: z.string().optional(),
@@ -255,6 +256,7 @@ export default function ServicosPage() {
       descricao: '',
       cliente_id: '',
       valor_total: 0,
+      quantidade_m2: 0,
       forma_pagamento: 'a_vista',
       status: 'em andamento',
       anexos: '',
@@ -583,6 +585,7 @@ export default function ServicosPage() {
         descricao: '',
         cliente_id: '',
         valor_total: 0,
+        quantidade_m2: 0,
         forma_pagamento: 'a_vista',
         status: 'em andamento',
         anexos: '',
@@ -946,6 +949,19 @@ export default function ServicosPage() {
                             )}
                             />
                              <FormField
+                            control={form.control}
+                            name="quantidade_m2"
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Quantidade (m²)</FormLabel>
+                                <FormControl>
+                                    <Input type="number" step="0.01" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                            />
+                             <FormField
                                 control={form.control}
                                 name="forma_pagamento"
                                 render={({ field }) => (
@@ -1245,6 +1261,7 @@ export default function ServicosPage() {
                                 <TableCell className="align-top">
                                     <div className="font-medium">Total: R$ {(service.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
                                     <div className="text-sm text-red-500">Saldo: R$ {(service.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                                    {service.quantidade_m2 && <div className="text-xs text-muted-foreground">Área: {service.quantidade_m2} m²</div>}
                                 </TableCell>
                                  <TableCell className="align-top space-y-1">
                                     <Badge variant={service.status === 'concluído' ? 'secondary' : service.status === 'cancelado' ? 'destructive' : 'default'}>{service.status}</Badge>
