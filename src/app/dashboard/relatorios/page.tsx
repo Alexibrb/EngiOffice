@@ -339,32 +339,31 @@ export default function RelatoriosPage() {
       case 'services':
         doc = new jsPDF({ orientation: 'landscape' });
         reportTitle = 'Relatório de Serviços';
-        head = [['Cliente / Descrição / Endereço', 'Data', 'Área (m²)', 'Valor Total', 'Saldo Devedor']];
-        body = data.map((item: Service) => {
+        head = [['Cliente', 'Descrição', 'Data', 'Área (m²)', 'Valor Total', 'Saldo Devedor']];
+        body = [];
+        
+        data.forEach((item: Service) => {
             const client = getClient(item.cliente_id);
             const obra = item.endereco_obra;
             let formattedObra = obra && obra.street ? `${obra.street}, ${obra.number}, ${obra.neighborhood}, ${obra.city} - ${obra.state}` : 'N/A';
-            const coords = item.coordenadas && item.coordenadas.lat ? `Coords.: ${item.coordenadas.lat}, ${item.coordenadas.lng}` : '';
-            if (coords) {
-                formattedObra += ` - ${coords}`;
-            }
+            const coords = item.coordenadas && item.coordenadas.lat ? ` - Coords.: ${item.coordenadas.lat}, ${item.coordenadas.lng}` : '';
+            formattedObra += coords;
 
-            const mainContent = [
-                { content: client?.nome_completo || 'Desconhecido', fontStyle: 'bold' },
-                { content: item.descricao, fontStyle: 'normal' },
-                { content: formattedObra, fontStyle: 'normal', fontSize: 9 }
-            ].map(c => c.content).join('\n');
-
-            return [
-                mainContent,
+            const mainRow = [
+                { content: client?.nome_completo || 'Desconhecido', styles: { fontStyle: 'bold' } },
+                item.descricao,
                 item.data_cadastro ? format(item.data_cadastro, "dd/MM/yyyy") : '-',
                 item.quantidade_m2 ? item.quantidade_m2.toLocaleString('pt-BR') : '0',
                 `R$ ${item.valor_total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
                 `R$ ${item.saldo_devedor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
             ];
+            body.push(mainRow as any[]);
+            
+            const addressRow = [{ content: formattedObra, colSpan: 6, styles: { textColor: [100, 100, 100], fontSize: 9 } }];
+            body.push(addressRow as any[]);
         });
 
-        foot = [['Total Geral', '', '', `R$ ${(totals.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, `R$ ${(totals.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`]];
+        foot = [['Total Geral', '', '', '', `R$ ${(totals.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, `R$ ${(totals.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`]];
         fileName = 'relatorio_servicos.pdf';
         break;
       case 'accountsPayable':
