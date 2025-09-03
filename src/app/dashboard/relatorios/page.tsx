@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -22,7 +23,7 @@ import {
 import type { Client, Supplier, Service, Account, Employee, CompanyData, Commission } from '@/lib/types';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { Download, Search, XCircle, Calendar as CalendarIcon, ChevronDown, ChevronRight, Link as LinkIcon } from 'lucide-react';
+import { Download, Search, XCircle, Calendar as CalendarIcon, ChevronDown, ChevronRight, Link as LinkIcon, ExternalLink, ClipboardCopy } from 'lucide-react';
 import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from "@/hooks/use-toast"
@@ -203,6 +204,14 @@ export default function RelatoriosPage() {
       setStatusFilter('');
       setDateRange(undefined);
   };
+  
+  const handleCopyLink = (url: string) => {
+    navigator.clipboard.writeText(url);
+    toast({
+      title: "Sucesso!",
+      description: "Link copiado para a área de transferência.",
+    });
+  };
 
   const filteredData = useMemo(() => {
     let data: any[] = [];
@@ -339,38 +348,27 @@ export default function RelatoriosPage() {
       case 'services':
         doc = new jsPDF({ orientation: 'landscape' });
         reportTitle = 'Relatório de Serviços';
-        head = [['Cliente', 'Descrição', 'Data', 'Área (m²)', 'Valor Total', 'Saldo Devedor']];
-        body = [];
-        
-        data.forEach((item: Service) => {
+        head = [['Cliente', 'Descrição', 'Endereço da Obra', 'Área (m²)', 'Data', 'Valor Total', 'Saldo Devedor']];
+        body = data.map((item: Service) => {
             const client = getClient(item.cliente_id);
-            
-            // Main data row
-            const mainRow = [
-                client?.nome_completo || 'Desconhecido',
-                item.descricao,
-                item.data_cadastro ? format(item.data_cadastro, "dd/MM/yyyy") : '-',
-                item.quantidade_m2 ? item.quantidade_m2.toLocaleString('pt-BR') : '0',
-                `R$ ${item.valor_total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
-                `R$ ${item.saldo_devedor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
-            ];
-            body.push(mainRow);
-            
-            // Address row
             const obra = item.endereco_obra;
-            let formattedObra = obra && obra.street ? `Endereço: ${obra.street}, ${obra.number}, ${obra.neighborhood}, ${obra.city} - ${obra.state}` : 'Endereço da obra não informado';
-            const coords = item.coordenadas && item.coordenadas.lat ? ` - Coords.: ${item.coordenadas.lat}, ${item.coordenadas.lng}` : '';
-            formattedObra += coords;
-
+            let formattedObra = obra && obra.street ? `${obra.street}, ${obra.number} - ${obra.neighborhood}, ${obra.city} - ${obra.state}` : 'Endereço da obra não informado';
             if (item.anexos && item.anexos.length > 0) {
               formattedObra += `\nAnexos: ${item.anexos.join(', ')}`;
             }
 
-            const addressRow = [{ content: formattedObra, colSpan: 6, styles: { textColor: [100, 100, 100], fontSize: 9 } }];
-            body.push(addressRow);
+            return [
+                client?.nome_completo || 'Desconhecido',
+                item.descricao,
+                formattedObra,
+                item.quantidade_m2 ? item.quantidade_m2.toLocaleString('pt-BR') : '0',
+                item.data_cadastro ? format(item.data_cadastro, "dd/MM/yyyy") : '-',
+                `R$ ${item.valor_total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+                `R$ ${item.saldo_devedor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+            ];
         });
 
-        foot = [['Total Geral', '', '', '', `R$ ${(totals.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, `R$ ${(totals.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`]];
+        foot = [['Total Geral', '', '', '', '', `R$ ${(totals.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, `R$ ${(totals.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`]];
         fileName = 'relatorio_servicos.pdf';
         break;
       case 'accountsPayable':
@@ -619,12 +617,25 @@ export default function RelatoriosPage() {
                                   )}
                                    {(s.anexos && s.anexos.length > 0) && (
                                         <div className="text-xs text-muted-foreground mt-1 space-y-1">
-                                            {s.anexos.map((anexo, index) => (
-                                                <a key={index} href={anexo} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:underline truncate">
-                                                    <LinkIcon className="h-3 w-3 shrink-0"/>
-                                                    <span className="truncate">{anexo}</span>
-                                                </a>
-                                            ))}
+                                            {s.anexos.map((anexo, index) => {
+                                                 const isWebUrl = anexo.startsWith('http://') || anexo.startsWith('https://');
+                                                 return (
+                                                    <div key={index} className="flex items-center gap-1 group">
+                                                        <LinkIcon className="h-3 w-3 shrink-0 text-primary" />
+                                                        <span className="truncate flex-1">{anexo}</span>
+                                                        <Button variant="ghost" size="icon" className="h-5 w-5 opacity-50 group-hover:opacity-100" onClick={() => handleCopyLink(anexo)}>
+                                                            <ClipboardCopy className="h-3 w-3" />
+                                                        </Button>
+                                                        {isWebUrl && (
+                                                        <a href={anexo} target="_blank" rel="noopener noreferrer">
+                                                            <Button variant="ghost" size="icon" className="h-5 w-5 opacity-50 group-hover:opacity-100">
+                                                                <ExternalLink className="h-3 w-3" />
+                                                            </Button>
+                                                        </a>
+                                                        )}
+                                                    </div>
+                                                )
+                                            })}
                                         </div>
                                     )}
                                 </TableCell>

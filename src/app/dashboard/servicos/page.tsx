@@ -692,6 +692,14 @@ export default function ServicosPage() {
     setSearch('');
   }
 
+  const handleCopyLink = (url: string) => {
+    navigator.clipboard.writeText(url);
+    toast({
+      title: "Sucesso!",
+      description: "Link copiado para a área de transferência.",
+    });
+  };
+
   const filteredServices = services
     .filter(service => {
         const searchTermLower = search.toLowerCase();
@@ -1253,12 +1261,25 @@ export default function ServicosPage() {
                                   <div className="text-xs text-muted-foreground">{coordenadas}</div>
                                   {(service.anexos && service.anexos.length > 0) && (
                                     <div className="text-xs text-muted-foreground mt-1 space-y-1">
-                                        {service.anexos.map((anexo, index) => (
-                                            <a key={index} href={anexo} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:underline truncate">
-                                                <LinkIcon className="h-3 w-3 shrink-0"/>
-                                                <span className="truncate">{anexo}</span>
-                                            </a>
-                                        ))}
+                                        {service.anexos.map((anexo, index) => {
+                                             const isWebUrl = anexo.startsWith('http://') || anexo.startsWith('https://');
+                                             return (
+                                                <div key={index} className="flex items-center gap-1 group">
+                                                    <LinkIcon className="h-3 w-3 shrink-0 text-primary" />
+                                                    <span className="truncate flex-1">{anexo}</span>
+                                                    <Button variant="ghost" size="icon" className="h-5 w-5 opacity-50 group-hover:opacity-100" onClick={() => handleCopyLink(anexo)}>
+                                                        <ClipboardCopy className="h-3 w-3" />
+                                                    </Button>
+                                                    {isWebUrl && (
+                                                    <a href={anexo} target="_blank" rel="noopener noreferrer">
+                                                        <Button variant="ghost" size="icon" className="h-5 w-5 opacity-50 group-hover:opacity-100">
+                                                            <ExternalLink className="h-3 w-3" />
+                                                        </Button>
+                                                    </a>
+                                                    )}
+                                                </div>
+                                            )
+                                        })}
                                     </div>
                                   )}
                                 </TableCell>
@@ -1580,6 +1601,7 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, paymentValue, fi
         </Dialog>
     );
 }
+
 
 
 
