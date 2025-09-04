@@ -298,72 +298,78 @@ export default function DashboardPage() {
     const pageWidth = doc.internal.pageSize.getWidth();
     let currentY = 15;
 
-    // Cabeçalho
-    doc.setFontSize(18);
+    // Cabeçalho da Empresa
     doc.setFont('helvetica', 'bold');
-    doc.text(companyData?.companyName || 'EngiOffice', pageWidth / 2, currentY, { align: 'center' });
-    currentY += 8;
-
+    doc.setFontSize(16);
+    doc.text(companyData?.companyName || 'Nome da Empresa', pageWidth / 2, currentY, { align: 'center' });
+    currentY += 7;
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
     if (companyData?.slogan) {
         doc.text(companyData.slogan, pageWidth / 2, currentY, { align: 'center' });
         currentY += 5;
     }
-     const contactInfo = [
-        companyData?.cnpj ? `CNPJ: ${companyData.cnpj}` : '',
-        companyData?.crea ? `CREA: ${companyData.crea}` : ''
+    const creaCnpj = [
+        companyData?.crea ? `CREA: ${companyData.crea}` : '',
+        companyData?.cnpj ? `CNPJ: ${companyData.cnpj}` : ''
     ].filter(Boolean).join(' | ');
-    if (contactInfo) {
-        doc.text(contactInfo, pageWidth / 2, currentY, { align: 'center' });
+    if (creaCnpj) {
+        doc.text(creaCnpj, pageWidth / 2, currentY, { align: 'center' });
         currentY += 5;
     }
-     if (companyData?.address) {
-        doc.text(companyData.address, pageWidth / 2, currentY, { align: 'center' });
-        currentY += 5;
-    }
-
-
-    currentY += 5;
-    doc.setLineWidth(0.5);
+    doc.setLineWidth(0.3);
     doc.line(14, currentY, pageWidth - 14, currentY);
     currentY += 10;
     
+    // Título do Documento
+    doc.setFont('helvetica', 'bold');
     doc.setFontSize(14);
-    doc.setFont('helvetica', 'bold');
     doc.text('COMPROVANTE DE PRESTAÇÃO DE SERVIÇO', pageWidth / 2, currentY, { align: 'center' });
-    currentY += 15;
+    currentY += 10;
 
-
-    // Dados do Cliente
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.text('DADOS DO CLIENTE', 14, currentY);
-    currentY += 7;
+    // Data e Valor
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
+    doc.text(`Data de Cadastro: ${format(service.data_cadastro, 'dd/MM/yyyy')}`, 14, currentY);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Valor Total:', pageWidth - 60, currentY);
+    doc.rect(pageWidth - 40, currentY - 4, 26, 6);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`R$ ${service.valor_total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, pageWidth - 38, currentY);
+    currentY += 8;
+
+    // Seção Cliente
+    doc.setFont('helvetica', 'bold');
     autoTable(doc, {
         startY: currentY,
+        head: [['DADOS DO CLIENTE']],
+        body: [],
+        theme: 'plain',
+        headStyles: { halign: 'left', fontStyle: 'bold', fillColor: [230, 230, 230] },
+    });
+    autoTable(doc, {
+        startY: (doc as any).lastAutoTable.finalY,
         body: [
-            ['Nome Completo:', client.nome_completo],
-            ['CPF/CNPJ:', client.cpf_cnpj || 'N/A'],
-            ['RG:', client.rg || 'N/A'],
-            ['Telefone:', client.telefone || 'N/A'],
-            ['Endereço:', `${client.endereco_residencial.street || ''}, ${client.endereco_residencial.number || ''} - ${client.endereco_residencial.neighborhood || ''}, ${client.endereco_residencial.city || ''} - ${client.endereco_residencial.state || ''}`],
+            [{ content: 'Nome Completo:', styles: { fontStyle: 'bold', cellWidth: 35 } }, client.nome_completo],
+            [{ content: 'CPF/CNPJ:', styles: { fontStyle: 'bold' } }, client.cpf_cnpj || 'N/A'],
+            [{ content: 'RG:', styles: { fontStyle: 'bold' } }, client.rg || 'N/A'],
+            [{ content: 'Telefone:', styles: { fontStyle: 'bold' } }, client.telefone || 'N/A'],
+            [{ content: 'Endereço:', styles: { fontStyle: 'bold' } }, `${client.endereco_residencial.street || ''}, ${client.endereco_residencial.number || ''} - ${client.endereco_residencial.neighborhood || ''}, ${client.endereco_residencial.city || ''} - ${client.endereco_residencial.state || ''}`]
         ],
         theme: 'plain',
         styles: { cellPadding: 1, fontSize: 10 },
-        columnStyles: { 0: { fontStyle: 'bold' } },
     });
-    currentY = (doc as any).lastAutoTable.finalY + 10;
+    currentY = (doc as any).lastAutoTable.finalY + 5;
     
-    // Dados do Serviço
-    doc.setFontSize(12);
+    // Seção Serviço
     doc.setFont('helvetica', 'bold');
-    doc.text('DADOS DO SERVIÇO', 14, currentY);
-    currentY += 7;
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
+    autoTable(doc, {
+        startY: currentY,
+        head: [['DADOS DO SERVIÇO']],
+        body: [],
+        theme: 'plain',
+        headStyles: { halign: 'left', fontStyle: 'bold', fillColor: [230, 230, 230] },
+    });
     let obraAddress = 'N/A';
     if(service.endereco_obra && service.endereco_obra.street) {
         obraAddress = `${service.endereco_obra.street}, ${service.endereco_obra.number} - ${service.endereco_obra.neighborhood}, ${service.endereco_obra.city} - ${service.endereco_obra.state}`;
@@ -371,31 +377,38 @@ export default function DashboardPage() {
     if (service.coordenadas?.lat && service.coordenadas?.lng) {
         obraAddress += ` (Coords: ${service.coordenadas.lat}, ${service.coordenadas.lng})`
     }
-    
     autoTable(doc, {
-        startY: currentY,
+        startY: (doc as any).lastAutoTable.finalY,
         body: [
-            ['Descrição:', service.descricao],
-            ['Endereço da Obra:', obraAddress],
-            ['Data de Cadastro:', format(service.data_cadastro, 'dd/MM/yyyy')],
-            ['Área (m²):', service.quantidade_m2?.toLocaleString('pt-BR') || 'N/A'],
-            ['Valor Total:', `R$ ${service.valor_total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
-            ['Forma de Pagamento:', service.forma_pagamento === 'a_vista' ? 'À Vista' : 'A Prazo'],
-            ['Anexos:', service.anexos && service.anexos.length > 0 ? service.anexos.join('\n') : 'Nenhum'],
+            [{ content: 'Descrição:', styles: { fontStyle: 'bold', cellWidth: 35 } }, service.descricao],
+            [{ content: 'Endereço da Obra:', styles: { fontStyle: 'bold' } }, obraAddress],
+            [{ content: 'Área (m²):', styles: { fontStyle: 'bold' } }, service.quantidade_m2?.toLocaleString('pt-BR') || 'N/A'],
+            [{ content: 'Anexos:', styles: { fontStyle: 'bold' } }, service.anexos && service.anexos.length > 0 ? service.anexos.join('\n') : 'Nenhum'],
+            [{ content: 'Forma de Pagamento:', styles: { fontStyle: 'bold' } }, service.forma_pagamento === 'a_vista' ? 'À Vista' : 'A Prazo'],
         ],
         theme: 'plain',
         styles: { cellPadding: 1, fontSize: 10 },
-        columnStyles: { 0: { fontStyle: 'bold' } },
     });
-    currentY = (doc as any).lastAutoTable.finalY + 20;
+    currentY = (doc as any).lastAutoTable.finalY + 25;
 
-    // Assinatura
+
+    // Assinatura e Data
     const today = format(new Date(), "d 'de' MMMM 'de' yyyy", { locale: ptBR });
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
     doc.text(`${(client.endereco_residencial && client.endereco_residencial.city) ? client.endereco_residencial.city : 'Localidade não informada'}, ${today}.`, pageWidth / 2, currentY, { align: 'center' });
     currentY += 20;
     
+    doc.setLineWidth(0.3);
     doc.line(pageWidth / 2 - 40, currentY, pageWidth / 2 + 40, currentY);
-    doc.text(companyData?.companyName || 'EngiOffice', pageWidth / 2, currentY + 5, { align: 'center' });
+    doc.text(companyData?.companyName || 'Nome da Empresa', pageWidth / 2, currentY + 5, { align: 'center' });
+    
+    // Rodapé
+    if (companyData?.address && companyData?.phone) {
+        const footerText = `${companyData.address} | ${companyData.phone}`;
+        doc.setFontSize(8);
+        doc.text(footerText, pageWidth / 2, doc.internal.pageSize.getHeight() - 10, { align: 'center' });
+    }
 
     doc.save(`comprovante_${client.nome_completo.replace(/\s/g, '_')}_${service.id}.pdf`);
   };
@@ -761,3 +774,6 @@ export default function DashboardPage() {
 
 
 
+
+
+    
