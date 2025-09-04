@@ -79,7 +79,7 @@ export default function AnotacoesPage() {
   }, [toast]);
   
   useEffect(() => {
-    if (selectedClientId) {
+    if (selectedClientId && selectedClientId !== 'none') {
         const relatedServices = services.filter(s => s.cliente_id === selectedClientId);
         setFilteredServices(relatedServices);
         // Reset serviceId if the selected client doesn't have the previously selected service
@@ -95,10 +95,14 @@ export default function AnotacoesPage() {
   const handleSaveNote = async (values: z.infer<typeof noteSchema>) => {
     setIsLoading(true);
     try {
-      await addDoc(collection(db, 'anotacoes'), {
+      const dataToSave = {
         ...values,
+        clientId: values.clientId === 'none' ? '' : values.clientId,
+        serviceId: values.serviceId === 'none' ? '' : values.serviceId,
         createdAt: new Date(),
-      });
+      };
+
+      await addDoc(collection(db, 'anotacoes'), dataToSave);
       toast({ title: 'Sucesso!', description: 'Anotação salva com sucesso.' });
       form.reset();
       
@@ -159,7 +163,7 @@ export default function AnotacoesPage() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="">Nenhum</SelectItem>
+                          <SelectItem value="none">Nenhum</SelectItem>
                           {clients.map(client => (
                             <SelectItem key={client.codigo_cliente} value={client.codigo_cliente}>
                               {client.nome_completo}
@@ -177,14 +181,14 @@ export default function AnotacoesPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Serviço (Opcional)</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value} disabled={filteredServices.length === 0 && !!selectedClientId}>
+                      <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value} disabled={filteredServices.length === 0 && !!selectedClientId && selectedClientId !== 'none'}>
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder={selectedClientId ? "Selecione um serviço do cliente" : "Selecione um serviço"} />
+                            <SelectValue placeholder={selectedClientId && selectedClientId !== 'none' ? "Selecione um serviço do cliente" : "Selecione um serviço"} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="">Nenhum</SelectItem>
+                          <SelectItem value="none">Nenhum</SelectItem>
                           {filteredServices.map(service => (
                             <SelectItem key={service.id} value={service.id}>
                               {service.descricao}
@@ -275,3 +279,5 @@ export default function AnotacoesPage() {
     </div>
   );
 }
+
+    
