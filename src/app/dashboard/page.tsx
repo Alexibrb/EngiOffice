@@ -12,6 +12,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from '@/components/ui/card';
 import {
   Table,
@@ -22,9 +23,9 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { collection, getDocs, deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import { collection, getDocs, deleteDoc, doc, updateDoc, query, orderBy } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
-import type { Service, Account, Client, Commission } from '@/lib/types';
+import type { Service, Account, Client, Commission, Note } from '@/lib/types';
 import { format, isPast } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import jsPDF from 'jspdf';
@@ -44,6 +45,8 @@ import {
   TrendingUp,
   MoreHorizontal,
   FileText,
+  Pin,
+  Trash2,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -70,11 +73,21 @@ const paymentSchema = z.object({
   valor_pago: z.coerce.number().min(0.01, "O valor deve ser maior que zero.")
 });
 
+const postItColors = [
+    'bg-yellow-200 dark:bg-yellow-800/40 border-yellow-300 dark:border-yellow-700/60',
+    'bg-green-200 dark:bg-green-800/40 border-green-300 dark:border-green-700/60',
+    'bg-blue-200 dark:bg-blue-800/40 border-blue-300 dark:border-blue-700/60',
+    'bg-pink-200 dark:bg-pink-800/40 border-pink-300 dark:border-pink-700/60',
+    'bg-purple-200 dark:bg-purple-800/40 border-purple-300 dark:border-purple-700/60',
+];
+
+
 export default function DashboardPage() {
   const [services, setServices] = useState<Service[]>([]);
   const [accountsPayable, setAccountsPayable] = useState<Account[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [commissions, setCommissions] = useState<Commission[]>([]);
+  const [notes, setNotes] = useState<Note[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState<User | null>(null);
   const router = useRouter();
@@ -101,11 +114,12 @@ export default function DashboardPage() {
 
   const fetchData = async () => {
       try {
-        const [servicesSnapshot, payableSnapshot, clientsSnapshot, commissionsSnapshot] = await Promise.all([
+        const [servicesSnapshot, payableSnapshot, clientsSnapshot, commissionsSnapshot, notesSnapshot] = await Promise.all([
           getDocs(collection(db, "servicos")),
           getDocs(collection(db, "contas_a_pagar")),
           getDocs(collection(db, "clientes")),
           getDocs(collection(db, "comissoes")),
+          getDocs(query(collection(db, "anotacoes"), orderBy("createdAt", "desc"))),
         ]);
 
         const servicesData = servicesSnapshot.docs.map(doc => {
@@ -128,6 +142,9 @@ export default function DashboardPage() {
             return { ...data, id: doc.id, data: data.data.toDate() } as Commission;
         });
         setCommissions(commissionsData);
+        
+        const notesData = notesSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, createdAt: doc.data().createdAt.toDate() })) as Note[];
+        setNotes(notesData);
 
 
       } catch (error) {
@@ -144,6 +161,27 @@ export default function DashboardPage() {
   const getClient = (clientId: string) => {
     return clients.find(c => c.codigo_cliente === clientId);
   }
+  
+  const getClientName = (id: string) => clients.find(c => c.codigo_cliente === id)?.nome_completo || 'Cliente não encontrado';
+
+  const getServiceAddress = (id: string) => {
+    const service = services.find(s => s.id === id);
+    if (!service?.endereco_obra) return 'Serviço sem endereço';
+    const { street, number, city } = service.endereco_obra;
+    if (!street) return 'Endereço da obra não preenchido';
+    return `${street}, ${number} - ${city}`;
+  };
+  
+  const handleDeleteNote = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'anotacoes', id));
+      setNotes(notes.filter(note => note.id !== id));
+      toast({ title: 'Sucesso!', description: 'Anotação excluída.' });
+    } catch(error) {
+       console.error("Erro ao excluir anotação: ", error);
+       toast({ variant: 'destructive', title: 'Erro', description: 'Não foi possível excluir a anotação.' });
+    }
+  };
 
   const ongoingServices = services.filter(
     (s) => s.status === 'em andamento'
@@ -731,6 +769,63 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+       <div className="mt-8">
+            <h2 className="text-2xl font-bold font-headline tracking-tight mb-4">Anotações Recentes</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {notes.length > 0 ? (
+                    notes.slice(0, 4).map((note, index) => (
+                        <Card key={note.id} className={cn(
+                            "shadow-lg transform rotate-[-2deg] hover:rotate-0 hover:scale-105 transition-transform duration-200 ease-in-out",
+                            postItColors[index % postItColors.length]
+                        )}>
+                        <CardHeader className="flex-row items-center justify-between pb-2">
+                            <div className="flex items-center gap-2">
+                            <Pin className="h-5 w-5 text-slate-600 dark:text-yellow-500" />
+                            <CardTitle className="text-sm font-bold text-slate-700 dark:text-yellow-400">
+                                {note.clientId ? getClientName(note.clientId) : 'Anotação Geral'}
+                            </CardTitle>
+                            </div>
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-500 hover:bg-black/10 hover:text-destructive">
+                                    <Trash2 className="h-4 w-4" />
+                                </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>Excluir esta anotação?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                    Essa ação não pode ser desfeita.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => handleDeleteNote(note.id)}>Excluir</AlertDialogAction>
+                                </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-slate-800 dark:text-yellow-200/90 whitespace-pre-wrap font-serif">
+                                {note.content}
+                            </p>
+                        </CardContent>
+                        <CardFooter className="flex-col items-start text-xs text-slate-600 dark:text-yellow-600 pt-4">
+                            {note.serviceId && (
+                            <p className="font-semibold mb-1">Obra: {getServiceAddress(note.serviceId)}</p>
+                            )}
+                            <p>{format(note.createdAt, "d 'de' MMMM, yyyy 'às' HH:mm", { locale: ptBR })}</p>
+                        </CardFooter>
+                        </Card>
+                    ))
+                ) : (
+                    <div className="col-span-full text-center text-muted-foreground py-10">
+                        <p>Nenhuma anotação encontrada.</p>
+                    </div>
+                )}
+            </div>
+        </div>
 
       <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
           <DialogContent className="sm:max-w-md">
