@@ -414,9 +414,11 @@ export function UserNav() {
              <DropdownMenuItem onSelect={() => setIsProfileDataOpen(true)}>
               Meu Perfil
             </DropdownMenuItem>
-             <DropdownMenuItem onSelect={() => setIsCompanyDataOpen(true)}>
-              Dados da Empresa
-            </DropdownMenuItem>
+             {isAdmin && (
+              <DropdownMenuItem onSelect={() => setIsCompanyDataOpen(true)}>
+                Dados da Empresa
+              </DropdownMenuItem>
+             )}
             <DropdownMenuItem onClick={handleChangePassword}>
               Trocar Senha
             </DropdownMenuItem>
