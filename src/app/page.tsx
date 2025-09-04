@@ -27,10 +27,11 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Rocket, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
 import { collection, query, where, getDocs } from 'firebase/firestore';
+import Image from 'next/image';
 
 const loginSchema = z.object({
   email: z.string().email({ message: 'Por favor, insira um email válido.' }),
@@ -98,7 +99,14 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-sm">
         <CardHeader className="items-center text-center">
-          <Rocket className="h-8 w-8 text-primary" />
+           <Image
+            src="/logonovo.png"
+            alt="EngiOffice Logo"
+            width={40}
+            height={40}
+            className="text-primary"
+            data-ai-hint="application logo"
+          />
           <CardTitle className="font-headline text-3xl">EngiOffice</CardTitle>
           <CardDescription>
             Entre para gerenciar seus projetos de engenharia.

@@ -28,9 +28,10 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Rocket, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
+import Image from 'next/image';
 
 const signupSchema = z.object({
   name: z.string().min(1, { message: 'Nome é obrigatório.' }),
@@ -114,7 +115,14 @@ export default function SignupPage() {
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-sm">
         <CardHeader className="items-center text-center">
-          <Rocket className="h-8 w-8 text-primary" />
+           <Image
+            src="/logonovo.png"
+            alt="EngiOffice Logo"
+            width={40}
+            height={40}
+            className="text-primary"
+            data-ai-hint="application logo"
+          />
           <CardTitle className="font-headline text-3xl">Criar Conta</CardTitle>
           <CardDescription>
             Junte-se ao EngiOffice para começar a gerenciar.

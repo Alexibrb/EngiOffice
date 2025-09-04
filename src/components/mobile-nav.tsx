@@ -6,7 +6,6 @@ import { usePathname } from 'next/navigation';
 import {
   Briefcase,
   LayoutDashboard,
-  Rocket,
   Sparkles,
   Truck,
   Users,
@@ -38,6 +37,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import type { AuthorizedUser } from '@/lib/types';
+import Image from 'next/image';
 
 
 const dashboardLink = { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard };
@@ -172,7 +172,14 @@ export function MobileNav() {
     <div className="flex h-full flex-col">
        <header className="flex h-16 items-center border-b px-4 shrink-0">
          <Link href="/dashboard" className="flex items-center gap-2 font-semibold">
-           <Rocket className="h-6 w-6 text-primary" />
+           <Image
+              src="/logonovo.png"
+              alt="EngiOffice Logo"
+              width={24}
+              height={24}
+              className="text-primary"
+              data-ai-hint="application logo"
+            />
            <span className="font-headline text-lg">EngiOffice</span>
          </Link>
        </header>
