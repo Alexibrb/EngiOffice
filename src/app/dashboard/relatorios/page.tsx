@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -20,12 +19,12 @@ import {
   TableRow,
   TableFooter,
 } from '@/components/ui/table';
-import type { Client, Supplier, Service, Account, Employee, CompanyData, Commission } from '@/lib/types';
+import type { Client, Supplier, Service, Account, Employee, CompanyData, Commission, AuthorizedUser } from '@/lib/types';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Download, Search, XCircle, Calendar as CalendarIcon, ChevronDown, ChevronRight, Link as LinkIcon, ExternalLink, ClipboardCopy } from 'lucide-react';
-import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { collection, getDocs, doc, getDoc, query, where } from 'firebase/firestore';
+import { db, auth } from '@/lib/firebase';
 import { useToast } from "@/hooks/use-toast"
 import { format, startOfDay, endOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -39,6 +38,7 @@ import { cn } from '@/lib/utils';
 import { DateRange } from 'react-day-picker';
 import { PageHeader } from '@/components/page-header';
 import { useCompanyData } from '../layout';
+import { onAuthStateChanged } from 'firebase/auth';
 
 type ReportType = 'clients' | 'suppliers' | 'services' | 'accountsPayable' | 'commissions';
 
@@ -146,6 +146,7 @@ export default function RelatoriosPage() {
   const [commissions, setCommissions] = useState<Commission[]>([]);
   const companyData = useCompanyData();
   const [isLoading, setIsLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
   
   const [selectedReport, setSelectedReport] = useState<ReportType>('clients');
   const [searchFilter, setSearchFilter] = useState('');
@@ -154,6 +155,24 @@ export default function RelatoriosPage() {
   
 
   const { toast } = useToast();
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+        if (user) {
+            const q = query(collection(db, "authorized_users"), where("email", "==", user.email));
+            const querySnapshot = await getDocs(q);
+            if (!querySnapshot.empty) {
+                const userData = querySnapshot.docs[0].data() as AuthorizedUser;
+                setIsAdmin(userData.role === 'admin');
+            } else {
+                setIsAdmin(false);
+            }
+        } else {
+            setIsAdmin(false);
+        }
+    });
+    return () => unsubscribe();
+  }, []);
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -348,27 +367,31 @@ export default function RelatoriosPage() {
       case 'services':
         doc = new jsPDF({ orientation: 'landscape' });
         reportTitle = 'Relatório de Serviços';
-        head = [['Cliente', 'Descrição', 'Endereço da Obra', 'Área (m²)', 'Data', 'Valor Total', 'Saldo Devedor']];
+        head = [['Cliente\nDescrição\nEndereço da Obra', 'Data', 'Área (m²)', 'Valor Total', 'Saldo Devedor']];
         body = data.map((item: Service) => {
             const client = getClient(item.cliente_id);
             const obra = item.endereco_obra;
             let formattedObra = obra && obra.street ? `${obra.street}, ${obra.number} - ${obra.neighborhood}, ${obra.city} - ${obra.state}` : 'Endereço da obra não informado';
-            if (item.anexos && item.anexos.length > 0) {
+            if (item.coordenadas?.lat && item.coordenadas?.lng) {
+                formattedObra += `\nCoords.: ${item.coordenadas.lat}, ${item.coordenadas.lng}`;
+            }
+             if (item.anexos && item.anexos.length > 0) {
               formattedObra += `\nAnexos: ${item.anexos.join(', ')}`;
             }
 
+            const description = `${item.descricao}`;
+            const clientAndDesc = `${client?.nome_completo || 'Desconhecido'}\n${description}\n${formattedObra}`;
+
             return [
-                client?.nome_completo || 'Desconhecido',
-                item.descricao,
-                formattedObra,
-                item.quantidade_m2 ? item.quantidade_m2.toLocaleString('pt-BR') : '0',
+                clientAndDesc,
                 item.data_cadastro ? format(item.data_cadastro, "dd/MM/yyyy") : '-',
+                item.quantidade_m2 ? item.quantidade_m2.toLocaleString('pt-BR') : '0',
                 `R$ ${item.valor_total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
                 `R$ ${item.saldo_devedor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
             ];
         });
 
-        foot = [['Total Geral', '', '', '', '', `R$ ${(totals.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, `R$ ${(totals.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`]];
+        foot = [['Total Geral', '', '', `R$ ${(totals.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, `R$ ${(totals.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`]];
         fileName = 'relatorio_servicos.pdf';
         break;
       case 'accountsPayable':
@@ -791,7 +814,7 @@ export default function RelatoriosPage() {
                 <SelectItem value="suppliers">Fornecedores</SelectItem>
                 <SelectItem value="services">Serviços</SelectItem>
                 <SelectItem value="accountsPayable">Contas a Pagar</SelectItem>
-                <SelectItem value="commissions">Comissões</SelectItem>
+                {isAdmin && <SelectItem value="commissions">Comissões</SelectItem>}
             </SelectContent>
         </Select>
       </div>
