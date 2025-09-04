@@ -361,6 +361,7 @@ export default function DashboardPage() {
             ['Data de Cadastro:', format(service.data_cadastro, 'dd/MM/yyyy')],
             ['Área (m²):', service.quantidade_m2?.toLocaleString('pt-BR') || 'N/A'],
             ['Valor Total:', `R$ ${service.valor_total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
+            ['Forma de Pagamento:', service.forma_pagamento === 'a_vista' ? 'À Vista' : 'A Prazo'],
             ['Anexos:', service.anexos && service.anexos.length > 0 ? service.anexos.join('\n') : 'Nenhum'],
         ],
         theme: 'plain',
@@ -730,6 +731,7 @@ export default function DashboardPage() {
     </div>
   );
 }
+
 
 
 
