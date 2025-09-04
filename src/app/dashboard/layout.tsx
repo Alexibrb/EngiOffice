@@ -40,8 +40,8 @@ function CompanyHeader({ companyData }: { companyData: CompanyData | null }) {
            </div>
         )}
         <div className="flex flex-col">
-            <h1 className="text-lg font-bold text-foreground">{companyData?.companyName || 'Nome da Empresa'}</h1>
-            <p className="text-sm text-muted-foreground italic">{companyData?.slogan || 'Slogan da empresa'}</p>
+            <h1 className="text-lg font-bold text-foreground">{companyData?.companyName || 'Empresa/Profissional'}</h1>
+            <p className="text-sm text-muted-foreground italic">{companyData?.slogan || 'Slogan/Profissão'}</p>
             <p className="text-xs text-muted-foreground">{companyData?.address || 'Endereço da empresa'}</p>
             <p className="text-xs text-muted-foreground">
                 {companyData?.phone && <span>{companyData.phone}</span>}

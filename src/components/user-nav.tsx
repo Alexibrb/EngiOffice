@@ -131,7 +131,7 @@ function CompanyDataDialog({ isOpen, onOpenChange }: { isOpen: boolean, onOpenCh
                 name="companyName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Nome da Empresa *</FormLabel>
+                    <FormLabel>Empresa/Profissional *</FormLabel>
                     <FormControl><Input {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
@@ -142,7 +142,7 @@ function CompanyDataDialog({ isOpen, onOpenChange }: { isOpen: boolean, onOpenCh
                 name="slogan"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Slogan</FormLabel>
+                    <FormLabel>Slogan/Profissão</FormLabel>
                     <FormControl><Input {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>

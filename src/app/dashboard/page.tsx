@@ -228,13 +228,13 @@ export default function DashboardPage() {
         // Informações da Empresa
         doc.setFontSize(12);
         doc.setFont('helvetica', 'normal');
-        doc.text(companyData?.companyName || 'EngiOffice', 20, 40);
+        doc.text(companyData?.companyName || 'Empresa/Profissional', 20, 40);
         const contactInfo = [
             companyData?.cnpj ? `CNPJ: ${companyData.cnpj}` : '',
             companyData?.crea ? `CREA: ${companyData.crea}` : ''
         ].filter(Boolean).join(' | ');
         doc.text(contactInfo, 20, 46);
-        doc.text(companyData?.address || 'Endereço não informado', 20, 52);
+        doc.text(companyData?.address || 'Endereço da empresa', 20, 52);
 
 
         doc.setLineWidth(0.5);
@@ -282,7 +282,7 @@ export default function DashboardPage() {
         
         currentY += 20;
         doc.line(pageWidth / 2 - 40, currentY, pageWidth / 2 + 40, currentY);
-        doc.text(companyData?.companyName || 'EngiOffice', pageWidth / 2, currentY + 5, { align: 'center' });
+        doc.text(companyData?.companyName || 'Empresa/Profissional', pageWidth / 2, currentY + 5, { align: 'center' });
 
         doc.save(`recibo_${client.nome_completo.replace(/\s/g, '_')}_${service.id}.pdf`);
   };
@@ -301,7 +301,7 @@ export default function DashboardPage() {
     // Cabeçalho da Empresa
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(16);
-    doc.text(companyData?.companyName || 'Nome da Empresa', pageWidth / 2, currentY, { align: 'center' });
+    doc.text(companyData?.companyName || 'Empresa/Profissional', pageWidth / 2, currentY, { align: 'center' });
     currentY += 7;
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
@@ -401,7 +401,7 @@ export default function DashboardPage() {
     
     doc.setLineWidth(0.3);
     doc.line(pageWidth / 2 - 40, currentY, pageWidth / 2 + 40, currentY);
-    doc.text(companyData?.companyName || 'Nome da Empresa', pageWidth / 2, currentY + 5, { align: 'center' });
+    doc.text(companyData?.companyName || 'Empresa/Profissional', pageWidth / 2, currentY + 5, { align: 'center' });
     
     // Rodapé
     if (companyData?.address && companyData?.phone) {
