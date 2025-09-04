@@ -140,4 +140,12 @@ export type AuthorizedUser = {
   email: string;
   role: 'admin' | 'user';
 }
+
+export type Note = {
+  id: string;
+  clientId?: string;
+  serviceId?: string;
+  content: string;
+  createdAt: Date;
+};
     
