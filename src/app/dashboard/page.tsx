@@ -67,6 +67,7 @@ import { onAuthStateChanged, User } from 'firebase/auth';
 import { useCompanyData } from './layout';
 import Image from 'next/image';
 import { PageHeader } from '@/components/page-header';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 
 const paymentSchema = z.object({
@@ -776,7 +777,7 @@ export default function DashboardPage() {
                 {notes.length > 0 ? (
                     notes.slice(0, 4).map((note, index) => (
                         <Card key={note.id} className={cn(
-                            "shadow-lg transform rotate-[-2deg] hover:rotate-0 hover:scale-105 transition-transform duration-200 ease-in-out",
+                            "shadow-lg transform rotate-[-2deg] hover:rotate-0 hover:scale-105 transition-transform duration-200 ease-in-out h-72 flex flex-col",
                             postItColors[index % postItColors.length]
                         )}>
                         <CardHeader className="flex-row items-center justify-between pb-2">
@@ -806,12 +807,14 @@ export default function DashboardPage() {
                                 </AlertDialogContent>
                             </AlertDialog>
                         </CardHeader>
-                        <CardContent>
-                            <p className="text-slate-800 dark:text-yellow-200/90 whitespace-pre-wrap font-serif">
-                                {note.content}
-                            </p>
+                        <CardContent className="flex-1 overflow-hidden">
+                            <ScrollArea className="h-full pr-4">
+                                <p className="text-slate-800 dark:text-yellow-200/90 whitespace-pre-wrap font-serif">
+                                    {note.content}
+                                </p>
+                            </ScrollArea>
                         </CardContent>
-                        <CardFooter className="flex-col items-start text-xs text-slate-600 dark:text-yellow-600 pt-4">
+                        <CardFooter className="flex-col items-start text-xs text-slate-600 dark:text-yellow-600 pt-4 mt-auto">
                             {note.serviceId && (
                             <p className="font-semibold mb-1">Obra: {getServiceAddress(note.serviceId)}</p>
                             )}
