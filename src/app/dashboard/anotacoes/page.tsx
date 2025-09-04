@@ -26,12 +26,22 @@ import type { Client, Service, Note } from '@/lib/types';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { cn } from '@/lib/utils';
 
 const noteSchema = z.object({
   clientId: z.string().optional(),
   serviceId: z.string().optional(),
   content: z.string().min(1, 'O conteúdo da anotação não pode estar vazio.'),
 });
+
+const postItColors = [
+    'bg-yellow-200 dark:bg-yellow-800/40 border-yellow-300 dark:border-yellow-700/60',
+    'bg-green-200 dark:bg-green-800/40 border-green-300 dark:border-green-700/60',
+    'bg-blue-200 dark:bg-blue-800/40 border-blue-300 dark:border-blue-700/60',
+    'bg-pink-200 dark:bg-pink-800/40 border-pink-300 dark:border-pink-700/60',
+    'bg-purple-200 dark:bg-purple-800/40 border-purple-300 dark:border-purple-700/60',
+];
+
 
 export default function AnotacoesPage() {
   const [clients, setClients] = useState<Client[]>([]);
@@ -130,7 +140,14 @@ export default function AnotacoesPage() {
   };
   
   const getClientName = (id: string) => clients.find(c => c.codigo_cliente === id)?.nome_completo || 'Cliente não encontrado';
-  const getServiceDescription = (id: string) => services.find(s => s.id === id)?.descricao || 'Serviço não encontrado';
+  const getServiceAddress = (id: string) => {
+    const service = services.find(s => s.id === id);
+    if (!service?.endereco_obra) return 'Serviço sem endereço';
+    const { street, number, city } = service.endereco_obra;
+    if (!street) return 'Endereço da obra não preenchido';
+    return `${street}, ${number} - ${city}`;
+  };
+
 
   return (
     <div className="flex flex-col gap-8">
@@ -191,7 +208,7 @@ export default function AnotacoesPage() {
                           <SelectItem value="none">Nenhum</SelectItem>
                           {filteredServices.map(service => (
                             <SelectItem key={service.id} value={service.id}>
-                              {service.descricao}
+                              {service.descricao} ({getServiceAddress(service.id)})
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -227,8 +244,11 @@ export default function AnotacoesPage() {
         <h2 className="text-2xl font-bold font-headline tracking-tight mb-4">Anotações Salvas</h2>
          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {notes.length > 0 ? (
-                notes.map(note => (
-                    <Card key={note.id} className="bg-yellow-200 dark:bg-yellow-800/40 border-yellow-300 dark:border-yellow-700/60 shadow-lg transform rotate-[-2deg] hover:rotate-0 hover:scale-105 transition-transform duration-200 ease-in-out">
+                notes.map((note, index) => (
+                    <Card key={note.id} className={cn(
+                        "shadow-lg transform rotate-[-2deg] hover:rotate-0 hover:scale-105 transition-transform duration-200 ease-in-out",
+                        postItColors[index % postItColors.length]
+                    )}>
                        <CardHeader className="flex-row items-center justify-between pb-2">
                          <div className="flex items-center gap-2">
                            <Pin className="h-5 w-5 text-slate-600 dark:text-yellow-500" />
@@ -263,7 +283,7 @@ export default function AnotacoesPage() {
                        </CardContent>
                        <CardFooter className="flex-col items-start text-xs text-slate-600 dark:text-yellow-600 pt-4">
                         {note.serviceId && (
-                           <p className="font-semibold mb-1">Serviço: {getServiceDescription(note.serviceId)}</p>
+                           <p className="font-semibold mb-1">Obra: {getServiceAddress(note.serviceId)}</p>
                         )}
                         <p>{format(note.createdAt, "d 'de' MMMM, yyyy 'às' HH:mm", { locale: ptBR })}</p>
                        </CardFooter>
@@ -279,5 +299,3 @@ export default function AnotacoesPage() {
     </div>
   );
 }
-
-    
