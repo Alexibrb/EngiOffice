@@ -519,7 +519,12 @@ export default function ServicosPage() {
 
         toast({ title: 'Sucesso!', description: 'Pagamento lançado com sucesso.' });
         
-        generateReceipt(editingService, values.valor_pago);
+        const updatedServiceForReceipt = {
+            ...editingService,
+            valor_pago: novoValorPago,
+            saldo_devedor: novoSaldoDevedor,
+        };
+        generateReceipt(updatedServiceForReceipt, values.valor_pago);
         
         setIsPaymentDialogOpen(false);
         
@@ -1738,6 +1743,7 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, paymentValue, fi
         </Dialog>
     );
 }
+
 
 
 

@@ -24,7 +24,7 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import { collection, getDocs, doc, updateDoc, Timestamp, writeBatch, query, where } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
-import { Calendar as CalendarIcon, Download, ExternalLink, XCircle, ArrowUp, TrendingUp, MoreHorizontal, HandCoins, FileText, Loader2, User, Users, CheckCircle, Link as LinkIcon } from 'lucide-react';
+import { Calendar as CalendarIcon, Download, ExternalLink, XCircle, ArrowUp, TrendingUp, MoreHorizontal, HandCoins, FileText, Loader2, User, Users, CheckCircle, Link as LinkIcon, ClipboardCopy } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -416,7 +416,12 @@ export default function ContasAReceberPage() {
 
             toast({ title: 'Sucesso!', description: 'Pagamento lançado com sucesso.' });
             
-            generateReceipt(editingService, values.valor_pago);
+            const updatedServiceForReceipt = {
+                ...editingService,
+                valor_pago: novoValorPago,
+                saldo_devedor: novoSaldoDevedor,
+            };
+            generateReceipt(updatedServiceForReceipt, values.valor_pago);
 
             setIsPaymentDialogOpen(false);
             
@@ -751,6 +756,7 @@ function ReceivableTableComponent({ services, getClient, totalValor, totalSaldo,
                                 <TableCell className="align-top">
                                     <div className="font-medium">Total: R$ {(service.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
                                     <div className="text-sm text-red-500">Saldo: R$ {(service.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                                    {service.quantidade_m2 ? <div className="text-xs text-muted-foreground">Área: {service.quantidade_m2} m²</div> : null}
                                 </TableCell>
                                  <TableCell className="align-top space-y-1">
                                     <Badge variant={service.status === 'concluído' ? 'secondary' : service.status === 'cancelado' ? 'destructive' : 'default'}>{service.status}</Badge>
@@ -996,6 +1002,7 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, paymentValue, fi
         </Dialog>
     );
 }
+
 
 
 

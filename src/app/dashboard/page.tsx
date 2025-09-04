@@ -426,7 +426,12 @@ export default function DashboardPage() {
 
         toast({ title: 'Sucesso!', description: 'Pagamento lançado com sucesso.' });
         
-        generateReceipt(editingService, values.valor_pago);
+        const updatedServiceForReceipt = {
+          ...editingService,
+          valor_pago: novoValorPago,
+          saldo_devedor: novoSaldoDevedor,
+        };
+        generateReceipt(updatedServiceForReceipt, values.valor_pago);
 
         setIsPaymentDialogOpen(false);
         setEditingService(null);
@@ -750,6 +755,7 @@ export default function DashboardPage() {
     </div>
   );
 }
+
 
 
 
