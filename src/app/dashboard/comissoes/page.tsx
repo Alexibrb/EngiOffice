@@ -42,7 +42,7 @@ import { format, endOfDay, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
 import { DateRange } from 'react-day-picker';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PageHeader } from '@/components/page-header';
 import { useRouter } from 'next/navigation';
@@ -55,7 +55,7 @@ export default function ComissoesPage() {
     const [isDistributionListOpen, setIsDistributionListOpen] = useState(false);
     const [isDistributionDialogOpen, setIsDistributionDialogOpen] = useState(false);
     const [distributingService, setDistributingService] = useState<Service | null>(null);
-    const [isLoading, setIsLoading] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
     const [isDeletingAll, setIsDeletingAll] = useState(false);
     const [isAdmin, setIsAdmin] = useState(false);
     const { toast } = useToast();
@@ -544,7 +544,7 @@ export default function ComissoesPage() {
                     </div>
                 </DialogContent>
             </Dialog>
-            {distributingService && (
+            {isAdmin && distributingService && (
                 <ProfitDistributionDialog
                     isOpen={isDistributionDialogOpen}
                     setIsOpen={setIsDistributionDialogOpen}
