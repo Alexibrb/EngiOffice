@@ -73,7 +73,7 @@ export default function ContasAReceberPage() {
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
     const [statusFilter, setStatusFilter] = useState<string>('');
 
-    const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
+    const [isPaymentDialogOpen, setIsPaymentDialogOpen]_useState(false);
     const [isDistributionDialogOpen, setIsDistributionDialogOpen] = useState(false);
     const [distributingService, setDistributingService] = useState<Service | null>(null);
     const [lastPaymentValue, setLastPaymentValue] = useState(0);
@@ -256,6 +256,118 @@ export default function ContasAReceberPage() {
 
 
         doc.save(`recibo_${client.nome_completo.replace(/\s/g, '_')}_${service.id}.pdf`);
+    };
+
+    const generateProofOfService = (service: Service) => {
+        const client = clients.find(c => c.codigo_cliente === service.cliente_id);
+        if (!client) {
+            toast({ variant: 'destructive', title: 'Erro', description: 'Cliente não encontrado para gerar o comprovante.' });
+            return;
+        }
+
+        const doc = new jsPDF();
+        const pageWidth = doc.internal.pageSize.getWidth();
+        let currentY = 15;
+
+        // Cabeçalho
+        doc.setFontSize(18);
+        doc.setFont('helvetica', 'bold');
+        doc.text(companyData?.companyName || 'EngiOffice', pageWidth / 2, currentY, { align: 'center' });
+        currentY += 8;
+
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        if (companyData?.slogan) {
+            doc.text(companyData.slogan, pageWidth / 2, currentY, { align: 'center' });
+            currentY += 5;
+        }
+        const contactInfo = [
+            companyData?.cnpj ? `CNPJ: ${companyData.cnpj}` : '',
+            companyData?.crea ? `CREA: ${companyData.crea}` : ''
+        ].filter(Boolean).join(' | ');
+        if (contactInfo) {
+            doc.text(contactInfo, pageWidth / 2, currentY, { align: 'center' });
+            currentY += 5;
+        }
+        if (companyData?.address) {
+            doc.text(companyData.address, pageWidth / 2, currentY, { align: 'center' });
+            currentY += 5;
+        }
+
+
+        currentY += 5;
+        doc.setLineWidth(0.5);
+        doc.line(14, currentY, pageWidth - 14, currentY);
+        currentY += 10;
+        
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.text('COMPROVANTE DE PRESTAÇÃO DE SERVIÇO', pageWidth / 2, currentY, { align: 'center' });
+        currentY += 15;
+
+
+        // Dados do Cliente
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text('DADOS DO CLIENTE', 14, currentY);
+        currentY += 7;
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        autoTable(doc, {
+            startY: currentY,
+            body: [
+                ['Nome Completo:', client.nome_completo],
+                ['CPF/CNPJ:', client.cpf_cnpj || 'N/A'],
+                ['RG:', client.rg || 'N/A'],
+                ['Telefone:', client.telefone || 'N/A'],
+                ['Endereço:', `${client.endereco_residencial.street || ''}, ${client.endereco_residencial.number || ''} - ${client.endereco_residencial.neighborhood || ''}, ${client.endereco_residencial.city || ''} - ${client.endereco_residencial.state || ''}`],
+            ],
+            theme: 'plain',
+            styles: { cellPadding: 1, fontSize: 10 },
+            columnStyles: { 0: { fontStyle: 'bold' } },
+        });
+        currentY = (doc as any).lastAutoTable.finalY + 10;
+        
+        // Dados do Serviço
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text('DADOS DO SERVIÇO', 14, currentY);
+        currentY += 7;
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        let obraAddress = 'N/A';
+        if(service.endereco_obra && service.endereco_obra.street) {
+            obraAddress = `${service.endereco_obra.street}, ${service.endereco_obra.number} - ${service.endereco_obra.neighborhood}, ${service.endereco_obra.city} - ${service.endereco_obra.state}`;
+        }
+        if (service.coordenadas?.lat && service.coordenadas?.lng) {
+            obraAddress += ` (Coords: ${service.coordenadas.lat}, ${service.coordenadas.lng})`
+        }
+        
+        autoTable(doc, {
+            startY: currentY,
+            body: [
+                ['Descrição:', service.descricao],
+                ['Endereço da Obra:', obraAddress],
+                ['Data de Cadastro:', format(service.data_cadastro, 'dd/MM/yyyy')],
+                ['Área (m²):', service.quantidade_m2?.toLocaleString('pt-BR') || 'N/A'],
+                ['Valor Total:', `R$ ${service.valor_total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
+                ['Anexos:', service.anexos && service.anexos.length > 0 ? service.anexos.join('\n') : 'Nenhum'],
+            ],
+            theme: 'plain',
+            styles: { cellPadding: 1, fontSize: 10 },
+            columnStyles: { 0: { fontStyle: 'bold' } },
+        });
+        currentY = (doc as any).lastAutoTable.finalY + 20;
+
+        // Assinatura
+        const today = format(new Date(), "d 'de' MMMM 'de' yyyy", { locale: ptBR });
+        doc.text(`${(client.endereco_residencial && client.endereco_residencial.city) ? client.endereco_residencial.city : 'Localidade não informada'}, ${today}.`, pageWidth / 2, currentY, { align: 'center' });
+        currentY += 20;
+        
+        doc.line(pageWidth / 2 - 40, currentY, pageWidth / 2 + 40, currentY);
+        doc.text(companyData?.companyName || 'EngiOffice', pageWidth / 2, currentY + 5, { align: 'center' });
+
+        doc.save(`comprovante_${client.nome_completo.replace(/\s/g, '_')}_${service.id}.pdf`);
     };
 
     const handleProcessPayment = async (values: z.infer<typeof paymentSchema>) => {
@@ -468,6 +580,7 @@ export default function ContasAReceberPage() {
                         totalSaldo={filteredSaldoDevedor}
                         onPayment={handlePaymentClick}
                         onReceipt={generateReceipt}
+                        onProofOfService={generateProofOfService}
                         onDistribute={handleDistributionClick}
                     />
                 </CardContent>
@@ -522,13 +635,14 @@ export default function ContasAReceberPage() {
 }
 
 
-function ReceivableTableComponent({ services, getClient, totalValor, totalSaldo, onPayment, onReceipt, onDistribute }: { 
+function ReceivableTableComponent({ services, getClient, totalValor, totalSaldo, onPayment, onReceipt, onProofOfService, onDistribute }: { 
     services: Service[], 
     getClient: (id: string) => Client | undefined,
     totalValor: number,
     totalSaldo: number,
     onPayment: (service: Service) => void,
     onReceipt: (service: Service) => void,
+    onProofOfService: (service: Service) => void,
     onDistribute: (service: Service) => void,
 }) {
     const router = useRouter();
@@ -651,6 +765,10 @@ function ReceivableTableComponent({ services, getClient, totalValor, totalSaldo,
                                             <DropdownMenuItem onClick={() => onReceipt(service)}>
                                                 <FileText className="mr-2 h-4 w-4" />
                                                 Gerar Recibo
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => onProofOfService(service)}>
+                                                <FileText className="mr-2 h-4 w-4" />
+                                                Gerar Comprovante
                                             </DropdownMenuItem>
                                         </DropdownMenuContent>
                                     </DropdownMenu>
@@ -858,4 +976,5 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, paymentValue, fi
         </Dialog>
     );
 }
+
 
