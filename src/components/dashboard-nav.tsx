@@ -29,7 +29,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { UserNav } from './user-nav';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -194,5 +194,3 @@ export function DashboardNav() {
     </div>
   );
 }
-
-    
