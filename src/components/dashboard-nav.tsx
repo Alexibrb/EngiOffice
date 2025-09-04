@@ -29,13 +29,18 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { UserNav } from './user-nav';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth, db } from '@/lib/firebase';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import type { AuthorizedUser } from '@/lib/types';
+
 
 const dashboardLink = { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard };
 
-const navLinks = [
+const allNavLinks = [
   {
     group: 'Cadastros',
     icon: Building2,
@@ -43,7 +48,7 @@ const navLinks = [
       { href: '/dashboard/clientes', label: 'Clientes', icon: Users },
       { href: '/dashboard/servicos', label: 'Serviços', icon: Wrench },
       { href: '/dashboard/fornecedores', label: 'Fornecedores', icon: Truck },
-      { href: '/dashboard/funcionarios', label: 'Funcionários', icon: Briefcase },
+      { href: '/dashboard/funcionarios', label: 'Funcionários', icon: Briefcase, admin: true },
     ],
   },
   {
@@ -52,7 +57,7 @@ const navLinks = [
     links: [
       { href: '/dashboard/contas-a-pagar', label: 'Contas a Pagar', icon: ArrowDown },
       { href: '/dashboard/contas-a-receber', label: 'Contas a Receber', icon: ArrowUp },
-      { href: '/dashboard/comissoes', label: 'Comissões', icon: HandCoins },
+      { href: '/dashboard/comissoes', label: 'Comissões', icon: HandCoins, admin: true },
     ],
   },
   {
@@ -60,7 +65,7 @@ const navLinks = [
     icon: Presentation,
     links: [
         { href: '/dashboard/relatorios', label: 'Relatórios', icon: FileText },
-        { href: '/dashboard/analytics', label: 'Analytics', icon: LineChart },
+        { href: '/dashboard/analytics', label: 'Analytics', icon: LineChart, admin: true },
     ],
   },
   {
@@ -132,6 +137,33 @@ function NavGroup({
 
 export function DashboardNav() {
   const pathname = usePathname();
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        const q = query(collection(db, "authorized_users"), where("email", "==", user.email));
+        const querySnapshot = await getDocs(q);
+        if (!querySnapshot.empty) {
+            const userData = querySnapshot.docs[0].data() as AuthorizedUser;
+            setIsAdmin(userData.role === 'admin');
+        } else {
+            setIsAdmin(false);
+        }
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const navLinks = useMemo(() => {
+    if (isAdmin) {
+      return allNavLinks;
+    }
+    return allNavLinks.map(group => ({
+      ...group,
+      links: group.links.filter(link => !link.admin)
+    })).filter(group => group.links.length > 0);
+  }, [isAdmin]);
 
   return (
     <div className="flex h-full flex-col">
@@ -162,3 +194,5 @@ export function DashboardNav() {
     </div>
   );
 }
+
+    

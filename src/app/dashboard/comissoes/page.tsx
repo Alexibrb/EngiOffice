@@ -22,9 +22,10 @@ import {
   TableFooter,
 } from '@/components/ui/table';
 import { useToast } from "@/hooks/use-toast"
-import { collection, getDocs, doc, writeBatch, Timestamp, updateDoc, deleteDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
-import { PlusCircle, MoreHorizontal, Loader2, Calendar as CalendarIcon, XCircle, Trash, User, Users } from 'lucide-react';
+import { collection, getDocs, doc, writeBatch, Timestamp, updateDoc, deleteDoc, query, where } from 'firebase/firestore';
+import { db, auth } from '@/lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
+import { PlusCircle, MoreHorizontal, Loader2, Calendar as CalendarIcon, XCircle, Trash, User, Users, ShieldAlert } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,7 +34,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import type { Commission, Employee, Service, Client, Account } from '@/lib/types';
+import type { Commission, Employee, Service, Client, Account, AuthorizedUser } from '@/lib/types';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
@@ -44,6 +45,7 @@ import { DateRange } from 'react-day-picker';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PageHeader } from '@/components/page-header';
+import { useRouter } from 'next/navigation';
 
 export default function ComissoesPage() {
     const [commissions, setCommissions] = useState<Commission[]>([]);
@@ -55,7 +57,9 @@ export default function ComissoesPage() {
     const [distributingService, setDistributingService] = useState<Service | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [isDeletingAll, setIsDeletingAll] = useState(false);
+    const [isAdmin, setIsAdmin] = useState(false);
     const { toast } = useToast();
+    const router = useRouter();
     
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
     const [statusFilter, setStatusFilter] = useState<string>('');
@@ -64,6 +68,32 @@ export default function ComissoesPage() {
       balance: 0,
       commissionableEmployees: [] as Employee[],
     });
+
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                const q = query(collection(db, "authorized_users"), where("email", "==", user.email));
+                const querySnapshot = await getDocs(q);
+                if (!querySnapshot.empty) {
+                    const userData = querySnapshot.docs[0].data() as AuthorizedUser;
+                    if (userData.role === 'admin') {
+                        setIsAdmin(true);
+                        fetchData();
+                    } else {
+                        setIsAdmin(false);
+                        setIsLoading(false);
+                    }
+                } else {
+                    setIsAdmin(false);
+                    setIsLoading(false);
+                }
+            } else {
+                router.push('/');
+            }
+        });
+        return () => unsubscribe();
+    }, [router]);
+
 
     const fetchData = async () => {
         setIsLoading(true);
@@ -135,10 +165,6 @@ export default function ComissoesPage() {
             setIsLoading(false);
         }
     };
-
-    useEffect(() => {
-        fetchData();
-    }, []);
     
     const getEmployeeName = (id: string) => employees.find(e => e.id === id)?.nome || 'Desconhecido';
     const getService = (id: string) => services.find(s => s.id === id);
@@ -248,6 +274,30 @@ export default function ComissoesPage() {
         
         return <Badge variant="destructive">Pendente</Badge>;
     }
+    
+    if (isLoading) {
+        return (
+            <div className="flex h-full w-full items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+        );
+    }
+    
+    if (!isAdmin) {
+        return (
+          <Card className="border-destructive">
+              <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-destructive">
+                      <ShieldAlert />
+                      Acesso Negado
+                  </CardTitle>
+                  <CardDescription>
+                      Você não tem permissão para visualizar esta página.
+                  </CardDescription>
+              </CardHeader>
+          </Card>
+        )
+    }
 
 
     return (
@@ -276,29 +326,31 @@ export default function ComissoesPage() {
 
             <div className="flex flex-col gap-4">
                 <div className="flex justify-end gap-2">
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                          <Button variant="destructive" disabled={commissions.length === 0}>
-                              <Trash className="mr-2 h-4 w-4" />
-                              Excluir Tudo
-                          </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                          <AlertDialogHeader>
-                              <AlertDialogTitle>Você tem certeza absoluta?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                  Essa ação não pode ser desfeita. Isso excluirá permanentemente todas as {commissions.length} comissões.
-                              </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                              <AlertDialogAction onClick={handleDeleteAll} disabled={isDeletingAll}>
-                                  {isDeletingAll ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                                  Sim, excluir tudo
-                              </AlertDialogAction>
-                          </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                     {isAdmin && (
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button variant="destructive" disabled={commissions.length === 0}>
+                                    <Trash className="mr-2 h-4 w-4" />
+                                    Excluir Tudo
+                                </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>Você tem certeza absoluta?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        Essa ação não pode ser desfeita. Isso excluirá permanentemente todas as {commissions.length} comissões.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction onClick={handleDeleteAll} disabled={isDeletingAll}>
+                                        {isDeletingAll ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                        Sim, excluir tudo
+                                    </AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+                    )}
                     <Button onClick={() => setIsDistributionListOpen(true)} variant="accent">
                         <PlusCircle className="mr-2 h-4 w-4" />
                         Lançar Comissão
@@ -682,4 +734,6 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, financials, toas
         </Dialog>
     );
 }
+    
+
     

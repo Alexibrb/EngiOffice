@@ -2,14 +2,16 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { collection, getDocs } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
-import type { Service, Client, Account, Commission, Employee } from '@/lib/types';
+import { collection, getDocs, query, where } from 'firebase/firestore';
+import { db, auth } from '@/lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
+import { useRouter } from 'next/navigation';
+import type { Service, Client, Account, Commission, Employee, AuthorizedUser } from '@/lib/types';
 import { PageHeader } from '@/components/page-header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
-import { Loader2, XCircle, Calendar as CalendarIcon } from 'lucide-react';
+import { Loader2, XCircle, Calendar as CalendarIcon, ShieldAlert } from 'lucide-react';
 import { format, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
@@ -30,6 +32,9 @@ export default function AnalyticsPage() {
     const [commissions, setCommissions] = useState<Commission[]>([]);
     const [employees, setEmployees] = useState<Employee[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isAdmin, setIsAdmin] = useState(false);
+    const router = useRouter();
+
 
     const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
         const end = new Date();
@@ -40,37 +45,59 @@ export default function AnalyticsPage() {
     const [selectedEmployee, setSelectedEmployee] = useState('');
 
     useEffect(() => {
-        const fetchData = async () => {
-            setIsLoading(true);
-            try {
-                const [servicesSnap, clientsSnap, accountsPayableSnap, commissionsSnap, employeesSnap] = await Promise.all([
-                    getDocs(collection(db, "servicos")),
-                    getDocs(collection(db, "clientes")),
-                    getDocs(collection(db, "contas_a_pagar")),
-                    getDocs(collection(db, "comissoes")),
-                    getDocs(collection(db, "funcionarios")),
-                ]);
-
-                const servicesData = servicesSnap.docs.map(doc => ({ ...doc.data(), id: doc.id, data_cadastro: doc.data().data_cadastro.toDate() } as Service));
-                const clientsData = clientsSnap.docs.map(doc => ({ ...doc.data(), codigo_cliente: doc.id } as Client));
-                const accountsData = accountsPayableSnap.docs.map(doc => ({ ...doc.data(), id: doc.id, vencimento: doc.data().vencimento.toDate() } as Account));
-                const commissionsData = commissionsSnap.docs.map(doc => ({ ...doc.data(), id: doc.id, data: doc.data().data.toDate() } as Commission));
-                const employeesData = employeesSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Employee));
-
-                setServices(servicesData);
-                setClients(clientsData);
-                setAccountsPayable(accountsData);
-                setCommissions(commissionsData);
-                setEmployees(employeesData);
-
-            } catch (error) {
-                console.error("Erro ao buscar dados para analytics:", error);
-            } finally {
-                setIsLoading(false);
+        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                const q = query(collection(db, "authorized_users"), where("email", "==", user.email));
+                const querySnapshot = await getDocs(q);
+                if (!querySnapshot.empty) {
+                    const userData = querySnapshot.docs[0].data() as AuthorizedUser;
+                    if (userData.role === 'admin') {
+                        setIsAdmin(true);
+                        fetchData();
+                    } else {
+                        setIsAdmin(false);
+                        setIsLoading(false);
+                    }
+                } else {
+                    setIsAdmin(false);
+                    setIsLoading(false);
+                }
+            } else {
+                router.push('/');
             }
-        };
-        fetchData();
-    }, []);
+        });
+        return () => unsubscribe();
+    }, [router]);
+
+    const fetchData = async () => {
+        setIsLoading(true);
+        try {
+            const [servicesSnap, clientsSnap, accountsPayableSnap, commissionsSnap, employeesSnap] = await Promise.all([
+                getDocs(collection(db, "servicos")),
+                getDocs(collection(db, "clientes")),
+                getDocs(collection(db, "contas_a_pagar")),
+                getDocs(collection(db, "comissoes")),
+                getDocs(collection(db, "funcionarios")),
+            ]);
+
+            const servicesData = servicesSnap.docs.map(doc => ({ ...doc.data(), id: doc.id, data_cadastro: doc.data().data_cadastro.toDate() } as Service));
+            const clientsData = clientsSnap.docs.map(doc => ({ ...doc.data(), codigo_cliente: doc.id } as Client));
+            const accountsData = accountsPayableSnap.docs.map(doc => ({ ...doc.data(), id: doc.id, vencimento: doc.data().vencimento.toDate() } as Account));
+            const commissionsData = commissionsSnap.docs.map(doc => ({ ...doc.data(), id: doc.id, data: doc.data().data.toDate() } as Commission));
+            const employeesData = employeesSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Employee));
+
+            setServices(servicesData);
+            setClients(clientsData);
+            setAccountsPayable(accountsData);
+            setCommissions(commissionsData);
+            setEmployees(employeesData);
+
+        } catch (error) {
+            console.error("Erro ao buscar dados para analytics:", error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     const filteredServices = useMemo(() => {
         return services.filter(service => {
@@ -247,6 +274,22 @@ export default function AnalyticsPage() {
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
         );
+    }
+    
+    if (!isAdmin) {
+        return (
+          <Card className="border-destructive">
+              <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-destructive">
+                      <ShieldAlert />
+                      Acesso Negado
+                  </CardTitle>
+                  <CardDescription>
+                      Você não tem permissão para visualizar esta página.
+                  </CardDescription>
+              </CardHeader>
+          </Card>
+        )
     }
     
     const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }: any) => {
@@ -444,3 +487,5 @@ export default function AnalyticsPage() {
         </div>
     );
 }
+
+    

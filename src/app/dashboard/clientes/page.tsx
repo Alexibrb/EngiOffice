@@ -25,7 +25,7 @@ import {
 } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import type { Client, City } from '@/lib/types';
+import type { Client, City, AuthorizedUser } from '@/lib/types';
 import { PlusCircle, Search, MoreHorizontal, Loader2, Trash, ChevronDown, ChevronRight } from 'lucide-react';
 import {
   DropdownMenu,
@@ -34,8 +34,8 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { collection, addDoc, getDocs, doc, setDoc, deleteDoc, writeBatch } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { collection, addDoc, getDocs, doc, setDoc, deleteDoc, writeBatch, query, where } from 'firebase/firestore';
+import { db, auth } from '@/lib/firebase';
 import { useToast } from "@/hooks/use-toast"
 import { Separator } from '@/components/ui/separator';
 import {
@@ -52,6 +52,7 @@ import { formatCPF_CNPJ, formatTelefone, formatCEP } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageHeader } from '@/components/page-header';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { onAuthStateChanged } from 'firebase/auth';
 
 const addressSchema = z.object({
   street: z.string().optional(),
@@ -252,6 +253,7 @@ export default function ClientesPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isCityDialogOpen, setIsCityDialogOpen] = useState(false);
   const [isDeletingAll, setIsDeletingAll] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const { toast } = useToast();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -267,6 +269,24 @@ export default function ClientesPage() {
       endereco_residencial: { street: '', number: '', neighborhood: '', city: '', state: '', zip: '' },
     },
   });
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+        if (user) {
+            const q = query(collection(db, "authorized_users"), where("email", "==", user.email));
+            const querySnapshot = await getDocs(q);
+            if (!querySnapshot.empty) {
+                const userData = querySnapshot.docs[0].data() as AuthorizedUser;
+                setIsAdmin(userData.role === 'admin');
+            } else {
+                setIsAdmin(false);
+            }
+        } else {
+            router.push('/');
+        }
+    });
+    return () => unsubscribe();
+  }, [router]);
 
   const fetchCities = async () => {
     try {
@@ -454,29 +474,31 @@ export default function ClientesPage() {
                           onChange={(e) => setSearch(e.target.value)}
                       />
                     </div>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                          <Button variant="destructive" disabled={clients.length === 0}>
-                              <Trash className="mr-2 h-4 w-4" />
-                              Excluir Tudo
-                          </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                          <AlertDialogHeader>
-                              <AlertDialogTitle>Você tem certeza absoluta?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                  Essa ação não pode ser desfeita. Isso excluirá permanentemente todos os {clients.length} clientes.
-                              </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                              <AlertDialogAction onClick={handleDeleteAllClients} disabled={isDeletingAll}>
-                                  {isDeletingAll ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                                  Sim, excluir tudo
-                              </AlertDialogAction>
-                          </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                    {isAdmin && (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                              <Button variant="destructive" disabled={clients.length === 0}>
+                                  <Trash className="mr-2 h-4 w-4" />
+                                  Excluir Tudo
+                              </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                              <AlertDialogHeader>
+                                  <AlertDialogTitle>Você tem certeza absoluta?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                      Essa ação não pode ser desfeita. Isso excluirá permanentemente todos os {clients.length} clientes.
+                                  </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                  <AlertDialogAction onClick={handleDeleteAllClients} disabled={isDeletingAll}>
+                                      {isDeletingAll ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                      Sim, excluir tudo
+                                  </AlertDialogAction>
+                              </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                    )}
                     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                     <DialogTrigger asChild>
                         <Button onClick={handleAddNewClick} variant="accent">
@@ -711,4 +733,5 @@ export default function ClientesPage() {
     </div>
   );
 }
+    
     
