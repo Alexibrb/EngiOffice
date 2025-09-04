@@ -231,7 +231,7 @@ export default function ContasAReceberPage() {
 
         // Valor
         doc.setFontSize(14);
-        doc.text('Valor:', 20, 70);
+        doc.text('Valor Recebido:', 20, 70);
         doc.setFont('helvetica', 'bold');
         doc.text(`R$ ${valueToDisplay.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, pageWidth - 20, 70, { align: 'right' });
         
@@ -247,12 +247,31 @@ export default function ContasAReceberPage() {
         const splitText = doc.splitTextToSize(receiptText, pageWidth - 40);
         doc.text(splitText, 20, 90);
 
+        let currentY = 120;
+        
+        // Resumo Financeiro
+        autoTable(doc, {
+            startY: currentY,
+            head: [['Resumo Financeiro do Serviço']],
+            body: [
+                [`Valor Total do Serviço: R$ ${service.valor_total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
+                [`Total Pago: R$ ${service.valor_pago.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
+                [`Saldo Devedor: R$ ${service.saldo_devedor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
+            ],
+            theme: 'plain',
+            headStyles: { fontStyle: 'bold', halign: 'center' },
+            bodyStyles: { halign: 'right' }
+        });
+        currentY = (doc as any).lastAutoTable.finalY + 15;
+
+
         // Data e Assinatura
         const today = format(new Date(), "d 'de' MMMM 'de' yyyy", { locale: ptBR });
-        doc.text(`${(client.endereco_residencial && client.endereco_residencial.city) ? client.endereco_residencial.city : 'Localidade não informada'}, ${today}.`, 20, 160);
+        doc.text(`${(client.endereco_residencial && client.endereco_residencial.city) ? client.endereco_residencial.city : 'Localidade não informada'}, ${today}.`, 20, currentY);
         
-        doc.line(pageWidth / 2 - 40, 190, pageWidth / 2 + 40, 190);
-        doc.text(companyData?.companyName || 'EngiOffice', pageWidth / 2, 195, { align: 'center' });
+        currentY += 20;
+        doc.line(pageWidth / 2 - 40, currentY, pageWidth / 2 + 40, currentY);
+        doc.text(companyData?.companyName || 'EngiOffice', pageWidth / 2, currentY + 5, { align: 'center' });
 
 
         doc.save(`recibo_${client.nome_completo.replace(/\s/g, '_')}_${service.id}.pdf`);
@@ -977,6 +996,7 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, paymentValue, fi
         </Dialog>
     );
 }
+
 
 
 

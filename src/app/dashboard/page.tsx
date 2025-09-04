@@ -28,6 +28,7 @@ import type { Service, Account, Client, Commission } from '@/lib/types';
 import { format, isPast } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import {
   Activity,
   CircleDollarSign,
@@ -205,67 +206,85 @@ export default function DashboardPage() {
   };
 
   const generateReceipt = (service: Service, paymentValue?: number) => {
-    const client = clients.find(c => c.codigo_cliente === service.cliente_id);
-    if (!client) {
-        toast({ variant: 'destructive', title: 'Erro', description: 'Cliente não encontrado para gerar o recibo.' });
-        return;
-    }
+        const client = clients.find(c => c.codigo_cliente === service.cliente_id);
+        if (!client) {
+            toast({ variant: 'destructive', title: 'Erro', description: 'Cliente não encontrado para gerar o recibo.' });
+            return;
+        }
 
-    const doc = new jsPDF();
-    const pageWidth = doc.internal.pageSize.getWidth();
-    
-    const isPartialPayment = paymentValue !== undefined && paymentValue < service.valor_total;
-    const valueToDisplay = isPartialPayment ? paymentValue : service.valor_pago;
-    const title = isPartialPayment ? 'RECIBO DE PAGAMENTO PARCIAL' : 'RECIBO DE PAGAMENTO';
-
-
-    // Cabeçalho
-    doc.setFontSize(20);
-    doc.setFont('helvetica', 'bold');
-    doc.text(title, pageWidth / 2, 20, { align: 'center' });
-
-    // Informações da Empresa
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'normal');
-    doc.text(companyData?.companyName || 'EngiOffice', 20, 40);
-    const contactInfo = [
-        companyData?.cnpj ? `CNPJ: ${companyData.cnpj}` : '',
-        companyData?.crea ? `CREA: ${companyData.crea}` : ''
-    ].filter(Boolean).join(' | ');
-    doc.text(contactInfo, 20, 46);
-    doc.text(companyData?.address || 'Endereço não informado', 20, 52);
+        const doc = new jsPDF();
+        const pageWidth = doc.internal.pageSize.getWidth();
+        
+        const isPartialPayment = paymentValue !== undefined && paymentValue < service.valor_total;
+        const valueToDisplay = isPartialPayment ? paymentValue : service.valor_pago;
+        const title = isPartialPayment ? 'RECIBO DE PAGAMENTO PARCIAL' : 'RECIBO DE PAGAMENTO';
 
 
-    doc.setLineWidth(0.5);
-    doc.line(20, 60, pageWidth - 20, 60);
+        // Cabeçalho
+        doc.setFontSize(20);
+        doc.setFont('helvetica', 'bold');
+        doc.text(title, pageWidth / 2, 20, { align: 'center' });
 
-    // Valor
-    doc.setFontSize(14);
-    doc.text('Valor:', 20, 70);
-    doc.setFont('helvetica', 'bold');
-    doc.text(`R$ ${valueToDisplay.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, pageWidth - 20, 70, { align: 'right' });
-    
-    doc.setFont('helvetica', 'normal');
-    doc.setLineWidth(0.2);
-    doc.line(20, 75, pageWidth - 20, 75);
-
-    // Corpo do Recibo
-    doc.setFontSize(12);
-    const areaText = service.quantidade_m2 ? ` (Área: ${service.quantidade_m2} m²)` : '';
-    const obraAddress = (service.endereco_obra && service.endereco_obra.street) ? `${service.endereco_obra.street}, ${service.endereco_obra.number} - ${service.endereco_obra.neighborhood}, ${service.endereco_obra.city} - ${service.endereco_obra.state}` : 'Endereço da obra não informado';
-    const receiptText = `Recebemos de ${client.nome_completo}, CPF/CNPJ nº ${client.cpf_cnpj || 'Não informado'}, a importância de R$ ${valueToDisplay.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} referente ao pagamento ${isPartialPayment ? 'parcial' : ''} pelo serviço de "${service.descricao}"${areaText}.\n\nEndereço da Obra: ${obraAddress}`;
-    const splitText = doc.splitTextToSize(receiptText, pageWidth - 40);
-    doc.text(splitText, 20, 90);
-
-    // Data e Assinatura
-    const today = format(new Date(), "d 'de' MMMM 'de' yyyy", { locale: ptBR });
-    doc.text(`${(client.endereco_residencial && client.endereco_residencial.city) ? client.endereco_residencial.city : 'Localidade não informada'}, ${today}.`, 20, 160);
-    
-    doc.line(pageWidth / 2 - 40, 190, pageWidth / 2 + 40, 190);
-    doc.text(companyData?.companyName || 'EngiOffice', pageWidth / 2, 195, { align: 'center' });
+        // Informações da Empresa
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'normal');
+        doc.text(companyData?.companyName || 'EngiOffice', 20, 40);
+        const contactInfo = [
+            companyData?.cnpj ? `CNPJ: ${companyData.cnpj}` : '',
+            companyData?.crea ? `CREA: ${companyData.crea}` : ''
+        ].filter(Boolean).join(' | ');
+        doc.text(contactInfo, 20, 46);
+        doc.text(companyData?.address || 'Endereço não informado', 20, 52);
 
 
-    doc.save(`recibo_${client.nome_completo.replace(/\s/g, '_')}_${service.id}.pdf`);
+        doc.setLineWidth(0.5);
+        doc.line(20, 60, pageWidth - 20, 60);
+
+        // Valor
+        doc.setFontSize(14);
+        doc.text('Valor Recebido:', 20, 70);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`R$ ${valueToDisplay.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, pageWidth - 20, 70, { align: 'right' });
+        
+        doc.setFont('helvetica', 'normal');
+        doc.setLineWidth(0.2);
+        doc.line(20, 75, pageWidth - 20, 75);
+
+        // Corpo do Recibo
+        doc.setFontSize(12);
+        const areaText = service.quantidade_m2 ? ` (Área: ${service.quantidade_m2} m²)` : '';
+        const obraAddress = (service.endereco_obra && service.endereco_obra.street) ? `${service.endereco_obra.street}, ${service.endereco_obra.number} - ${service.endereco_obra.neighborhood}, ${service.endereco_obra.city} - ${service.endereco_obra.state}` : 'Endereço da obra não informado';
+        const receiptText = `Recebemos de ${client.nome_completo}, CPF/CNPJ nº ${client.cpf_cnpj || 'Não informado'}, a importância de R$ ${valueToDisplay.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} referente ao pagamento ${isPartialPayment ? 'parcial' : ''} pelo serviço de "${service.descricao}"${areaText}.\n\nEndereço da Obra: ${obraAddress}`;
+        const splitText = doc.splitTextToSize(receiptText, pageWidth - 40);
+        doc.text(splitText, 20, 90);
+        
+        let currentY = 120;
+        
+        // Resumo Financeiro
+        autoTable(doc, {
+            startY: currentY,
+            head: [['Resumo Financeiro do Serviço']],
+            body: [
+                [`Valor Total do Serviço: R$ ${service.valor_total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
+                [`Total Pago: R$ ${service.valor_pago.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
+                [`Saldo Devedor: R$ ${service.saldo_devedor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
+            ],
+            theme: 'plain',
+            headStyles: { fontStyle: 'bold', halign: 'center' },
+            bodyStyles: { halign: 'right' }
+        });
+        currentY = (doc as any).lastAutoTable.finalY + 15;
+
+
+        // Data e Assinatura
+        const today = format(new Date(), "d 'de' MMMM 'de' yyyy", { locale: ptBR });
+        doc.text(`${(client.endereco_residencial && client.endereco_residencial.city) ? client.endereco_residencial.city : 'Localidade não informada'}, ${today}.`, 20, currentY);
+        
+        currentY += 20;
+        doc.line(pageWidth / 2 - 40, currentY, pageWidth / 2 + 40, currentY);
+        doc.text(companyData?.companyName || 'EngiOffice', pageWidth / 2, currentY + 5, { align: 'center' });
+
+        doc.save(`recibo_${client.nome_completo.replace(/\s/g, '_')}_${service.id}.pdf`);
   };
 
   const generateProofOfService = (service: Service) => {
@@ -731,6 +750,7 @@ export default function DashboardPage() {
     </div>
   );
 }
+
 
 
 
