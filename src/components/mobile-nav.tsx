@@ -50,7 +50,6 @@ const allNavLinks = [
       { href: '/dashboard/clientes', label: 'Clientes', icon: Users },
       { href: '/dashboard/servicos', label: 'Serviços', icon: Wrench },
       { href: '/dashboard/fornecedores', label: 'Fornecedores', icon: Truck },
-      { href: '/dashboard/anotacoes', label: 'Anotações', icon: StickyNote },
       { href: '/dashboard/funcionarios', label: 'Funcionários', icon: Briefcase, admin: true },
     ],
   },

@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -47,6 +46,7 @@ import {
   FileText,
   Pin,
   Trash2,
+  StickyNote,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -509,10 +509,17 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <PageHeader 
-        title={`Olá, ${user?.displayName || 'Usuário'}!`}
-        description="Uma visão geral do seu escritório."
-      />
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+            <PageHeader 
+                title={`Olá, ${user?.displayName || 'Usuário'}!`}
+                description="Uma visão geral do seu escritório."
+            />
+             <Button onClick={() => router.push('/dashboard/anotacoes')} variant="accent">
+                <StickyNote className="mr-2 h-4 w-4" />
+                Adicionar Anotação
+            </Button>
+        </div>
+
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
@@ -866,12 +873,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-
-
-
-
-
-
-
-    
