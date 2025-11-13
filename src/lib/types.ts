@@ -62,7 +62,8 @@ export type Service = {
   saldo_devedor: number;
   quantidade_m2?: number;
   forma_pagamento: 'a_vista' | 'a_prazo';
-  status: 'em andamento' | 'concluído' | 'cancelado';
+  status_financeiro: 'pendente' | 'pago' | 'cancelado';
+  status_execucao: 'não iniciado' | 'em andamento' | 'paralisado' | 'fiscalizado' | 'finalizado';
   anexos?: string[];
   lucro_distribuido?: boolean;
   endereco_obra: Address;

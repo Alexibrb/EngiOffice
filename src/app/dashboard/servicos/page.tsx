@@ -87,7 +87,7 @@ const serviceSchema = z.object({
   valor_total: z.coerce.number().min(0.01, 'O valor total deve ser maior que zero.'),
   quantidade_m2: z.coerce.number().optional(),
   forma_pagamento: z.enum(['a_vista', 'a_prazo'], { required_error: 'Forma de pagamento é obrigatória.' }),
-  status: z.enum(['em andamento', 'concluído', 'cancelado']),
+  status_execucao: z.enum(['não iniciado', 'em andamento', 'paralisado', 'fiscalizado', 'finalizado'], { required_error: 'Status de execução é obrigatório.'}),
   anexos: z.string().optional(),
   endereco_obra: addressSchema.optional(),
   coordenadas: z.object({
@@ -260,8 +260,8 @@ export default function ServicosPage() {
       cliente_id: '',
       valor_total: 0,
       quantidade_m2: 0,
-      forma_pagamento: 'a_vista',
-      status: 'em andamento',
+      forma_pagamento: 'a_prazo',
+      status_execucao: 'não iniciado',
       anexos: '',
       data_cadastro: new Date(),
       endereco_obra: { street: '', number: '', neighborhood: '', city: '', state: '', zip: '' },
@@ -428,16 +428,23 @@ export default function ServicosPage() {
   const handleSaveService = async (values: z.infer<typeof serviceSchema>) => {
     setIsLoading(true);
     try {
-      const valorPago = values.forma_pagamento === 'a_vista' ? values.valor_total : 0;
+      let valorPago = 0;
+      if (!editingService) { // Only set initial payment on creation
+        valorPago = values.forma_pagamento === 'a_vista' ? values.valor_total : 0;
+      } else {
+        valorPago = editingService.valor_pago; // Keep existing payment
+      }
+
       const saldoDevedor = values.valor_total - valorPago;
-      const status = saldoDevedor === 0 ? 'concluído' : values.status;
+      const status_financeiro = saldoDevedor <= 0 ? 'pago' : 'pendente';
 
       const serviceData: Omit<Service, 'id'> = {
         ...values,
         anexos: values.anexos?.split('\n').filter(a => a.trim() !== '') || [],
         valor_pago: valorPago,
         saldo_devedor: saldoDevedor,
-        lucro_distribuido: false,
+        status_financeiro: status_financeiro,
+        lucro_distribuido: editingService?.lucro_distribuido || false,
         endereco_obra: {
             street: values.endereco_obra?.street || '',
             number: values.endereco_obra?.number || '',
@@ -454,16 +461,13 @@ export default function ServicosPage() {
 
       if (editingService) {
         const serviceDocRef = doc(db, 'servicos', editingService.id);
-        const currentService = services.find(s => s.id === editingService.id);
-        
-        const newServiceData = {
-            ...serviceData,
-            valor_pago: currentService?.valor_pago || valorPago, // Manter valor pago se já existir
-            saldo_devedor: values.valor_total - (currentService?.valor_pago || valorPago),
-            lucro_distribuido: currentService?.lucro_distribuido || false,
+        const updatedServiceData = {
+          ...serviceData,
+          valor_pago: editingService.valor_pago, // explicitly keep old paid value
+          saldo_devedor: values.valor_total - editingService.valor_pago,
+          status_financeiro: (values.valor_total - editingService.valor_pago) <= 0 ? 'pago' : 'pendente',
         };
-        await setDoc(serviceDocRef, newServiceData, { merge: true });
-
+        await setDoc(serviceDocRef, updatedServiceData, { merge: true });
         toast({
           title: "Sucesso!",
           description: "Serviço atualizado com sucesso.",
@@ -509,11 +513,11 @@ export default function ServicosPage() {
         }
 
         const serviceDocRef = doc(db, 'servicos', editingService.id);
-        const newStatus = novoSaldoDevedor === 0 ? 'concluído' : 'em andamento';
+        const newStatus = novoSaldoDevedor <= 0 ? 'pago' : 'pendente';
         await updateDoc(serviceDocRef, {
             valor_pago: novoValorPago,
             saldo_devedor: novoSaldoDevedor,
-            status: newStatus,
+            status_financeiro: newStatus,
             lucro_distribuido: false, // Resetar para permitir nova distribuição
         });
 
@@ -594,8 +598,8 @@ export default function ServicosPage() {
         cliente_id: '',
         valor_total: 0,
         quantidade_m2: 0,
-        forma_pagamento: 'a_vista',
-        status: 'em andamento',
+        forma_pagamento: 'a_prazo',
+        status_execucao: 'não iniciado',
         anexos: '',
         data_cadastro: new Date(),
         endereco_obra: { street: '', number: '', neighborhood: '', city: '', state: '', zip: '' },
@@ -861,7 +865,7 @@ export default function ServicosPage() {
         );
     })
     .filter(service => {
-        return statusFilter ? service.status === statusFilter : true;
+        return statusFilter ? service.status_execucao === statusFilter : true;
     })
     .filter(service => {
         if (!dateRange?.from) return true;
@@ -874,23 +878,26 @@ export default function ServicosPage() {
     const filteredTotal = filteredServices.reduce((acc, curr) => acc + (curr.valor_total || 0), 0);
     const filteredSaldoDevedor = filteredServices.reduce((acc, curr) => acc + (curr.saldo_devedor || 0), 0);
 
-    const ongoingServicesCount = services.filter((s) => s.status === 'em andamento').length;
-    const completedServicesCount = services.filter((s) => s.status === 'concluído').length;
+    const ongoingServicesCount = services.filter((s) => s.status_execucao === 'em andamento').length;
+    const completedServicesCount = services.filter((s) => s.status_execucao === 'finalizado').length;
     const totalReceivablePaid = services.reduce((acc, curr) => acc + (curr.valor_pago || 0), 0);
     const totalReceivablePending = services.reduce((acc, curr) => acc + (curr.saldo_devedor || 0), 0);
     
-    const getDistributionStatus = (service: Service) => {
-        const isDistributable = service.status !== 'cancelado' && (service.valor_pago || 0) > 0;
-        
-        if (!isDistributable) {
-            return { text: 'Aguardando', variant: 'outline' as const };
+    const getExecutionStatusBadge = (status: Service['status_execucao']) => {
+        switch (status) {
+            case 'não iniciado': return 'default';
+            case 'em andamento': return 'secondary';
+            case 'paralisado': return 'destructive';
+            case 'fiscalizado': return 'outline';
+            case 'finalizado': return 'default'; // Or another color for completed
+            default: return 'default';
         }
-        
-        if (service.lucro_distribuido) {
-            return { text: 'Realizada', variant: 'secondary' as const };
-        }
-        
-        return { text: 'Pendente', variant: 'destructive' as const };
+    };
+    
+    const getFinancialStatus = (service: Service) => {
+      if (service.status_financeiro === 'cancelado') return { text: 'Cancelado', variant: 'destructive' as const };
+      if (service.status_financeiro === 'pago') return { text: 'Pago', variant: 'secondary' as const };
+      return { text: 'Pendente', variant: 'destructive' as const };
     }
 
 
@@ -1130,7 +1137,7 @@ export default function ServicosPage() {
                                 render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Forma de Pagamento *</FormLabel>
-                                    <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                                    <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value} disabled={!!editingService}>
                                     <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                                     <SelectContent>
                                         <SelectItem value="a_vista">À Vista</SelectItem>
@@ -1143,10 +1150,10 @@ export default function ServicosPage() {
                             />
                             <FormField
                             control={form.control}
-                            name="status"
+                            name="status_execucao"
                             render={({ field }) => (
                                 <FormItem>
-                                <FormLabel>Status</FormLabel>
+                                <FormLabel>Status da Execução</FormLabel>
                                 <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
                                     <FormControl>
                                     <SelectTrigger>
@@ -1154,9 +1161,11 @@ export default function ServicosPage() {
                                     </SelectTrigger>
                                     </FormControl>
                                     <SelectContent>
-                                    <SelectItem value="em andamento">Em andamento</SelectItem>
-                                    <SelectItem value="concluído">Concluído</SelectItem>
-                                    <SelectItem value="cancelado">Cancelado</SelectItem>
+                                        <SelectItem value="não iniciado">Não Inicado</SelectItem>
+                                        <SelectItem value="em andamento">Em Andamento</SelectItem>
+                                        <SelectItem value="paralisado">Paralisado</SelectItem>
+                                        <SelectItem value="fiscalizado">Fiscalizado</SelectItem>
+                                        <SelectItem value="finalizado">Finalizado</SelectItem>
                                     </SelectContent>
                                 </Select>
                                 <FormMessage />
@@ -1369,9 +1378,11 @@ export default function ServicosPage() {
                             <SelectValue placeholder="Filtrar por status..." />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="em andamento">Em andamento</SelectItem>
-                            <SelectItem value="concluído">Concluído</SelectItem>
-                            <SelectItem value="cancelado">Cancelado</SelectItem>
+                            <SelectItem value="não iniciado">Não Inicado</SelectItem>
+                            <SelectItem value="em andamento">Em Andamento</SelectItem>
+                            <SelectItem value="paralisado">Paralisado</SelectItem>
+                            <SelectItem value="fiscalizado">Fiscalizado</SelectItem>
+                            <SelectItem value="finalizado">Finalizado</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>
@@ -1398,7 +1409,7 @@ export default function ServicosPage() {
                         const client = getClient(service.cliente_id);
                         const obra = service?.endereco_obra;
                         const formattedObra = (obra && obra.street) ? `Obra: ${obra.street}, ${obra.number} - ${obra.neighborhood}, ${obra.city}` : '';
-                        const distributionStatus = getDistributionStatus(service);
+                        const financialStatus = getFinancialStatus(service);
                         const coordenadas = (service?.coordenadas?.lat && service?.coordenadas?.lng) ? `Coords: ${service.coordenadas.lat}, ${service.coordenadas.lng}` : '';
 
                         return (
@@ -1440,8 +1451,8 @@ export default function ServicosPage() {
                                     {service.quantidade_m2 ? <div className="text-xs text-muted-foreground">Área: {service.quantidade_m2} m²</div> : null}
                                 </TableCell>
                                  <TableCell className="align-top space-y-1">
-                                    <Badge variant={service.status === 'concluído' ? 'secondary' : service.status === 'cancelado' ? 'destructive' : 'default'}>{service.status}</Badge>
-                                    <Badge variant={distributionStatus.variant}>{distributionStatus.text}</Badge>
+                                    <Badge variant={getExecutionStatusBadge(service.status_execucao)}>{service.status_execucao}</Badge>
+                                    <Badge variant={financialStatus.variant}>{financialStatus.text}</Badge>
                                  </TableCell>
                                 <TableCell className="align-top">
                                     <DropdownMenu>
@@ -1456,18 +1467,11 @@ export default function ServicosPage() {
                                         <DropdownMenuItem onClick={() => handleEditClick(service)} disabled={!isAdmin}>
                                           Editar
                                         </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => handlePaymentClick(service)} disabled={service.status === 'concluído' || service.status === 'cancelado'}>
+                                        <DropdownMenuItem onClick={() => handlePaymentClick(service)} disabled={service.status_financeiro === 'pago' || service.status_financeiro === 'cancelado'}>
                                           <HandCoins className="mr-2 h-4 w-4" />
                                           Lançar Pagamento
                                         </DropdownMenuItem>
                                         <DropdownMenuSeparator />
-                                        <DropdownMenuItem 
-                                            onClick={() => handleDistributionClick(service)} 
-                                            disabled={!isAdmin || service.status === 'cancelado' || (service.valor_pago || 0) === 0 || service.lucro_distribuido}
-                                        >
-                                            <Users className="mr-2 h-4 w-4" />
-                                            Distribuir Lucro
-                                        </DropdownMenuItem>
                                         <DropdownMenuItem onClick={() => generateReceipt(service)}>
                                           <FileText className="mr-2 h-4 w-4" />
                                           Gerar Recibo
@@ -1560,210 +1564,6 @@ export default function ServicosPage() {
               </Form>
           </DialogContent>
       </Dialog>
-        {distributingService && (
-            <ProfitDistributionDialog
-                isOpen={isDistributionDialogOpen}
-                setIsOpen={setIsDistributionDialogOpen}
-                service={distributingService}
-                paymentValue={lastPaymentValue}
-                financials={financials}
-                toast={toast}
-                onDistributionComplete={fetchServicesAndClients}
-            />
-        )}
     </div>
   );
 }
-
-function ProfitDistributionDialog({ isOpen, setIsOpen, service, paymentValue, financials, toast, onDistributionComplete }: {
-    isOpen: boolean;
-    setIsOpen: (isOpen: boolean) => void;
-    service: Service;
-    paymentValue: number;
-    financials: { balance: number; commissionableEmployees: Employee[] };
-    toast: any;
-    onDistributionComplete: () => void;
-}) {
-    const [isLoading, setIsLoading] = useState(false);
-    const [serviceCosts, setServiceCosts] = useState(0);
-    const [profitMargin, setProfitMargin] = useState(0);
-
-    const isManualTrigger = paymentValue === 0;
-    const amountPaidSoFar = service.valor_pago || 0;
-    const valueForCalculation = isManualTrigger ? amountPaidSoFar : paymentValue;
-
-    useEffect(() => {
-        const fetchCostsAndCalculateMargin = async () => {
-            if (!service || !isOpen) return;
-            
-            setIsLoading(true);
-            try {
-                const accountsPayableSnap = await getDocs(collection(db, 'contas_a_pagar'));
-                const accountsPayable = accountsPayableSnap.docs.map(doc => doc.data() as Account);
-                const relatedExpenses = accountsPayable
-                    .filter(acc => acc.servico_id === service.id)
-                    .reduce((sum, acc) => sum + acc.valor, 0);
-                
-                const totalCosts = relatedExpenses;
-                setServiceCosts(totalCosts);
-
-                if (service.valor_total > 0) {
-                    const margin = (service.valor_total - totalCosts) / service.valor_total;
-                    setProfitMargin(margin);
-                } else {
-                    setProfitMargin(0);
-                }
-
-            } catch (error) {
-                console.error("Erro ao buscar custos do serviço:", error);
-                toast({ variant: 'destructive', title: 'Erro', description: 'Não foi possível calcular os custos do serviço.' });
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        fetchCostsAndCalculateMargin();
-    }, [isOpen, service, toast]);
-
-    const profitFromPayment = valueForCalculation * profitMargin;
-    const cashBalanceBeforeThisPayment = financials.balance - valueForCalculation;
-
-    let amountToDistribute = profitFromPayment;
-    let deficitCoverage = 0;
-
-    if (cashBalanceBeforeThisPayment < 0) {
-        deficitCoverage = Math.min(profitFromPayment, Math.abs(cashBalanceBeforeThisPayment));
-        amountToDistribute -= deficitCoverage;
-    }
-    
-    amountToDistribute = Math.max(0, amountToDistribute);
-
-    const handleConfirmDistribution = async () => {
-        if (financials.commissionableEmployees.length === 0) {
-            toast({ variant: 'destructive', title: 'Erro', description: 'Nenhum funcionário comissionado ativo encontrado.' });
-            return;
-        }
-        
-        setIsLoading(true);
-        try {
-            const batch = writeBatch(db);
-
-            financials.commissionableEmployees.forEach(employee => {
-                const commissionRate = (employee.taxa_comissao || 0) / 100;
-                const individualCommission = amountToDistribute * commissionRate;
-
-                if (individualCommission > 0) {
-                    const commissionData = {
-                        funcionario_id: employee.id,
-                        servico_id: service.id,
-                        cliente_id: service.cliente_id,
-                        valor: individualCommission,
-                        data: Timestamp.now(),
-                        status: 'pago', 
-                    };
-                    const commissionDocRef = doc(collection(db, 'comissoes'));
-                    batch.set(commissionDocRef, commissionData);
-                }
-            });
-            
-            const serviceDocRef = doc(db, 'servicos', service.id);
-            const isFullyPaid = (service.saldo_devedor || 0) <= 0;
-            batch.update(serviceDocRef, { lucro_distribuido: isFullyPaid });
-
-
-            await batch.commit();
-
-            toast({ title: 'Sucesso!', description: 'Comissões distribuídas e lançadas com sucesso!' });
-            setIsOpen(false);
-            onDistributionComplete();
-        } catch (error) {
-            console.error('Erro ao distribuir lucro:', error);
-            toast({ variant: 'destructive', title: 'Erro', description: 'Ocorreu um erro ao salvar as comissões.' });
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-
-    return (
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogContent className="sm:max-w-lg">
-                <DialogHeader>
-                    <DialogTitle>Distribuir Lucro do Serviço</DialogTitle>
-                    <DialogDescription>
-                       {isManualTrigger 
-                        ? `Revisão da distribuição do lucro total já pago para "${service.descricao}".`
-                        : `Distribuição de lucro referente ao último pagamento para "${service.descricao}".`
-                       }
-                    </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
-                    <div className="p-4 border rounded-lg space-y-2 bg-muted/50">
-                        <h4 className="font-semibold text-center mb-2">Resumo da Distribuição</h4>
-                        <div className="flex justify-between items-center text-sm">
-                            <span className="text-muted-foreground">{isManualTrigger ? 'Valor Total Pago:' : 'Valor do Pagamento:'}</span>
-                            <span className="font-medium text-green-600">{valueForCalculation.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-                        </div>
-                         <div className="flex justify-between items-center text-sm">
-                            <span className="text-muted-foreground">Margem de Lucro do Serviço:</span>
-                            <span className="font-medium">{profitMargin.toLocaleString('pt-BR', { style: 'percent', minimumFractionDigits: 2 })}</span>
-                        </div>
-                        <div className="flex justify-between items-center text-sm">
-                            <span className="text-muted-foreground">Lucro deste Montante:</span>
-                            <span className="font-medium text-green-600">{profitFromPayment.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-                        </div>
-                        <div className="flex justify-between items-center text-sm">
-                            <span className="text-muted-foreground">Saldo de Caixa (antes do valor):</span>
-                            <span className={cn("font-medium", cashBalanceBeforeThisPayment < 0 ? 'text-red-600' : 'text-green-600')}>{cashBalanceBeforeThisPayment.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-                        </div>
-                         {cashBalanceBeforeThisPayment < 0 && (
-                             <div className="flex justify-between items-center text-sm">
-                                <span className="text-muted-foreground">Cobertura de Déficit:</span>
-                                <span className="font-medium text-orange-500">-{deficitCoverage.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-                            </div>
-                         )}
-                        <div className="flex justify-between items-center text-lg border-t pt-2 mt-2">
-                            <span className="font-bold">Valor Base para Comissões:</span>
-                            <span className="font-bold text-primary">{amountToDistribute.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-                        </div>
-                    </div>
-                     <div className="p-4 border rounded-lg space-y-2">
-                        <h4 className="font-semibold text-center mb-2">Comissão por Funcionário</h4>
-                        {financials.commissionableEmployees.length > 0 ? (
-                            financials.commissionableEmployees.map(emp => {
-                                const commissionRate = (emp.taxa_comissao || 0) / 100;
-                                const individualCommission = amountToDistribute * commissionRate;
-                                return (
-                                    <div key={emp.id} className="flex justify-between items-center text-sm">
-                                        <span className="text-muted-foreground">{emp.nome} ({emp.taxa_comissao}%)</span>
-                                        <span className="font-medium text-green-600">{individualCommission.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-                                    </div>
-                                )
-                            })
-                        ) : (
-                            <p className="text-center text-sm text-red-500">Nenhum funcionário comissionado ativo encontrado.</p>
-                        )}
-                    </div>
-                </div>
-                <DialogFooter>
-                    <Button variant="ghost" onClick={() => setIsOpen(false)}>Cancelar</Button>
-                    <Button variant="accent" onClick={handleConfirmDistribution} disabled={isLoading || amountToDistribute <= 0}>
-                        {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
-                        Confirmar e Lançar
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    );
-}
-
-
-
-
-
-
-
-
-
-
-    

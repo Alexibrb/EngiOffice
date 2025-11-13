@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -185,7 +186,7 @@ export default function DashboardPage() {
   };
 
   const ongoingServices = services.filter(
-    (s) => s.status === 'em andamento'
+    (s) => s.status_execucao === 'em andamento'
   );
   
   const upcomingPayable = accountsPayable
@@ -197,8 +198,7 @@ export default function DashboardPage() {
   const totalCommissionsPaid = commissions.reduce((acc, curr) => curr.status === 'pago' ? acc + curr.valor : acc, 0);
   const balance = totalReceivablePaid - totalPayablePaid - totalCommissionsPaid;
   
-  const totalServices = services.filter(s => s.status !== 'cancelado').length;
-  const completedServices = services.filter(s => s.status === 'concluído').length;
+  const completedServices = services.filter(s => s.status_execucao === 'finalizado').length;
   
   const totalCommissionsPending = commissions
     .filter((c) => c.status === 'pendente')
@@ -469,11 +469,11 @@ export default function DashboardPage() {
         }
 
         const serviceDocRef = doc(db, 'servicos', editingService.id);
-        const newStatus = novoSaldoDevedor === 0 ? 'concluído' : 'em andamento';
+        const newStatus = novoSaldoDevedor === 0 ? 'pago' : 'pendente';
         await updateDoc(serviceDocRef, {
             valor_pago: novoValorPago,
             saldo_devedor: novoSaldoDevedor,
-            status: newStatus,
+            status_financeiro: newStatus,
             lucro_distribuido: false,
         });
 
@@ -676,7 +676,7 @@ export default function DashboardPage() {
                                   <DropdownMenuItem onClick={() => handleEditService(service.id)}>
                                     Editar
                                   </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => handlePaymentClick(service)} disabled={service.status !== 'em andamento'}>
+                                  <DropdownMenuItem onClick={() => handlePaymentClick(service)} disabled={service.status_financeiro === 'pago'}>
                                     <HandCoins className="mr-2 h-4 w-4" />
                                     Lançar Pagamento
                                   </DropdownMenuItem>

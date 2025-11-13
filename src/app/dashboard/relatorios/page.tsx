@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -245,7 +246,7 @@ export default function RelatoriosPage() {
             break;
         case 'services':
             data = services
-                .filter(s => statusFilter ? s.status === statusFilter : true)
+                .filter(s => statusFilter ? s.status_execucao === statusFilter : true)
                 .filter(s => s.descricao.toLowerCase().includes(searchLower) || (getClient(s.cliente_id)?.nome_completo.toLowerCase() || '').includes(searchLower))
                 .filter(s => {
                     if (!dateRange?.from) return true;
@@ -308,18 +309,10 @@ export default function RelatoriosPage() {
     }
   }, [filteredData, selectedReport]);
 
-  const getDistributionStatus = (service: Service) => {
-    const isDistributable = service.status !== 'cancelado' && (service.valor_pago || 0) > 0;
-    
-    if (!isDistributable) {
-        return { text: 'Aguardando', variant: 'outline' as const };
-    }
-    
-    if (service.lucro_distribuido) {
-        return { text: 'Realizada', variant: 'secondary' as const };
-    }
-    
-    return { text: 'Pendente', variant: 'destructive' as const };
+  const getFinancialStatus = (service: Service) => {
+      if (service.status_financeiro === 'cancelado') return { text: 'Cancelado', variant: 'destructive' as const };
+      if (service.status_financeiro === 'pago') return { text: 'Pago', variant: 'secondary' as const };
+      return { text: 'Pendente', variant: 'destructive' as const };
   }
 
 
@@ -367,7 +360,7 @@ export default function RelatoriosPage() {
       case 'services':
         doc = new jsPDF({ orientation: 'landscape' });
         reportTitle = 'Relatório de Serviços';
-        head = [['Cliente\nDescrição\nEndereço da Obra', 'Data', 'Área (m²)', 'Valor Total', 'Saldo Devedor']];
+        head = [['Cliente\nDescrição\nEndereço da Obra', 'Data', 'Área (m²)', 'Valor Total', 'Saldo Devedor', 'Status Execução']];
         body = data.map((item: Service) => {
             const client = getClient(item.cliente_id);
             const obra = item.endereco_obra;
@@ -387,11 +380,12 @@ export default function RelatoriosPage() {
                 item.data_cadastro ? format(item.data_cadastro, "dd/MM/yyyy") : '-',
                 item.quantidade_m2 ? item.quantidade_m2.toLocaleString('pt-BR') : '0',
                 `R$ ${item.valor_total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
-                `R$ ${item.saldo_devedor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+                `R$ ${item.saldo_devedor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+                item.status_execucao,
             ];
         });
 
-        foot = [['Total Geral', '', '', `R$ ${(totals.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, `R$ ${(totals.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`]];
+        foot = [['Total Geral', '', '', `R$ ${(totals.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, `R$ ${(totals.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, '']];
         fileName = 'relatorio_servicos.pdf';
         break;
       case 'accountsPayable':
@@ -490,7 +484,7 @@ export default function RelatoriosPage() {
     }[selectedReport];
 
     const statusOptions = {
-        services: [{value: 'em andamento', label: 'Em andamento'}, {value: 'concluído', label: 'Concluído'}, {value: 'cancelado', label: 'Cancelado'}],
+        services: [{value: 'não iniciado', label: 'Não iniciado'}, {value: 'em andamento', label: 'Em andamento'}, {value: 'paralisado', label: 'Paralisado'}, {value: 'fiscalizado', label: 'Fiscalizado'}, {value: 'finalizado', label: 'Finalizado'}],
         accountsPayable: [{value: 'pendente', label: 'Pendente'}, {value: 'pago', label: 'Pago'}],
         commissions: [{value: 'pendente', label: 'Pendente'}, {value: 'pago', label: 'Pago'}],
     }[selectedReport] || [];
@@ -623,7 +617,7 @@ export default function RelatoriosPage() {
                          const obra = s.endereco_obra;
                          const formattedObra = (obra && obra.street) ? `Obra: ${obra.street}, ${obra.number} - ${obra.neighborhood}, ${obra.city}` : '';
                          
-                         const distributionStatus = getDistributionStatus(s);
+                         const financialStatus = getFinancialStatus(s);
 
                          return (
                             <TableRow key={s.id}>
@@ -668,8 +662,8 @@ export default function RelatoriosPage() {
                                     {s.quantidade_m2 ? <div className="text-xs text-muted-foreground">Área: {s.quantidade_m2} m²</div> : null}
                                 </TableCell>
                                 <TableCell className="align-top space-y-1">
-                                    <Badge variant={s.status === 'concluído' ? 'secondary' : s.status === 'cancelado' ? 'destructive' : 'default'}>{s.status}</Badge>
-                                    <Badge variant={distributionStatus.variant}>{distributionStatus.text}</Badge>
+                                    <Badge variant={s.status_execucao === 'finalizado' ? 'secondary' : s.status_execucao === 'paralisado' ? 'destructive' : 'default'}>{s.status_execucao}</Badge>
+                                    <Badge variant={financialStatus.variant}>{financialStatus.text}</Badge>
                                 </TableCell>
                             </TableRow>
                          )

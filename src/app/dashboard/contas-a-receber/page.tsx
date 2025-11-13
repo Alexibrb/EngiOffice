@@ -419,11 +419,11 @@ export default function ContasAReceberPage() {
             }
 
             const serviceDocRef = doc(db, 'servicos', editingService.id);
-            const newStatus = novoSaldoDevedor === 0 ? 'concluído' : 'em andamento';
+            const newStatus = novoSaldoDevedor === 0 ? 'pago' : 'pendente';
             await updateDoc(serviceDocRef, {
                 valor_pago: novoValorPago,
                 saldo_devedor: novoSaldoDevedor,
-                status: newStatus,
+                status_financeiro: newStatus,
                 lucro_distribuido: false, // Resetar para permitir nova distribuição
             });
 
@@ -451,7 +451,7 @@ export default function ContasAReceberPage() {
     
     const filteredReceivable = services
         .filter(service => {
-            return statusFilter ? service.status === statusFilter : true;
+            return statusFilter ? service.status_financeiro === statusFilter : true;
         })
         .filter(service => {
             if (!dateRange?.from) return true;
@@ -490,7 +490,7 @@ export default function ContasAReceberPage() {
             format(service.data_cadastro, 'dd/MM/yyyy'),
             `R$ ${(service.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
             `R$ ${(service.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
-            service.status,
+            service.status_financeiro,
             ]),
             foot: [
                 ['Total', '', '', 
@@ -598,8 +598,8 @@ export default function ContasAReceberPage() {
                                     <SelectValue placeholder="Filtrar por status..." />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="em andamento">Em andamento</SelectItem>
-                                    <SelectItem value="concluído">Concluído</SelectItem>
+                                    <SelectItem value="pendente">Pendente</SelectItem>
+                                    <SelectItem value="pago">Pago</SelectItem>
                                     <SelectItem value="cancelado">Cancelado</SelectItem>
                                 </SelectContent>
                             </Select>
@@ -657,17 +657,6 @@ export default function ContasAReceberPage() {
                     </Form>
                 </DialogContent>
             </Dialog>
-            {distributingService && (
-            <ProfitDistributionDialog
-                isOpen={isDistributionDialogOpen}
-                setIsOpen={setIsDistributionDialogOpen}
-                service={distributingService}
-                paymentValue={lastPaymentValue}
-                financials={financials}
-                toast={toast}
-                onDistributionComplete={fetchData}
-            />
-        )}
         </div>
     );
 }
@@ -713,7 +702,7 @@ function ReceivableTableComponent({ services, getClient, totalValor, totalSaldo,
     };
     
     const getDistributionStatus = (service: Service) => {
-        const isDistributable = service.status !== 'cancelado' && (service.valor_pago || 0) > 0;
+        const isDistributable = service.status_financeiro !== 'cancelado' && (service.valor_pago || 0) > 0;
         
         if (!isDistributable) {
             return { text: 'Aguardando', variant: 'outline' as const };
@@ -772,7 +761,7 @@ function ReceivableTableComponent({ services, getClient, totalValor, totalSaldo,
                                     {service.quantidade_m2 ? <div className="text-xs text-muted-foreground">Área: {service.quantidade_m2} m²</div> : null}
                                 </TableCell>
                                  <TableCell className="align-top space-y-1">
-                                    <Badge variant={service.status === 'concluído' ? 'secondary' : service.status === 'cancelado' ? 'destructive' : 'default'}>{service.status}</Badge>
+                                    <Badge variant={service.status_execucao === 'concluído' ? 'secondary' : service.status_execucao === 'cancelado' ? 'destructive' : 'default'}>{service.status_execucao}</Badge>
                                     <Badge variant={distributionStatus.variant}>{distributionStatus.text}</Badge>
                                 </TableCell>
                                 <TableCell>
@@ -789,14 +778,14 @@ function ReceivableTableComponent({ services, getClient, totalValor, totalSaldo,
                                                 <ExternalLink className="mr-2 h-4 w-4" />
                                                 Ver/Editar Serviço
                                             </DropdownMenuItem>
-                                            <DropdownMenuItem onClick={() => onPayment(service)} disabled={service.status === 'concluído' || service.status === 'cancelado'}>
+                                            <DropdownMenuItem onClick={() => onPayment(service)} disabled={service.status_financeiro === 'pago' || service.status_financeiro === 'cancelado'}>
                                                 <HandCoins className="mr-2 h-4 w-4" />
                                                 Lançar Pagamento
                                             </DropdownMenuItem>
                                             <DropdownMenuSeparator />
                                              <DropdownMenuItem 
                                                 onClick={() => onDistribute(service)} 
-                                                disabled={!isAdmin || service.status === 'cancelado' || (service.valor_pago || 0) === 0 || service.lucro_distribuido}
+                                                disabled={!isAdmin || service.status_financeiro === 'cancelado' || (service.valor_pago || 0) === 0 || service.lucro_distribuido}
                                              >
                                                 <Users className="mr-2 h-4 w-4" />
                                                 Distribuir Lucro
