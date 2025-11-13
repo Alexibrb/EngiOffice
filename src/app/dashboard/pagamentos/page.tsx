@@ -16,7 +16,7 @@ import {
   TableFooter,
 } from '@/components/ui/table';
 import { useToast } from "@/hooks/use-toast"
-import { collection, addDoc, getDocs, doc, query, where } from 'firebase/firestore';
+import { collection, addDoc, getDocs, doc, query, where, deleteDoc } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import { Loader2, Trash, DollarSign } from 'lucide-react';
 import type { Account, Employee, AuthorizedUser } from '@/lib/types';
@@ -26,8 +26,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { PageHeader } from '@/components/page-header';
 import { onAuthStateChanged } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
-import { Form } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+
 
 const paymentSchema = z.object({
   referencia_id: z.string().min(1, 'Funcionário é obrigatório.'),
@@ -133,6 +135,24 @@ export default function PagamentosPage() {
             setIsSubmitting(false);
         }
     };
+    
+    const handleDeletePayment = async (paymentId: string) => {
+        try {
+            await deleteDoc(doc(db, "contas_a_pagar", paymentId));
+            toast({
+                title: "Sucesso!",
+                description: "Lançamento de pagamento excluído.",
+            });
+            await fetchData();
+        } catch (error) {
+            console.error("Erro ao excluir pagamento: ", error);
+            toast({
+                variant: "destructive",
+                title: "Erro",
+                description: "Ocorreu um erro ao excluir o lançamento.",
+            });
+        }
+    };
 
     const totalPaid = payments.reduce((sum, item) => sum + item.valor, 0);
 
@@ -152,21 +172,44 @@ export default function PagamentosPage() {
                     <CardContent>
                         <Form {...form}>
                             <form onSubmit={form.handleSubmit(handleSavePayment)} className="space-y-4">
-                                <Select onValueChange={(value) => form.setValue('referencia_id', value)} value={form.getValues('referencia_id')}>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Selecione um funcionário" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {employees.map(emp => (
-                                            <SelectItem key={emp.id} value={emp.id}>{emp.nome}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-
-                                <Input
-                                    placeholder="Valor do Salário"
-                                    type="number"
-                                    {...form.register('valor')}
+                                <FormField
+                                    control={form.control}
+                                    name="referencia_id"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Funcionário</FormLabel>
+                                            <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                                                <FormControl>
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Selecione um funcionário" />
+                                                    </SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent>
+                                                    {employees.map(emp => (
+                                                        <SelectItem key={emp.id} value={emp.id}>{emp.nome}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="valor"
+                                    render={({ field }) => (
+                                         <FormItem>
+                                            <FormLabel>Valor (R$)</FormLabel>
+                                            <FormControl>
+                                                <Input
+                                                    placeholder="Valor do Salário"
+                                                    type="number"
+                                                    {...field}
+                                                />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
                                 />
 
                                 <Button type="submit" variant="accent" className="w-full" disabled={isSubmitting}>
@@ -191,12 +234,13 @@ export default function PagamentosPage() {
                                         <TableHead>Funcionário</TableHead>
                                         <TableHead>Data do Pagamento</TableHead>
                                         <TableHead className="text-right">Valor</TableHead>
+                                        {isAdmin && <TableHead className="w-[50px] text-right">Ações</TableHead>}
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {isLoading ? (
                                         <TableRow>
-                                            <TableCell colSpan={3} className="h-24 text-center">
+                                            <TableCell colSpan={isAdmin ? 4 : 3} className="h-24 text-center">
                                                 <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
                                             </TableCell>
                                         </TableRow>
@@ -207,19 +251,43 @@ export default function PagamentosPage() {
                                             <TableCell className="text-right font-medium text-green-500">
                                                 {payment.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                             </TableCell>
+                                            {isAdmin && (
+                                                <TableCell className="text-right">
+                                                     <AlertDialog>
+                                                        <AlertDialogTrigger asChild>
+                                                            <Button variant="ghost" size="icon">
+                                                                <Trash className="h-4 w-4 text-destructive" />
+                                                            </Button>
+                                                        </AlertDialogTrigger>
+                                                        <AlertDialogContent>
+                                                            <AlertDialogHeader>
+                                                                <AlertDialogTitle>Excluir este lançamento?</AlertDialogTitle>
+                                                                <AlertDialogDescription>
+                                                                    Esta ação não pode ser desfeita. Isso excluirá permanentemente o registro de pagamento.
+                                                                </AlertDialogDescription>
+                                                            </AlertDialogHeader>
+                                                            <AlertDialogFooter>
+                                                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                                <AlertDialogAction onClick={() => handleDeletePayment(payment.id)}>Excluir</AlertDialogAction>
+                                                            </AlertDialogFooter>
+                                                        </AlertDialogContent>
+                                                    </AlertDialog>
+                                                </TableCell>
+                                            )}
                                         </TableRow>
                                     )) : (
                                         <TableRow>
-                                            <TableCell colSpan={3} className="h-24 text-center">Nenhum pagamento encontrado.</TableCell>
+                                            <TableCell colSpan={isAdmin ? 4 : 3} className="h-24 text-center">Nenhum pagamento encontrado.</TableCell>
                                         </TableRow>
                                     )}
                                 </TableBody>
                                 <TableFooter>
                                     <TableRow>
-                                        <TableCell colSpan={2} className="font-bold">Total Pago</TableCell>
+                                        <TableCell colSpan={isAdmin ? 3 : 2} className="font-bold">Total Pago</TableCell>
                                         <TableCell className="text-right font-bold text-green-500">
                                             {totalPaid.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                         </TableCell>
+                                        {isAdmin && <TableCell></TableCell>}
                                     </TableRow>
                                 </TableFooter>
                             </Table>
