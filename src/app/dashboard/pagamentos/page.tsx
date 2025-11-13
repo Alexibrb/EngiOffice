@@ -50,6 +50,7 @@ export default function PagamentosPage() {
         resolver: zodResolver(paymentSchema),
         defaultValues: {
             vencimento: new Date(),
+            valor: 0,
         },
     });
 
