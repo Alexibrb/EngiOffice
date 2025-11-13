@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -18,7 +19,7 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import { collection, addDoc, getDocs, doc, query, where, deleteDoc } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
-import { Loader2, Trash, DollarSign } from 'lucide-react';
+import { Loader2, Trash, DollarSign, CalendarIcon } from 'lucide-react';
 import type { Account, Employee, AuthorizedUser } from '@/lib/types';
 import { format } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -29,7 +30,10 @@ import { useRouter } from 'next/navigation';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { cn } from '@/lib/utils';
+import { ptBR } from 'date-fns/locale';
 
 const paymentSchema = z.object({
   referencia_id: z.string().min(1, 'Funcionário é obrigatório.'),
@@ -105,6 +109,10 @@ export default function PagamentosPage() {
             const employee = employees.find(e => e.id === selectedEmployeeId);
             if (employee && employee.salario) {
                 form.setValue('valor', employee.salario);
+            }
+            if (employee && employee.dia_pagamento) {
+                const today = new Date();
+                form.setValue('vencimento', new Date(today.getFullYear(), today.getMonth(), employee.dia_pagamento));
             }
         }
     }, [selectedEmployeeId, employees, form]);
@@ -210,6 +218,32 @@ export default function PagamentosPage() {
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="vencimento"
+                                    render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Data de Pagamento</FormLabel>
+                                        <Popover>
+                                        <PopoverTrigger asChild>
+                                            <FormControl>
+                                            <Button
+                                                variant={"outline"}
+                                                className={cn("w-full pl-3 text-left font-normal",!field.value && "text-muted-foreground")}
+                                            >
+                                                {field.value ? (format(field.value, "PPP", { locale: ptBR })) : (<span>Escolha uma data</span>)}
+                                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                            </Button>
+                                            </FormControl>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-auto p-0" align="start">
+                                            <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus/>
+                                        </PopoverContent>
+                                        </Popover>
+                                        <FormMessage />
+                                    </FormItem>
                                     )}
                                 />
 

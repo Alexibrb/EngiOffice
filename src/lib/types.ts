@@ -49,6 +49,7 @@ export type Employee = {
   tipo_contratacao: 'salario_fixo' | 'comissao';
   salario?: number;
   taxa_comissao?: number;
+  dia_pagamento?: number;
 };
 
 export type Service = {

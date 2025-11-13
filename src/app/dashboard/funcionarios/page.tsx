@@ -60,6 +60,7 @@ const employeeSchema = z.object({
   tipo_contratacao: z.enum(['salario_fixo', 'comissao'], { required_error: 'Tipo de contratação é obrigatório.'}),
   salario: z.coerce.number().optional(),
   taxa_comissao: z.coerce.number().optional(),
+  dia_pagamento: z.coerce.number().optional(),
 }).refine(data => {
     if (data.tipo_contratacao === 'salario_fixo') {
         return data.salario !== undefined && data.salario > 0;
@@ -68,6 +69,14 @@ const employeeSchema = z.object({
 }, {
     message: 'Salário é obrigatório para contratação de tipo salário fixo.',
     path: ['salario'],
+}).refine(data => {
+    if (data.tipo_contratacao === 'salario_fixo') {
+        return data.dia_pagamento !== undefined && data.dia_pagamento >= 1 && data.dia_pagamento <= 31;
+    }
+    return true;
+}, {
+    message: 'Dia do pagamento é obrigatório (1-31).',
+    path: ['dia_pagamento'],
 }).refine(data => {
     if (data.tipo_contratacao === 'comissao') {
         return data.taxa_comissao !== undefined && data.taxa_comissao > 0;
@@ -138,6 +147,7 @@ export default function FuncionariosPage() {
           ...values,
           salario: values.tipo_contratacao === 'salario_fixo' ? values.salario : 0,
           taxa_comissao: values.tipo_contratacao === 'comissao' ? values.taxa_comissao : 0,
+          dia_pagamento: values.tipo_contratacao === 'salario_fixo' ? values.dia_pagamento : 0,
       }
       if (editingEmployee) {
         const employeeDocRef = doc(db, 'funcionarios', editingEmployee.id);
@@ -230,6 +240,7 @@ export default function FuncionariosPage() {
       tipo_contratacao: 'comissao',
       salario: 0,
       taxa_comissao: 0,
+      dia_pagamento: 5,
     });
     setEditingEmployee(null);
     setIsDialogOpen(true);
@@ -426,6 +437,7 @@ export default function FuncionariosPage() {
                             )}
                             />
                            {tipoContratacao === 'salario_fixo' && (
+                                <>
                                 <FormField
                                 control={form.control}
                                 name="salario"
@@ -439,6 +451,20 @@ export default function FuncionariosPage() {
                                     </FormItem>
                                 )}
                                 />
+                                <FormField
+                                control={form.control}
+                                name="dia_pagamento"
+                                render={({ field }) => (
+                                    <FormItem>
+                                    <FormLabel>Dia do Pagamento *</FormLabel>
+                                    <FormControl>
+                                        <Input type="number" min="1" max="31" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                    </FormItem>
+                                )}
+                                />
+                                </>
                             )}
                             {tipoContratacao === 'comissao' && (
                                 <FormField
@@ -503,7 +529,7 @@ export default function FuncionariosPage() {
                     <TableRow key={employee.id}>
                         <TableCell className="font-medium">{employee.nome}</TableCell>
                         <TableCell>{employee.cargo}</TableCell>
-                        <TableCell>{employee.tipo_contratacao === 'salario_fixo' ? 'Salário Fixo' : `Comissão (${employee.taxa_comissao || 0}%)`}</TableCell>
+                        <TableCell>{employee.tipo_contratacao === 'salario_fixo' ? `Salário Fixo (Dia ${employee.dia_pagamento || 'N/A'})` : `Comissão (${employee.taxa_comissao || 0}%)`}</TableCell>
                         <TableCell>
                         <Badge variant={employee.status === 'ativo' ? 'secondary' : 'destructive'}>
                             {employee.status}
