@@ -212,8 +212,9 @@ export default function DashboardPage() {
 
   const totalExpenses = accountsPayable.reduce((acc, curr) => acc + curr.valor, 0);
 
-  const handlePayAccount = (accountId: string) => {
-    router.push(`/dashboard/contas-a-pagar?editPayable=${accountId}`);
+  const handlePayAccount = (accountId: string, type?: 'fornecedor' | 'funcionario') => {
+    const path = type === 'funcionario' ? '/dashboard/pagamentos' : '/dashboard/contas-a-pagar';
+    router.push(`${path}?editPayable=${accountId}`);
   };
 
   const handleEditService = (serviceId: string) => {
@@ -758,7 +759,7 @@ export default function DashboardPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handlePayAccount(account.id)}
+                        onClick={() => handlePayAccount(account.id, account.tipo_referencia)}
                       >
                         <ExternalLink className="mr-2 h-3 w-3" />
                         Pagar
