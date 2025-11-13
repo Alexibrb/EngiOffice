@@ -57,7 +57,8 @@ const allNavLinks = [
     group: 'Financeiro',
     icon: Banknote,
     links: [
-      { href: '/dashboard/contas-a-pagar', label: 'Contas a Pagar', icon: ArrowDown },
+      { href: '/dashboard/contas-a-pagar', label: 'Despesas', icon: ArrowDown },
+      { href: '/dashboard/pagamentos', label: 'Folha de Pagamento', icon: HandCoins, admin: true },
       { href: '/dashboard/contas-a-receber', label: 'Contas a Receber', icon: ArrowUp },
       { href: '/dashboard/comissoes', label: 'Comissões', icon: HandCoins, admin: true },
     ],
@@ -204,3 +205,5 @@ export function MobileNav() {
     </div>
   );
 }
+
+    

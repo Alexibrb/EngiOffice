@@ -52,7 +52,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { format, endOfDay, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import type { Account, Supplier, Employee, Payee, Service, CompanyData, AuthorizedUser } from '@/lib/types';
+import type { Account, Supplier, Service, CompanyData, AuthorizedUser } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -65,8 +65,8 @@ import { onAuthStateChanged, User } from 'firebase/auth';
 
 const accountSchema = z.object({
   descricao: z.string().min(1, 'Descrição é obrigatória.'),
-  referencia_id: z.string().min(1, 'Favorecido é obrigatório.'),
-  tipo_referencia: z.enum(['fornecedor', 'funcionario']).optional(),
+  referencia_id: z.string().min(1, 'Fornecedor é obrigatório.'),
+  tipo_referencia: z.literal('fornecedor'),
   servico_id: z.string().optional(),
   valor: z.any().refine(val => {
     const num = parseFloat(String(val).replace(',', '.'));
@@ -89,10 +89,9 @@ const supplierSchema = z.object({
 });
 
 
-export default function ContasAPagarPage() {
+export default function DespesasPage() {
     const [accountsPayable, setAccountsPayable] = useState<Account[]>([]);
     const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-    const [employees, setEmployees] = useState<Employee[]>([]);
     const [services, setServices] = useState<Service[]>([]);
     const [companyData, setCompanyData] = useState<CompanyData | null>(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -114,6 +113,7 @@ export default function ContasAPagarPage() {
         resolver: zodResolver(accountSchema),
         defaultValues: {
             valor: '0,00',
+            tipo_referencia: 'fornecedor',
         }
     });
     
@@ -132,17 +132,13 @@ export default function ContasAPagarPage() {
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
             if (user) {
-                if (user.email === 'alexandro.ibrb@gmail.com') {
-                    setIsAdmin(true);
+                const q = query(collection(db, "authorized_users"), where("email", "==", user.email));
+                const querySnapshot = await getDocs(q);
+                if (!querySnapshot.empty) {
+                    const userData = querySnapshot.docs[0].data() as AuthorizedUser;
+                    setIsAdmin(userData.role === 'admin');
                 } else {
-                    const q = query(collection(db, "authorized_users"), where("email", "==", user.email));
-                    const querySnapshot = await getDocs(q);
-                    if (!querySnapshot.empty) {
-                        const userData = querySnapshot.docs[0].data() as AuthorizedUser;
-                        setIsAdmin(userData.role === 'admin');
-                    } else {
-                        setIsAdmin(false);
-                    }
+                    setIsAdmin(false);
                 }
             } else {
                 setIsAdmin(false);
@@ -157,12 +153,6 @@ export default function ContasAPagarPage() {
       setSuppliers(suppliersData);
       return suppliersData;
     };
-    
-    const fetchEmployees = async () => {
-        const employeesSnapshot = await getDocs(collection(db, "funcionarios"));
-        const employeesData = employeesSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Employee[];
-        setEmployees(employeesData);
-    }
 
     const fetchServices = async () => {
       const servicesSnapshot = await getDocs(collection(db, 'servicos'));
@@ -183,10 +173,10 @@ export default function ContasAPagarPage() {
             }
 
 
-            const payableSnapshot = await getDocs(collection(db, "contas_a_pagar"));
+            const q = query(collection(db, "contas_a_pagar"), where("tipo_referencia", "==", "fornecedor"));
+            const payableSnapshot = await getDocs(q);
             
             await fetchSuppliers();
-            await fetchEmployees();
             await fetchServices();
             
             const payableData = payableSnapshot.docs.map(doc => {
@@ -223,9 +213,6 @@ export default function ContasAPagarPage() {
     }, [searchParams]);
 
     const getPayeeName = (account: Account) => {
-        if (account.tipo_referencia === 'funcionario') {
-            return employees.find(e => e.id === account.referencia_id)?.nome || 'Funcionário não encontrado';
-        }
         return suppliers.find(s => s.id === account.referencia_id)?.razao_social || 'Fornecedor não encontrado';
     };
 
@@ -237,6 +224,7 @@ export default function ContasAPagarPage() {
              const submissionValues = {
                 ...values,
                 valor: parseFloat(String(values.valor).replace(',', '.')),
+                tipo_referencia: 'fornecedor', // Garante que é sempre fornecedor
             };
 
             if (editingAccount) {
@@ -301,9 +289,10 @@ export default function ContasAPagarPage() {
     const handleDeleteAll = async () => {
         setIsDeletingAll(true);
         try {
-            const querySnapshot = await getDocs(collection(db, "contas_a_pagar"));
+            const q = query(collection(db, "contas_a_pagar"), where("tipo_referencia", "==", "fornecedor"));
+            const querySnapshot = await getDocs(q);
             if (querySnapshot.empty) {
-                toast({ title: 'Aviso', description: 'Não há contas a pagar para excluir.' });
+                toast({ title: 'Aviso', description: 'Não há despesas para excluir.' });
                 return;
             }
             const batch = writeBatch(db);
@@ -313,7 +302,7 @@ export default function ContasAPagarPage() {
             await batch.commit();
             toast({
                 title: "Sucesso!",
-                description: "Todas as contas a pagar foram excluídas com sucesso.",
+                description: "Todas as despesas foram excluídas com sucesso.",
             });
             await fetchData();
         } catch (error) {
@@ -337,6 +326,7 @@ export default function ContasAPagarPage() {
             valor: '0,00',
             status: 'pendente',
             vencimento: new Date(),
+            tipo_referencia: 'fornecedor',
         });
         setIsDialogOpen(true);
     };
@@ -347,6 +337,7 @@ export default function ContasAPagarPage() {
             ...account,
             valor: String(account.valor).replace('.',','), 
             vencimento: account.vencimento instanceof Date ? account.vencimento : new Date(account.vencimento),
+            tipo_referencia: 'fornecedor',
         });
         setIsDialogOpen(true);
     };
@@ -373,7 +364,7 @@ export default function ContasAPagarPage() {
 
     const generatePdf = () => {
         const doc = new jsPDF();
-        const title = 'Relatório de Contas a Pagar';
+        const title = 'Relatório de Despesas (Fornecedores)';
         
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(16);
@@ -385,7 +376,7 @@ export default function ContasAPagarPage() {
     
         autoTable(doc, {
           startY: 35,
-          head: [['Descrição', 'Favorecido', 'Vencimento', 'Valor', 'Status']],
+          head: [['Descrição', 'Fornecedor', 'Vencimento', 'Valor', 'Status']],
           body: filteredPayable.map((acc) => [
             acc.descricao,
             getPayeeName(acc),
@@ -401,7 +392,7 @@ export default function ContasAPagarPage() {
           footStyles: { fillColor: [220, 220, 220], textColor: [0,0,0], fontStyle: 'bold' }
         });
     
-        doc.save(`relatorio_contas_a_pagar.pdf`);
+        doc.save(`relatorio_despesas.pdf`);
       };
 
     const selectedSupplierId = form.watch('referencia_id');
@@ -411,29 +402,23 @@ export default function ContasAPagarPage() {
         setStatusFilter('');
     }
 
-    const payees: Payee[] = [
-        ...suppliers.map(s => ({ id: s.id, nome: s.razao_social, tipo: 'fornecedor' as const, ...s })),
-        ...employees.filter(e => e.tipo_contratacao === 'salario_fixo').map(e => ({ id: e.id, nome: e.nome, tipo: 'funcionario' as const, ...e })),
-    ];
-
-
     return (
         <div className="flex flex-col gap-8">
             <PageHeader
-                title="Contas a Pagar"
-                description="Gerencie as faturas, salários e despesas a serem pagas."
+                title="Despesas e Fornecedores"
+                description="Gerencie as faturas e despesas com fornecedores."
             />
             
              <div className="grid gap-4 md:grid-cols-2">
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Contas a Pagar (Pendente)</CardTitle>
+                        <CardTitle className="text-sm font-medium">Despesas a Pagar (Pendente)</CardTitle>
                         <ArrowDown className="h-4 w-4 text-red-500" />
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold text-red-500">R$ {totalPayablePending.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
                           <p className="text-xs text-muted-foreground">
-                            Soma de todas as contas pendentes
+                            Soma de todas as despesas pendentes
                         </p>
                     </CardContent>
                 </Card>
@@ -469,7 +454,7 @@ export default function ContasAPagarPage() {
                                   <AlertDialogHeader>
                                       <AlertDialogTitle>Você tem certeza absoluta?</AlertDialogTitle>
                                       <AlertDialogDescription>
-                                          Essa ação não pode ser desfeita. Isso excluirá permanentemente todas as {accountsPayable.length} contas a pagar.
+                                          Essa ação não pode ser desfeita. Isso excluirá permanentemente todas as {accountsPayable.length} despesas de fornecedores.
                                       </AlertDialogDescription>
                                   </AlertDialogHeader>
                                   <AlertDialogFooter>
@@ -487,7 +472,7 @@ export default function ContasAPagarPage() {
                             </Button>
                             <Button onClick={handleAddNewClick} variant="accent">
                                 <PlusCircle className="mr-2 h-4 w-4" />
-                                Adicionar Conta
+                                Adicionar Despesa
                             </Button>
                         </div>
                     </div>
@@ -558,20 +543,19 @@ export default function ContasAPagarPage() {
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
-                        <DialogTitle className="font-headline">{editingAccount ? 'Editar' : 'Adicionar'} Conta a Pagar</DialogTitle>
+                        <DialogTitle className="font-headline">{editingAccount ? 'Editar' : 'Adicionar'} Despesa</DialogTitle>
                         <DialogDescription>
-                            Preencha os dados da conta.
+                            Preencha os dados da despesa.
                         </DialogDescription>
                     </DialogHeader>
                     <Form {...form}>
                         <form onSubmit={form.handleSubmit(handleSaveAccount)} className="space-y-6">
                             <PayableFormComponent 
                                 form={form} 
-                                payees={payees} 
+                                suppliers={suppliers} 
                                 services={services}
                                 onAddSupplier={() => setIsSupplierDialogOpen(true)}
                                 onAddProduct={() => setIsAddProductDialogOpen(true)}
-                                editingAccount={editingAccount}
                             />
                             <DialogFooter>
                                 <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
@@ -687,39 +671,15 @@ export default function ContasAPagarPage() {
     );
 }
 
-function PayableFormComponent({ form, payees, services, onAddSupplier, onAddProduct, editingAccount }: { 
+function PayableFormComponent({ form, suppliers, services, onAddSupplier, onAddProduct }: { 
     form: any, 
-    payees: Payee[], 
+    suppliers: Supplier[], 
     services: Service[],
     onAddSupplier: () => void,
-    onAddProduct: () => void,
-    editingAccount: Account | null
+    onAddProduct: () => void
 }) {
-    const payeeId = useWatch({ control: form.control, name: 'referencia_id' });
-    const selectedPayee = payees.find(p => p.id === payeeId) as (Supplier | Employee | undefined);
-
-    const isSupplier = selectedPayee?.tipo === 'fornecedor';
-    
-    useEffect(() => {
-        if (!payeeId || editingAccount) return;
-        
-        const payee = payees.find(p => p.id === payeeId);
-        if (payee) {
-            form.setValue('tipo_referencia', payee.tipo);
-             if (payee.tipo === 'funcionario' && 'salario' in payee && payee.salario) {
-                form.setValue('descricao', 'Pagamento de Salário');
-                 const salary = payee.salario;
-                if (typeof salary === 'number' && salary > 0) {
-                    form.setValue('valor', salary.toLocaleString('pt-BR', { minimumFractionDigits: 2 }), { shouldValidate: true });
-                } else {
-                    form.setValue('valor', '0,00');
-                }
-            } else {
-                form.setValue('descricao', '');
-                form.setValue('valor', '0,00');
-            }
-        }
-    }, [payeeId, editingAccount, payees, form]);
+    const supplierId = useWatch({ control: form.control, name: 'referencia_id' });
+    const selectedSupplier = suppliers.find(s => s.id === supplierId);
 
     return (
          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -728,7 +688,7 @@ function PayableFormComponent({ form, payees, services, onAddSupplier, onAddProd
                 name="referencia_id"
                 render={({ field }) => (
                     <FormItem>
-                        <FormLabel>Favorecido *</FormLabel>
+                        <FormLabel>Fornecedor *</FormLabel>
                         <div className="flex items-center gap-2">
                             <Select 
                                 onValueChange={field.onChange} 
@@ -737,13 +697,13 @@ function PayableFormComponent({ form, payees, services, onAddSupplier, onAddProd
                             >
                                 <FormControl>
                                     <SelectTrigger>
-                                        <SelectValue placeholder="Selecione o Favorecido" />
+                                        <SelectValue placeholder="Selecione o Fornecedor" />
                                     </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
-                                    {payees.map(p => (
-                                        <SelectItem key={p.id} value={p.id}>
-                                            {p.nome} ({p.tipo === 'funcionario' ? 'Funcionário' : 'Fornecedor'})
+                                    {suppliers.map(s => (
+                                        <SelectItem key={s.id} value={s.id}>
+                                            {s.razao_social}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
@@ -763,29 +723,22 @@ function PayableFormComponent({ form, payees, services, onAddSupplier, onAddProd
                     <FormItem>
                         <FormLabel>Descrição *</FormLabel>
                         <div className="flex items-center gap-2">
-                        {isSupplier ? (
-                             <>
-                                <Select onValueChange={field.onChange} value={field.value}>
-                                    <FormControl>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Selecione um produto/serviço" />
-                                        </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                        {(selectedPayee as Supplier)?.produtos_servicos?.map((product, index) => (
-                                            <SelectItem key={index} value={product}>{product}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                                <Button type="button" variant="outline" size="icon" onClick={onAddProduct}>
-                                    <PlusCircle className="h-4 w-4" />
-                                </Button>
-                             </>
-                        ) : (
-                            <Input {...field} placeholder={form.getValues('tipo_referencia') === 'funcionario' ? 'Pagamento de Salário' : ''} disabled={!isSupplier}/>
-                        )}
+                            <Select onValueChange={field.onChange} value={field.value} disabled={!supplierId}>
+                                <FormControl>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Selecione um produto/serviço" />
+                                    </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                    {selectedSupplier?.produtos_servicos?.map((product, index) => (
+                                        <SelectItem key={index} value={product}>{product}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <Button type="button" variant="outline" size="icon" onClick={onAddProduct} disabled={!supplierId}>
+                                <PlusCircle className="h-4 w-4" />
+                            </Button>
                         </div>
-
                         <FormMessage />
                     </FormItem>
                 )}
@@ -807,6 +760,7 @@ function PayableFormComponent({ form, payees, services, onAddSupplier, onAddProd
                                     </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
+                                    <SelectItem value="">Nenhum</SelectItem>
                                     {services.map(s => (
                                         <SelectItem key={s.id} value={s.id}>
                                             {s.descricao}
@@ -967,17 +921,13 @@ function PayableTableComponent({ accounts, getPayeeName, onEdit, onDelete, total
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
             if (user) {
-                if (user.email === 'alexandro.ibrb@gmail.com') {
-                    setIsAdmin(true);
+                const q = query(collection(db, "authorized_users"), where("email", "==", user.email));
+                const querySnapshot = await getDocs(q);
+                if (!querySnapshot.empty) {
+                    const userData = querySnapshot.docs[0].data() as AuthorizedUser;
+                    setIsAdmin(userData.role === 'admin');
                 } else {
-                    const q = query(collection(db, "authorized_users"), where("email", "==", user.email));
-                    const querySnapshot = await getDocs(q);
-                    if (!querySnapshot.empty) {
-                        const userData = querySnapshot.docs[0].data() as AuthorizedUser;
-                        setIsAdmin(userData.role === 'admin');
-                    } else {
-                        setIsAdmin(false);
-                    }
+                    setIsAdmin(false);
                 }
             } else {
                 setIsAdmin(false);
@@ -992,7 +942,7 @@ function PayableTableComponent({ accounts, getPayeeName, onEdit, onDelete, total
                 <TableHeader>
                     <TableRow>
                         <TableHead>Descrição</TableHead>
-                        <TableHead>Favorecido</TableHead>
+                        <TableHead>Fornecedor</TableHead>
                         <TableHead>Vencimento</TableHead>
                         <TableHead className="text-right">Valor</TableHead>
                         <TableHead>Status</TableHead>
@@ -1024,7 +974,11 @@ function PayableTableComponent({ accounts, getPayeeName, onEdit, onDelete, total
                                         <DropdownMenuLabel>Ações</DropdownMenuLabel>
                                         <DropdownMenuItem onClick={() => onEdit(account)} disabled={!isAdmin || isPaid}>Editar</DropdownMenuItem>
                                         <AlertDialog>
-                                            <AlertDialogTrigger asChild><DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600" disabled={!isAdmin || isPaid}>Excluir</DropdownMenuItem></AlertDialogTrigger>
+                                            <AlertDialogTrigger asChild>
+                                                <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600" disabled={!isAdmin || isPaid}>
+                                                    Excluir
+                                                </DropdownMenuItem>
+                                            </AlertDialogTrigger>
                                             <AlertDialogContent>
                                                 <AlertDialogHeader>
                                                     <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
@@ -1059,3 +1013,5 @@ function PayableTableComponent({ accounts, getPayeeName, onEdit, onDelete, total
         </div>
     );
 }
+
+    
