@@ -706,14 +706,17 @@ function PayableFormComponent({ form, payees, services, onAddSupplier, onAddProd
         const payee = payees.find(p => p.id === payeeId);
         if (payee) {
             form.setValue('tipo_referencia', payee.tipo);
-            if (payee.tipo === 'funcionario') {
+            if (payee.tipo === 'funcionario' && payee.tipo_contratacao === 'salario_fixo') {
                 form.setValue('descricao', 'Pagamento de Salário');
                  const salary = (payee as Employee)?.salario;
-                if (typeof salary === 'number') {
+                if (typeof salary === 'number' && salary > 0) {
                     form.setValue('valor', salary.toLocaleString('pt-BR', { minimumFractionDigits: 2 }), { shouldValidate: true });
                 } else {
                     form.setValue('valor', '0,00');
                 }
+            } else {
+                form.setValue('descricao', '');
+                form.setValue('valor', '0,00');
             }
         }
     }, [payeeId, editingAccount, form, payees]);
