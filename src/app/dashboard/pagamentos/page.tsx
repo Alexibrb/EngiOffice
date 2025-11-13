@@ -18,16 +18,16 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import { collection, addDoc, getDocs, doc, query, where } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
-import { MoreHorizontal, Loader2, Calendar as CalendarIcon, XCircle, Trash, DollarSign } from 'lucide-react';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Loader2, Trash, DollarSign } from 'lucide-react';
 import type { Account, Employee, AuthorizedUser } from '@/lib/types';
-import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PageHeader } from '@/components/page-header';
 import { onAuthStateChanged } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
+import { Form } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
 
 const paymentSchema = z.object({
   referencia_id: z.string().min(1, 'Funcionário é obrigatório.'),
@@ -230,5 +230,3 @@ export default function PagamentosPage() {
         </div>
     );
 }
-
-    
