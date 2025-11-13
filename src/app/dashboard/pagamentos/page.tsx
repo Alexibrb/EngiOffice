@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -17,9 +16,9 @@ import {
   TableFooter,
 } from '@/components/ui/table';
 import { useToast } from "@/hooks/use-toast"
-import { collection, addDoc, getDocs, doc, query, where, deleteDoc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, doc, query, where, deleteDoc, updateDoc } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
-import { Loader2, Trash, DollarSign, CalendarIcon } from 'lucide-react';
+import { Loader2, Trash, DollarSign, CalendarIcon, CheckCircle } from 'lucide-react';
 import type { Account, Employee, AuthorizedUser } from '@/lib/types';
 import { format } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -34,6 +33,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { ptBR } from 'date-fns/locale';
+import { Badge } from '@/components/ui/badge';
+
 
 const paymentSchema = z.object({
   referencia_id: z.string().min(1, 'Funcionário é obrigatório.'),
@@ -90,6 +91,7 @@ export default function PagamentosPage() {
             setEmployees(employeesData);
 
             const paymentsData = paymentsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, vencimento: doc.data().vencimento.toDate() })) as Account[];
+            paymentsData.sort((a, b) => b.vencimento.getTime() - a.vencimento.getTime());
             setPayments(paymentsData);
             
         } catch (error) {
@@ -126,11 +128,11 @@ export default function PagamentosPage() {
                 ...values,
                 descricao: `Pagamento de Salário - ${getEmployeeName(values.referencia_id)}`,
                 tipo_referencia: 'funcionario' as const,
-                status: 'pago' as const,
+                status: 'pendente' as const,
             };
 
             await addDoc(collection(db, 'contas_a_pagar'), paymentData);
-            toast({ title: "Sucesso!", description: "Pagamento de salário registrado com sucesso." });
+            toast({ title: "Sucesso!", description: "Lançamento de salário agendado com sucesso." });
             form.reset({
                 referencia_id: '',
                 valor: 0,
@@ -162,8 +164,31 @@ export default function PagamentosPage() {
             });
         }
     };
+    
+     const handleMarkAsPaid = async (paymentId: string) => {
+        try {
+            const paymentDocRef = doc(db, 'contas_a_pagar', paymentId);
+            await updateDoc(paymentDocRef, {
+                status: 'pago'
+            });
+            toast({
+                title: "Sucesso!",
+                description: "Pagamento marcado como pago."
+            });
+            await fetchData();
+        } catch (error) {
+            console.error("Erro ao marcar como pago: ", error);
+            toast({
+                variant: "destructive",
+                title: "Erro",
+                description: "Não foi possível atualizar o status do pagamento."
+            });
+        }
+    };
 
-    const totalPaid = payments.reduce((sum, item) => sum + item.valor, 0);
+    const totalPaid = payments
+        .filter(p => p.status === 'pago')
+        .reduce((sum, item) => sum + item.valor, 0);
 
     return (
         <div className="flex flex-col gap-8">
@@ -249,7 +274,7 @@ export default function PagamentosPage() {
 
                                 <Button type="submit" variant="accent" className="w-full" disabled={isSubmitting}>
                                     {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                    Registrar Pagamento
+                                    Agendar Pagamento
                                 </Button>
                             </form>
                         </Form>
@@ -268,6 +293,7 @@ export default function PagamentosPage() {
                                     <TableRow>
                                         <TableHead>Funcionário</TableHead>
                                         <TableHead>Data do Pagamento</TableHead>
+                                        <TableHead>Status</TableHead>
                                         <TableHead className="text-right">Valor</TableHead>
                                         {isAdmin && <TableHead className="w-[50px] text-right">Ações</TableHead>}
                                     </TableRow>
@@ -275,7 +301,7 @@ export default function PagamentosPage() {
                                 <TableBody>
                                     {isLoading ? (
                                         <TableRow>
-                                            <TableCell colSpan={isAdmin ? 4 : 3} className="h-24 text-center">
+                                            <TableCell colSpan={isAdmin ? 5 : 4} className="h-24 text-center">
                                                 <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
                                             </TableCell>
                                         </TableRow>
@@ -283,11 +309,19 @@ export default function PagamentosPage() {
                                         <TableRow key={payment.id}>
                                             <TableCell className="font-medium">{getEmployeeName(payment.referencia_id)}</TableCell>
                                             <TableCell>{format(payment.vencimento, 'dd/MM/yyyy')}</TableCell>
+                                            <TableCell>
+                                                <Badge variant={payment.status === 'pago' ? 'secondary' : 'destructive'}>
+                                                    {payment.status}
+                                                </Badge>
+                                            </TableCell>
                                             <TableCell className="text-right font-medium text-green-500">
                                                 {payment.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                             </TableCell>
                                             {isAdmin && (
-                                                <TableCell className="text-right">
+                                                <TableCell className="text-right flex items-center justify-end gap-2">
+                                                     <Button variant="outline" size="icon" onClick={() => handleMarkAsPaid(payment.id)} disabled={payment.status === 'pago'}>
+                                                        <CheckCircle className="h-4 w-4 text-green-500" />
+                                                     </Button>
                                                      <AlertDialog>
                                                         <AlertDialogTrigger asChild>
                                                             <Button variant="ghost" size="icon">
@@ -312,13 +346,13 @@ export default function PagamentosPage() {
                                         </TableRow>
                                     )) : (
                                         <TableRow>
-                                            <TableCell colSpan={isAdmin ? 4 : 3} className="h-24 text-center">Nenhum pagamento encontrado.</TableCell>
+                                            <TableCell colSpan={isAdmin ? 5 : 4} className="h-24 text-center">Nenhum pagamento encontrado.</TableCell>
                                         </TableRow>
                                     )}
                                 </TableBody>
                                 <TableFooter>
                                     <TableRow>
-                                        <TableCell colSpan={isAdmin ? 3 : 2} className="font-bold">Total Pago</TableCell>
+                                        <TableCell colSpan={isAdmin ? 4 : 3} className="font-bold">Total Pago</TableCell>
                                         <TableCell className="text-right font-bold text-green-500">
                                             {totalPaid.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                         </TableCell>
