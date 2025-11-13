@@ -224,6 +224,7 @@ export default function DespesasPage() {
              const submissionValues = {
                 ...values,
                 valor: parseFloat(String(values.valor).replace(',', '.')),
+                servico_id: values.servico_id === 'none' ? '' : values.servico_id,
                 tipo_referencia: 'fornecedor', // Garante que é sempre fornecedor
             };
 
@@ -760,7 +761,7 @@ function PayableFormComponent({ form, suppliers, services, onAddSupplier, onAddP
                                     </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
-                                    <SelectItem value="">Nenhum</SelectItem>
+                                    <SelectItem value="none">Nenhum</SelectItem>
                                     {services.map(s => (
                                         <SelectItem key={s.id} value={s.id}>
                                             {s.descricao}
