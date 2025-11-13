@@ -708,8 +708,12 @@ function PayableFormComponent({ form, payees, services, onAddSupplier, onAddProd
             form.setValue('tipo_referencia', payee.tipo);
             if (payee.tipo === 'funcionario') {
                 form.setValue('descricao', 'Pagamento de Salário');
-                const salary = (payee as Employee).salario || 0;
-                form.setValue('valor', salary.toLocaleString('pt-BR', { minimumFractionDigits: 2 }), { shouldValidate: true });
+                 const salary = (payee as Employee)?.salario;
+                if (typeof salary === 'number') {
+                    form.setValue('valor', salary.toLocaleString('pt-BR', { minimumFractionDigits: 2 }), { shouldValidate: true });
+                } else {
+                    form.setValue('valor', '0,00');
+                }
             }
         }
     }, [payeeId, editingAccount, form, payees]);
