@@ -114,6 +114,7 @@ export default function DashboardPage() {
   
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [filteredServices, setFilteredServices] = useState<Service[]>([]);
+  const [showAllNotes, setShowAllNotes] = useState(false);
 
 
   const paymentForm = useForm<z.infer<typeof paymentSchema>>({
@@ -145,7 +146,7 @@ export default function DashboardPage() {
       try {
         const [servicesSnapshot, payableSnapshot, clientsSnapshot, commissionsSnapshot] = await Promise.all([
           getDocs(collection(db, "servicos")),
-          getDocs(collection(db, "contas_a_pagar")),
+          getDocs(query(collection(db, "contas_a_pagar"), where("status", "==", "pendente"))),
           getDocs(collection(db, "clientes")),
           getDocs(collection(db, "comissoes")),
         ]);
@@ -575,6 +576,8 @@ export default function DashboardPage() {
     }
   };
 
+  const notesToShow = showAllNotes ? notes : notes.slice(0, 4);
+
 
   if (isLoading) {
     return (
@@ -878,7 +881,7 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      <div className="flex justify-end">
+       <div className="flex justify-end">
           <Button onClick={() => setIsFormOpen(prev => !prev)} variant="accent">
               <StickyNote className="mr-2 h-4 w-4" />
               {isFormOpen ? 'Fechar Anotações' : 'Adicionar Anotação'}
@@ -975,10 +978,15 @@ export default function DashboardPage() {
             <div className="mt-2">
                 <div className="flex justify-between items-center mb-4">
                     <h2 className="text-2xl font-bold font-headline tracking-tight">Anotações Salvas</h2>
+                    {notes.length > 4 && (
+                        <Button variant="outline" onClick={() => setShowAllNotes(prev => !prev)}>
+                            {showAllNotes ? 'Mostrar menos' : 'Mostrar todas'}
+                        </Button>
+                    )}
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {notes.length > 0 ? (
-                        notes.map((note, index) => (
+                    {notesToShow.length > 0 ? (
+                        notesToShow.map((note, index) => (
                             <Card key={note.id} className={cn(
                                 "shadow-lg transform rotate-[-2deg] hover:rotate-0 hover:scale-105 transition-transform duration-200 ease-in-out h-72 flex flex-col",
                                 postItColors[index % postItColors.length]
