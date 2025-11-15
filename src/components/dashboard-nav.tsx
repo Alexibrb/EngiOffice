@@ -78,13 +78,6 @@ const allNavLinks = [
         { href: '/dashboard/calculadora', label: 'Calculadora', icon: Calculator },
     ],
   },
-   {
-    group: 'Organização',
-    icon: StickyNote,
-    links: [
-      { href: '/dashboard/anotacoes', label: 'Anotações', icon: StickyNote },
-    ],
-  },
     {
     group: 'IA',
     icon: Sparkles,
@@ -210,4 +203,3 @@ export function DashboardNav() {
     </div>
   );
 }
-

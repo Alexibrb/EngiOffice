@@ -23,7 +23,7 @@ import {
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from '@/components/ui/badge';
-import { collection, getDocs, deleteDoc, doc, updateDoc, query, orderBy } from 'firebase/firestore';
+import { collection, getDocs, deleteDoc, doc, updateDoc, query, orderBy, addDoc, where } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import type { Service, Account, Client, Commission, Note } from '@/lib/types';
 import { format, isPast } from 'date-fns';
@@ -48,6 +48,8 @@ import {
   Pin,
   Trash2,
   StickyNote,
+  ChevronsUpDown,
+  Plus,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -69,11 +71,20 @@ import { useCompanyData } from './layout';
 import Image from 'next/image';
 import { PageHeader } from '@/components/page-header';
 import { ScrollArea } from '@/components/ui/scroll-area';
-
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 
 const paymentSchema = z.object({
   valor_pago: z.coerce.number().min(0.01, "O valor deve ser maior que zero.")
 });
+
+const noteSchema = z.object({
+  clientId: z.string().optional(),
+  serviceId: z.string().optional(),
+  content: z.string().min(1, 'O conteúdo da anotação não pode estar vazio.'),
+});
+
 
 const postItColors = [
     'bg-yellow-200 dark:bg-yellow-800/40 border-yellow-300 dark:border-yellow-700/60',
@@ -91,6 +102,7 @@ export default function DashboardPage() {
   const [commissions, setCommissions] = useState<Commission[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isNotesLoading, setIsNotesLoading] = useState(true);
   const [user, setUser] = useState<User | null>(null);
   const router = useRouter();
   const { toast } = useToast();
@@ -99,11 +111,26 @@ export default function DashboardPage() {
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [isPaymentLoading, setIsPaymentLoading] = useState(false);
+  
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [filteredServices, setFilteredServices] = useState<Service[]>([]);
+
 
   const paymentForm = useForm<z.infer<typeof paymentSchema>>({
     resolver: zodResolver(paymentSchema),
     defaultValues: { valor_pago: 0 },
   });
+
+  const noteForm = useForm<z.infer<typeof noteSchema>>({
+    resolver: zodResolver(noteSchema),
+    defaultValues: {
+      clientId: '',
+      serviceId: '',
+      content: '',
+    },
+  });
+
+  const selectedClientId = noteForm.watch('clientId');
   
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -114,14 +141,13 @@ export default function DashboardPage() {
     return () => unsubscribe();
   }, []);
 
-  const fetchData = async () => {
+  const fetchDashboardData = async () => {
       try {
-        const [servicesSnapshot, payableSnapshot, clientsSnapshot, commissionsSnapshot, notesSnapshot] = await Promise.all([
+        const [servicesSnapshot, payableSnapshot, clientsSnapshot, commissionsSnapshot] = await Promise.all([
           getDocs(collection(db, "servicos")),
           getDocs(collection(db, "contas_a_pagar")),
           getDocs(collection(db, "clientes")),
           getDocs(collection(db, "comissoes")),
-          getDocs(query(collection(db, "anotacoes"), orderBy("createdAt", "desc"))),
         ]);
 
         const servicesData = servicesSnapshot.docs.map(doc => {
@@ -144,10 +170,6 @@ export default function DashboardPage() {
             return { ...data, id: doc.id, data: data.data.toDate() } as Commission;
         });
         setCommissions(commissionsData);
-        
-        const notesData = notesSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, createdAt: doc.data().createdAt.toDate() })) as Note[];
-        setNotes(notesData);
-
 
       } catch (error) {
         console.error("Erro ao buscar dados do dashboard: ", error);
@@ -155,10 +177,38 @@ export default function DashboardPage() {
         setIsLoading(false);
       }
     };
+    
+    const fetchNotesData = async () => {
+      try {
+        const notesSnapshot = await getDocs(query(collection(db, "anotacoes"), orderBy("createdAt", "desc")));
+        const notesData = notesSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, createdAt: doc.data().createdAt.toDate() })) as Note[];
+        setNotes(notesData);
+      } catch (error) {
+         console.error("Erro ao buscar anotações: ", error);
+         toast({ variant: 'destructive', title: 'Erro', description: 'Não foi possível carregar as anotações.' });
+      } finally {
+          setIsNotesLoading(false);
+      }
+    }
 
   useEffect(() => {
-    fetchData();
+    fetchDashboardData();
+    fetchNotesData();
   }, []);
+
+  useEffect(() => {
+    if (selectedClientId && selectedClientId !== 'none') {
+        const relatedServices = services.filter(s => s.cliente_id === selectedClientId);
+        setFilteredServices(relatedServices);
+        const currentServiceId = noteForm.getValues('serviceId');
+        if (currentServiceId && !relatedServices.some(s => s.id === currentServiceId)) {
+            noteForm.setValue('serviceId', '');
+        }
+    } else {
+        setFilteredServices(services);
+    }
+  }, [selectedClientId, services, noteForm]);
+
 
   const getClient = (clientId: string) => {
     return clients.find(c => c.codigo_cliente === clientId);
@@ -172,6 +222,28 @@ export default function DashboardPage() {
     const { street, number, city } = service.endereco_obra;
     if (!street) return 'Endereço da obra não preenchido';
     return `${street}, ${number} - ${city}`;
+  };
+
+  const handleSaveNote = async (values: z.infer<typeof noteSchema>) => {
+    setIsNotesLoading(true);
+    try {
+      const dataToSave = {
+        ...values,
+        clientId: values.clientId === 'none' ? '' : values.clientId,
+        serviceId: values.serviceId === 'none' ? '' : values.serviceId,
+        createdAt: new Date(),
+      };
+
+      await addDoc(collection(db, 'anotacoes'), dataToSave);
+      toast({ title: 'Sucesso!', description: 'Anotação salva com sucesso.' });
+      noteForm.reset();
+      await fetchNotesData();
+    } catch (error) {
+      console.error("Erro ao salvar anotação: ", error);
+      toast({ variant: 'destructive', title: 'Erro', description: 'Ocorreu um erro ao salvar a anotação.' });
+    } finally {
+      setIsNotesLoading(false);
+    }
   };
   
   const handleDeleteNote = async (id: string) => {
@@ -238,7 +310,7 @@ export default function DashboardPage() {
         title: "Sucesso!",
         description: "Serviço excluído com sucesso.",
       });
-      await fetchData();
+      await fetchDashboardData();
     } catch (error) {
       console.error("Erro ao excluir serviço: ", error);
       toast({
@@ -493,7 +565,7 @@ export default function DashboardPage() {
         setIsPaymentDialogOpen(false);
         setEditingService(null);
         paymentForm.reset();
-        await fetchData();
+        await fetchDashboardData();
 
     } catch (error) {
          console.error("Erro ao processar pagamento: ", error);
@@ -519,9 +591,9 @@ export default function DashboardPage() {
                 title={`Olá, ${user?.displayName || 'Usuário'}!`}
                 description="Uma visão geral do seu escritório."
             />
-             <Button onClick={() => router.push('/dashboard/anotacoes')} variant="accent">
+             <Button onClick={() => setIsFormOpen(prev => !prev)} variant="accent">
                 <StickyNote className="mr-2 h-4 w-4" />
-                Adicionar Anotação
+                {isFormOpen ? 'Fechar Anotações' : 'Adicionar Anotação'}
             </Button>
         </div>
 
@@ -813,64 +885,155 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-       <div className="mt-8">
-            <h2 className="text-2xl font-bold font-headline tracking-tight mb-4">Anotações Recentes</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {notes.length > 0 ? (
-                    notes.slice(0, 4).map((note, index) => (
-                        <Card key={note.id} className={cn(
-                            "shadow-lg transform rotate-[-2deg] hover:rotate-0 hover:scale-105 transition-transform duration-200 ease-in-out h-72 flex flex-col",
-                            postItColors[index % postItColors.length]
-                        )}>
-                        <CardHeader className="flex-row items-center justify-between pb-2">
-                            <div className="flex items-center gap-2">
-                            <Pin className="h-5 w-5 text-slate-600 dark:text-yellow-500" />
-                            <CardTitle className="text-sm font-bold text-slate-700 dark:text-yellow-400">
-                                {note.clientId ? getClientName(note.clientId) : 'Anotação Geral'}
-                            </CardTitle>
-                            </div>
-                            <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-500 hover:bg-black/10 hover:text-destructive">
-                                    <Trash2 className="h-4 w-4" />
-                                </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                <AlertDialogHeader>
-                                    <AlertDialogTitle>Excluir esta anotação?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                    Essa ação não pode ser desfeita.
-                                    </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => handleDeleteNote(note.id)}>Excluir</AlertDialogAction>
-                                </AlertDialogFooter>
-                                </AlertDialogContent>
-                            </AlertDialog>
-                        </CardHeader>
-                        <CardContent className="flex-1 overflow-hidden">
-                            <ScrollArea className="h-full pr-4">
-                                <p className="text-slate-800 dark:text-yellow-200/90 whitespace-pre-wrap font-serif">
-                                    {note.content}
-                                </p>
-                            </ScrollArea>
-                        </CardContent>
-                        <CardFooter className="flex-col items-start text-xs text-slate-600 dark:text-yellow-600 pt-4 mt-auto">
-                            {note.serviceId && (
-                            <p className="font-semibold mb-1">Obra: {getServiceAddress(note.serviceId)}</p>
+        <Collapsible open={isFormOpen} onOpenChange={setIsFormOpen} className="mt-8">
+            <CollapsibleContent>
+                <Card className="mb-6">
+                    <CardHeader>
+                    <CardTitle>Nova Anotação</CardTitle>
+                    <CardDescription>
+                        Selecione um cliente e/ou serviço para vincular a anotação, ou deixe em branco para uma nota geral.
+                    </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                    <Form {...noteForm}>
+                        <form onSubmit={noteForm.handleSubmit(handleSaveNote)} className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <FormField
+                            control={noteForm.control}
+                            name="clientId"
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Cliente (Opcional)</FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                                    <FormControl>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Selecione um cliente" />
+                                    </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                    <SelectItem value="none">Nenhum</SelectItem>
+                                    {clients.map(client => (
+                                        <SelectItem key={client.codigo_cliente} value={client.codigo_cliente}>
+                                        {client.nome_completo}
+                                        </SelectItem>
+                                    ))}
+                                    </SelectContent>
+                                </Select>
+                                <FormMessage />
+                                </FormItem>
                             )}
-                            <p>{format(note.createdAt, "d 'de' MMMM, yyyy 'às' HH:mm", { locale: ptBR })}</p>
-                        </CardFooter>
-                        </Card>
-                    ))
-                ) : (
-                    <div className="col-span-full text-center text-muted-foreground py-10">
-                        <p>Nenhuma anotação encontrada.</p>
-                    </div>
-                )}
+                            />
+                            <FormField
+                            control={noteForm.control}
+                            name="serviceId"
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Serviço (Opcional)</FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value} disabled={filteredServices.length === 0 && !!selectedClientId && selectedClientId !== 'none'}>
+                                    <FormControl>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder={selectedClientId && selectedClientId !== 'none' ? "Selecione um serviço do cliente" : "Selecione um serviço"} />
+                                    </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                    <SelectItem value="none">Nenhum</SelectItem>
+                                    {filteredServices.map(service => (
+                                        <SelectItem key={service.id} value={service.id}>
+                                        {service.descricao} ({getServiceAddress(service.id)})
+                                        </SelectItem>
+                                    ))}
+                                    </SelectContent>
+                                </Select>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                            />
+                        </div>
+                        <FormField
+                            control={noteForm.control}
+                            name="content"
+                            render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Anotação</FormLabel>
+                                <FormControl>
+                                <Textarea placeholder="Digite sua anotação aqui..." rows={5} {...field} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                            )}
+                        />
+                        <Button type="submit" variant="accent" disabled={isNotesLoading}>
+                            {isNotesLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Salvar Anotação
+                        </Button>
+                        </form>
+                    </Form>
+                    </CardContent>
+                </Card>
+            </CollapsibleContent>
+        
+            <div className="mt-2">
+                <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-2xl font-bold font-headline tracking-tight">Anotações Salvas</h2>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    {notes.length > 0 ? (
+                        notes.map((note, index) => (
+                            <Card key={note.id} className={cn(
+                                "shadow-lg transform rotate-[-2deg] hover:rotate-0 hover:scale-105 transition-transform duration-200 ease-in-out h-72 flex flex-col",
+                                postItColors[index % postItColors.length]
+                            )}>
+                            <CardHeader className="flex-row items-center justify-between pb-2">
+                                <div className="flex items-center gap-2">
+                                <Pin className="h-5 w-5 text-slate-600 dark:text-yellow-500" />
+                                <CardTitle className="text-sm font-bold text-slate-700 dark:text-yellow-400">
+                                    {note.clientId ? getClientName(note.clientId) : 'Anotação Geral'}
+                                </CardTitle>
+                                </div>
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-500 hover:bg-black/10 hover:text-destructive">
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>Excluir esta anotação?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                        Essa ação não pode ser desfeita.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => handleDeleteNote(note.id)}>Excluir</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            </CardHeader>
+                            <CardContent className="flex-1 overflow-hidden">
+                            <ScrollArea className="h-full pr-4">
+                                    <p className="text-slate-800 dark:text-yellow-200/90 whitespace-pre-wrap font-serif">
+                                        {note.content}
+                                    </p>
+                            </ScrollArea>
+                            </CardContent>
+                            <CardFooter className="flex-col items-start text-xs text-slate-600 dark:text-yellow-600 pt-4 mt-auto">
+                                {note.serviceId && (
+                                <p className="font-semibold mb-1">Obra: {getServiceAddress(note.serviceId)}</p>
+                                )}
+                                <p>{format(note.createdAt, "d 'de' MMMM, yyyy 'às' HH:mm", { locale: ptBR })}</p>
+                            </CardFooter>
+                            </Card>
+                        ))
+                    ) : (
+                        <div className="col-span-full text-center text-muted-foreground py-10">
+                            <p>Nenhuma anotação encontrada.</p>
+                        </div>
+                    )}
+                </div>
             </div>
-        </div>
+      </Collapsible>
+
 
       <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
           <DialogContent className="sm:max-w-md">
