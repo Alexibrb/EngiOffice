@@ -586,17 +586,10 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-8">
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-            <PageHeader 
-                title={`Olá, ${user?.displayName || 'Usuário'}!`}
-                description="Uma visão geral do seu escritório."
-            />
-             <Button onClick={() => setIsFormOpen(prev => !prev)} variant="accent">
-                <StickyNote className="mr-2 h-4 w-4" />
-                {isFormOpen ? 'Fechar Anotações' : 'Adicionar Anotação'}
-            </Button>
-        </div>
-
+      <PageHeader 
+          title={`Olá, ${user?.displayName || 'Usuário'}!`}
+          description="Uma visão geral do seu escritório."
+      />
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
@@ -885,7 +878,14 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-        <Collapsible open={isFormOpen} onOpenChange={setIsFormOpen} className="mt-8">
+      <div className="flex justify-end">
+          <Button onClick={() => setIsFormOpen(prev => !prev)} variant="accent">
+              <StickyNote className="mr-2 h-4 w-4" />
+              {isFormOpen ? 'Fechar Anotações' : 'Adicionar Anotação'}
+          </Button>
+      </div>
+      
+      <Collapsible open={isFormOpen} onOpenChange={setIsFormOpen}>
             <CollapsibleContent>
                 <Card className="mb-6">
                     <CardHeader>
