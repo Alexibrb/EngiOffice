@@ -952,7 +952,6 @@ function PayableTableComponent({ accounts, getPayeeName, onEdit, onDelete, total
                 </TableHeader>
                 <TableBody>
                     {accounts.length > 0 ? accounts.map((account) => {
-                        const isPaid = account.status === 'pago';
                         return (
                         <TableRow key={account.id}>
                             <TableCell className="font-medium">{account.descricao}</TableCell>
@@ -960,23 +959,23 @@ function PayableTableComponent({ accounts, getPayeeName, onEdit, onDelete, total
                             <TableCell>{format(account.vencimento, 'dd/MM/yyyy')}</TableCell>
                             <TableCell className="text-right text-red-500">R$ {account.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
                             <TableCell>
-                                <Badge variant={isPaid ? 'secondary' : 'destructive'}>
+                                <Badge variant={account.status === 'pago' ? 'secondary' : 'destructive'}>
                                     {account.status}
                                 </Badge>
                             </TableCell>
                             <TableCell>
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" size="icon" disabled={isPaid}>
+                                        <Button variant="ghost" size="icon" disabled={!isAdmin}>
                                             <MoreHorizontal className="h-4 w-4" />
                                         </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
                                         <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                                        <DropdownMenuItem onClick={() => onEdit(account)} disabled={!isAdmin || isPaid}>Editar</DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => onEdit(account)}>Editar</DropdownMenuItem>
                                         <AlertDialog>
                                             <AlertDialogTrigger asChild>
-                                                <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600" disabled={!isAdmin || isPaid}>
+                                                <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600">
                                                     Excluir
                                                 </DropdownMenuItem>
                                             </AlertDialogTrigger>
