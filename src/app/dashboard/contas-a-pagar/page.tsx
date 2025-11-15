@@ -52,7 +52,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { format, endOfDay, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import type { Account, Supplier, Service, CompanyData, AuthorizedUser } from '@/lib/types';
+import type { Account, Supplier, Service, CompanyData, AuthorizedUser, Employee } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -92,6 +92,7 @@ const supplierSchema = z.object({
 export default function DespesasPage() {
     const [accountsPayable, setAccountsPayable] = useState<Account[]>([]);
     const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+    const [employees, setEmployees] = useState<Employee[]>([]);
     const [services, setServices] = useState<Service[]>([]);
     const [companyData, setCompanyData] = useState<CompanyData | null>(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -108,6 +109,8 @@ export default function DespesasPage() {
 
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
     const [statusFilter, setStatusFilter] = useState<string>('');
+    const [typeFilter, setTypeFilter] = useState<string>('');
+
 
     const form = useForm<z.infer<typeof accountSchema>>({
         resolver: zodResolver(accountSchema),
@@ -153,6 +156,12 @@ export default function DespesasPage() {
       setSuppliers(suppliersData);
       return suppliersData;
     };
+    
+    const fetchEmployees = async () => {
+        const employeesSnapshot = await getDocs(collection(db, "funcionarios"));
+        const employeesData = employeesSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Employee[];
+        setEmployees(employeesData);
+    };
 
     const fetchServices = async () => {
       const servicesSnapshot = await getDocs(collection(db, 'servicos'));
@@ -172,11 +181,10 @@ export default function DespesasPage() {
                 console.warn("Could not fetch company data, might not exist yet.", e)
             }
 
-
-            const q = query(collection(db, "contas_a_pagar"), where("tipo_referencia", "==", "fornecedor"));
-            const payableSnapshot = await getDocs(q);
+            const payableSnapshot = await getDocs(collection(db, "contas_a_pagar"));
             
             await fetchSuppliers();
+            await fetchEmployees();
             await fetchServices();
             
             const payableData = payableSnapshot.docs.map(doc => {
@@ -213,6 +221,7 @@ export default function DespesasPage() {
     }, [searchParams]);
 
     const getPayeeName = (account: Account) => {
+        if (account.tipo_referencia === 'funcionario') return employees.find(e => e.id === account.referencia_id)?.nome || 'Funcionário não encontrado';
         return suppliers.find(s => s.id === account.referencia_id)?.razao_social || 'Fornecedor não encontrado';
     };
 
@@ -345,6 +354,9 @@ export default function DespesasPage() {
     
     const filteredPayable = accountsPayable
         .filter(acc => {
+            return typeFilter ? acc.tipo_referencia === typeFilter : true;
+        })
+        .filter(acc => {
             return statusFilter ? acc.status === statusFilter : true;
         })
         .filter(acc => {
@@ -401,6 +413,7 @@ export default function DespesasPage() {
     const handleClearFilters = () => {
         setDateRange(undefined);
         setStatusFilter('');
+        setTypeFilter('');
     }
 
     return (
@@ -477,14 +490,14 @@ export default function DespesasPage() {
                             </Button>
                         </div>
                     </div>
-                    <div className="flex items-center gap-4 p-4 mt-4 bg-muted rounded-lg">
+                    <div className="flex flex-wrap items-center gap-4 p-4 mt-4 bg-muted rounded-lg">
                         <div className="flex items-center gap-2">
                             <Popover>
                                 <PopoverTrigger asChild>
                                   <Button
                                     id="date"
                                     variant={"outline"}
-                                    className={cn( "w-[300px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}
+                                    className={cn( "w-full sm:w-[300px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}
                                   >
                                     <CalendarIcon className="mr-2 h-4 w-4" />
                                     {dateRange?.from ? (
@@ -515,12 +528,23 @@ export default function DespesasPage() {
                         </div>
                          <div className="flex items-center gap-2">
                             <Select value={statusFilter} onValueChange={setStatusFilter}>
-                                <SelectTrigger className="w-[180px]">
+                                <SelectTrigger className="w-full sm:w-[180px]">
                                     <SelectValue placeholder="Filtrar status" />
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="pendente">Pendente</SelectItem>
                                     <SelectItem value="pago">Pago</SelectItem>
+                                </SelectContent>
+                            </Select>
+                         </div>
+                         <div className="flex items-center gap-2">
+                            <Select value={typeFilter} onValueChange={setTypeFilter}>
+                                <SelectTrigger className="w-full sm:w-[220px]">
+                                    <SelectValue placeholder="Filtrar tipo de despesa" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="fornecedor">Fornecedores</SelectItem>
+                                    <SelectItem value="funcionario">Folha de Pagamento</SelectItem>
                                 </SelectContent>
                             </Select>
                          </div>
@@ -943,7 +967,7 @@ function PayableTableComponent({ accounts, getPayeeName, onEdit, onDelete, total
                 <TableHeader>
                     <TableRow>
                         <TableHead>Descrição</TableHead>
-                        <TableHead>Fornecedor</TableHead>
+                        <TableHead>Favorecido</TableHead>
                         <TableHead>Vencimento</TableHead>
                         <TableHead className="text-right">Valor</TableHead>
                         <TableHead>Status</TableHead>
@@ -952,6 +976,7 @@ function PayableTableComponent({ accounts, getPayeeName, onEdit, onDelete, total
                 </TableHeader>
                 <TableBody>
                     {accounts.length > 0 ? accounts.map((account) => {
+                        const isEmployeePayment = account.tipo_referencia === 'funcionario';
                         return (
                         <TableRow key={account.id}>
                             <TableCell className="font-medium">{account.descricao}</TableCell>
@@ -966,7 +991,7 @@ function PayableTableComponent({ accounts, getPayeeName, onEdit, onDelete, total
                             <TableCell>
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" size="icon" disabled={!isAdmin}>
+                                        <Button variant="ghost" size="icon" disabled={!isAdmin || isEmployeePayment}>
                                             <MoreHorizontal className="h-4 w-4" />
                                         </Button>
                                     </DropdownMenuTrigger>
@@ -1013,5 +1038,7 @@ function PayableTableComponent({ accounts, getPayeeName, onEdit, onDelete, total
         </div>
     );
 }
+
+    
 
     
