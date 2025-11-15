@@ -241,9 +241,9 @@ export default function AnalyticsPage() {
 
 
     const serviceStatusData = useMemo(() => {
-        const total = filteredServices.filter(s => s.status !== 'cancelado').length;
-        const inProgress = filteredServices.filter(s => s.status === 'em andamento').length;
-        const completed = filteredServices.filter(s => s.status === 'concluído').length;
+        const total = filteredServices.filter(s => s.status_financeiro !== 'cancelado').length;
+        const inProgress = filteredServices.filter(s => s.status_execucao === 'em andamento').length;
+        const completed = filteredServices.filter(s => s.status_execucao === 'finalizado').length;
 
         return [
             { name: 'Cadastrados', value: total, fill: COLORS[0] },
@@ -377,7 +377,7 @@ export default function AnalyticsPage() {
                 <Card>
                     <CardHeader>
                         <CardTitle>Status dos Serviços</CardTitle>
-                        <CardDescription>Contagem de serviços por status (baseado nos filtros).</CardDescription>
+                        <CardDescription>Contagem de serviços por status de execução (baseado nos filtros).</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <ChartContainer config={{}} className="h-[300px] w-full">
@@ -487,5 +487,7 @@ export default function AnalyticsPage() {
         </div>
     );
 }
+
+    
 
     
