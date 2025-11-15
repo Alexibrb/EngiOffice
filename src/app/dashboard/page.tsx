@@ -146,7 +146,7 @@ export default function DashboardPage() {
       try {
         const [servicesSnapshot, payableSnapshot, clientsSnapshot, commissionsSnapshot] = await Promise.all([
           getDocs(collection(db, "servicos")),
-          getDocs(query(collection(db, "contas_a_pagar"), where("status", "==", "pendente"))),
+          getDocs(collection(db, "contas_a_pagar")),
           getDocs(collection(db, "clientes")),
           getDocs(collection(db, "comissoes")),
         ]);
