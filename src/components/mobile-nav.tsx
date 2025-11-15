@@ -80,6 +80,13 @@ const allNavLinks = [
     ],
   },
   {
+    group: 'Organização',
+    icon: StickyNote,
+    links: [
+      { href: '/dashboard/anotacoes', label: 'Anotações', icon: StickyNote },
+    ],
+  },
+  {
     group: 'IA',
     icon: Sparkles,
     links: [
@@ -206,4 +213,3 @@ export function MobileNav() {
   );
 }
 
-    
