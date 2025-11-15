@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -18,9 +18,9 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import { collection, addDoc, getDocs, doc, query, where, deleteDoc, updateDoc } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
-import { Loader2, Trash, DollarSign, CalendarIcon, CheckCircle } from 'lucide-react';
+import { Loader2, Trash, DollarSign, CalendarIcon, CheckCircle, XCircle } from 'lucide-react';
 import type { Account, Employee, AuthorizedUser } from '@/lib/types';
-import { format } from 'date-fns';
+import { format, startOfDay, endOfDay } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PageHeader } from '@/components/page-header';
@@ -34,6 +34,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { ptBR } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
+import { DateRange } from 'react-day-picker';
 
 
 const paymentSchema = z.object({
@@ -50,6 +51,9 @@ export default function PagamentosPage() {
     const [isAdmin, setIsAdmin] = useState(false);
     const { toast } = useToast();
     const router = useRouter();
+
+    const [selectedEmployeeFilter, setSelectedEmployeeFilter] = useState<string>('');
+    const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
     const form = useForm<z.infer<typeof paymentSchema>>({
         resolver: zodResolver(paymentSchema),
@@ -186,9 +190,28 @@ export default function PagamentosPage() {
         }
     };
 
-    const totalPaid = payments
+    const filteredPayments = useMemo(() => {
+        return payments
+            .filter(payment => {
+                return selectedEmployeeFilter ? payment.referencia_id === selectedEmployeeFilter : true;
+            })
+            .filter(payment => {
+                if (!dateRange?.from) return true;
+                const fromDate = startOfDay(dateRange.from);
+                const toDate = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from);
+                const paymentDate = payment.vencimento;
+                return paymentDate >= fromDate && paymentDate <= toDate;
+            });
+    }, [payments, selectedEmployeeFilter, dateRange]);
+
+    const totalPaid = filteredPayments
         .filter(p => p.status === 'pago')
         .reduce((sum, item) => sum + item.valor, 0);
+    
+    const handleClearFilters = () => {
+        setSelectedEmployeeFilter('');
+        setDateRange(undefined);
+    }
 
     return (
         <div className="flex flex-col gap-8">
@@ -285,6 +308,53 @@ export default function PagamentosPage() {
                     <CardHeader>
                         <CardTitle>Histórico de Pagamentos</CardTitle>
                         <CardDescription>Visualize todos os pagamentos de salários registrados.</CardDescription>
+                        <div className="flex flex-wrap items-center gap-4 pt-4">
+                            <Select value={selectedEmployeeFilter} onValueChange={setSelectedEmployeeFilter}>
+                                <SelectTrigger className="w-full sm:w-[250px]">
+                                    <SelectValue placeholder="Filtrar por funcionário..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {employees.map(emp => (
+                                        <SelectItem key={emp.id} value={emp.id}>{emp.nome}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                             <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button
+                                        id="date"
+                                        variant={"outline"}
+                                        className={cn("w-full sm:w-[300px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}
+                                    >
+                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        {dateRange?.from ? (
+                                            dateRange.to ? (
+                                                <>{format(dateRange.from, "PPP", { locale: ptBR })} - {format(dateRange.to, "PPP", { locale: ptBR })}</>
+                                            ) : (
+                                                format(dateRange.from, "PPP", { locale: ptBR })
+                                            )
+                                        ) : (
+                                            <span>Filtrar por período</span>
+                                        )}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                    <Calendar
+                                        initialFocus
+                                        mode="range"
+                                        defaultMonth={dateRange?.from}
+                                        selected={dateRange}
+                                        onSelect={setDateRange}
+                                        numberOfMonths={2}
+                                        locale={ptBR}
+                                    />
+                                </PopoverContent>
+                            </Popover>
+                             <Button variant="ghost" onClick={handleClearFilters} className="text-muted-foreground">
+                                <XCircle className="mr-2 h-4 w-4"/>
+                                Limpar
+                            </Button>
+                        </div>
                     </CardHeader>
                     <CardContent>
                         <div className="border rounded-lg">
@@ -305,7 +375,7 @@ export default function PagamentosPage() {
                                                 <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
                                             </TableCell>
                                         </TableRow>
-                                    ) : payments.length > 0 ? payments.map((payment) => (
+                                    ) : filteredPayments.length > 0 ? filteredPayments.map((payment) => (
                                         <TableRow key={payment.id}>
                                             <TableCell className="font-medium">{getEmployeeName(payment.referencia_id)}</TableCell>
                                             <TableCell>{format(payment.vencimento, 'dd/MM/yyyy')}</TableCell>
@@ -352,7 +422,7 @@ export default function PagamentosPage() {
                                 </TableBody>
                                 <TableFooter>
                                     <TableRow>
-                                        <TableCell colSpan={isAdmin ? 4 : 3} className="font-bold">Total Pago</TableCell>
+                                        <TableCell colSpan={isAdmin ? 3 : 3} className="font-bold text-right">Total Pago (Filtrado)</TableCell>
                                         <TableCell className="text-right font-bold text-green-500">
                                             {totalPaid.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                         </TableCell>
