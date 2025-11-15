@@ -78,13 +78,6 @@ const allNavLinks = [
         { href: '/dashboard/calculadora', label: 'Calculadora', icon: Calculator },
     ],
   },
-    {
-    group: 'IA',
-    icon: Sparkles,
-    links: [
-        { href: '/dashboard/timeline-sugestoes', label: 'Sugestões IA', icon: Sparkles },
-    ]
-  }
 ];
 
 function NavGroup({
