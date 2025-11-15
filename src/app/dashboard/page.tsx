@@ -473,7 +473,7 @@ export default function DashboardPage() {
         }
 
         const serviceDocRef = doc(db, 'servicos', editingService.id);
-        const newStatus = novoSaldoDevedor === 0 ? 'pago' : 'pendente';
+        const newStatus = novoSaldoDevedor <= 0 ? 'pago' : 'pendente';
         await updateDoc(serviceDocRef, {
             valor_pago: novoValorPago,
             saldo_devedor: novoSaldoDevedor,
@@ -660,7 +660,7 @@ export default function DashboardPage() {
                                 <TableRow>
                                 <TableHead>Cliente</TableHead>
                                 <TableHead>Descrição / Endereço</TableHead>
-                                <TableHead>Saldo Devedor</TableHead>
+                                <TableHead>Status Execução</TableHead>
                                 <TableHead><span className="sr-only">Ações</span></TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -676,7 +676,11 @@ export default function DashboardPage() {
                                             <div className="font-medium">{service.descricao}</div>
                                             <div className="text-xs text-muted-foreground">{formattedAddress}</div>
                                         </TableCell>
-                                        <TableCell className="text-red-500">R$ {(service.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2})}</TableCell>
+                                        <TableCell>
+                                            <Badge variant={service.status_execucao === 'em andamento' ? 'secondary' : 'default'}>
+                                                {service.status_execucao}
+                                            </Badge>
+                                        </TableCell>
                                         <TableCell>
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild><Button aria-haspopup="true" size="icon" variant="ghost"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
