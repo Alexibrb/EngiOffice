@@ -52,7 +52,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { format, endOfDay, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import type { Account, Supplier, Service, CompanyData, AuthorizedUser, Employee } from '@/lib/types';
+import type { Account, Supplier, Service, CompanyData, AuthorizedUser, Employee, Client } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -67,7 +67,7 @@ const accountSchema = z.object({
   descricao: z.string().min(1, 'Descrição é obrigatória.'),
   referencia_id: z.string().min(1, 'Fornecedor é obrigatório.'),
   tipo_referencia: z.literal('fornecedor'),
-  servico_id: z.string().optional(),
+  cliente_id: z.string().optional(),
   valor: z.any().refine(val => {
     const num = parseFloat(String(val).replace(',', '.'));
     return !isNaN(num) && num > 0;
@@ -93,7 +93,7 @@ export default function DespesasPage() {
     const [accountsPayable, setAccountsPayable] = useState<Account[]>([]);
     const [suppliers, setSuppliers] = useState<Supplier[]>([]);
     const [employees, setEmployees] = useState<Employee[]>([]);
-    const [services, setServices] = useState<Service[]>([]);
+    const [clients, setClients] = useState<Client[]>([]);
     const [companyData, setCompanyData] = useState<CompanyData | null>(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isSupplierDialogOpen, setIsSupplierDialogOpen] = useState(false);
@@ -163,10 +163,10 @@ export default function DespesasPage() {
         setEmployees(employeesData);
     };
 
-    const fetchServices = async () => {
-      const servicesSnapshot = await getDocs(collection(db, 'servicos'));
-      const servicesData = servicesSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Service));
-      setServices(servicesData);
+    const fetchClients = async () => {
+      const clientsSnapshot = await getDocs(collection(db, 'clientes'));
+      const clientsData = clientsSnapshot.docs.map(doc => ({ ...doc.data(), codigo_cliente: doc.id } as Client));
+      setClients(clientsData);
     }
     
     const fetchData = async () => {
@@ -185,7 +185,7 @@ export default function DespesasPage() {
             
             await fetchSuppliers();
             await fetchEmployees();
-            await fetchServices();
+            await fetchClients();
             
             const payableData = payableSnapshot.docs.map(doc => {
                 const data = doc.data();
@@ -233,7 +233,7 @@ export default function DespesasPage() {
              const submissionValues = {
                 ...values,
                 valor: parseFloat(String(values.valor).replace(',', '.')),
-                servico_id: values.servico_id === 'none' ? '' : values.servico_id,
+                cliente_id: values.cliente_id === 'none' ? '' : values.cliente_id,
                 tipo_referencia: 'fornecedor', // Garante que é sempre fornecedor
             };
 
@@ -332,7 +332,7 @@ export default function DespesasPage() {
         form.reset({
             descricao: '',
             referencia_id: '',
-            servico_id: '',
+            cliente_id: '',
             valor: '0,00',
             status: 'pendente',
             vencimento: new Date(),
@@ -578,7 +578,7 @@ export default function DespesasPage() {
                             <PayableFormComponent 
                                 form={form} 
                                 suppliers={suppliers} 
-                                services={services}
+                                clients={clients}
                                 onAddSupplier={() => setIsSupplierDialogOpen(true)}
                                 onAddProduct={() => setIsAddProductDialogOpen(true)}
                             />
@@ -696,10 +696,10 @@ export default function DespesasPage() {
     );
 }
 
-function PayableFormComponent({ form, suppliers, services, onAddSupplier, onAddProduct }: { 
+function PayableFormComponent({ form, suppliers, clients, onAddSupplier, onAddProduct }: { 
     form: any, 
     suppliers: Supplier[], 
-    services: Service[],
+    clients: Client[],
     onAddSupplier: () => void,
     onAddProduct: () => void
 }) {
@@ -770,10 +770,10 @@ function PayableFormComponent({ form, suppliers, services, onAddSupplier, onAddP
             />
              <FormField
                 control={form.control}
-                name="servico_id"
+                name="cliente_id"
                 render={({ field }) => (
                     <FormItem>
-                        <FormLabel>Serviço Vinculado (Opcional)</FormLabel>
+                        <FormLabel>Cliente Vinculado (Opcional)</FormLabel>
                             <Select 
                                 onValueChange={field.onChange} 
                                 value={field.value} 
@@ -781,14 +781,14 @@ function PayableFormComponent({ form, suppliers, services, onAddSupplier, onAddP
                             >
                                 <FormControl>
                                     <SelectTrigger>
-                                        <SelectValue placeholder="Selecione um serviço para vincular esta despesa" />
+                                        <SelectValue placeholder="Selecione um cliente para vincular esta despesa" />
                                     </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
                                     <SelectItem value="none">Nenhum</SelectItem>
-                                    {services.map(s => (
-                                        <SelectItem key={s.id} value={s.id}>
-                                            {s.descricao}
+                                    {clients.map(c => (
+                                        <SelectItem key={c.codigo_cliente} value={c.codigo_cliente}>
+                                            {c.nome_completo}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
