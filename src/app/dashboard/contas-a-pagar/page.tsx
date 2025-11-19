@@ -705,6 +705,11 @@ function PayableFormComponent({ form, suppliers, clients, onAddSupplier, onAddPr
 }) {
     const supplierId = useWatch({ control: form.control, name: 'referencia_id' });
     const selectedSupplier = suppliers.find(s => s.id === supplierId);
+    
+    const uniqueProducts = useMemo(() => {
+        if (!selectedSupplier?.produtos_servicos) return [];
+        return [...new Set(selectedSupplier.produtos_servicos)];
+    }, [selectedSupplier]);
 
     return (
          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -755,8 +760,8 @@ function PayableFormComponent({ form, suppliers, clients, onAddSupplier, onAddPr
                                     </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
-                                    {selectedSupplier?.produtos_servicos?.map((product, index) => (
-                                        <SelectItem key={index} value={product}>{product}</SelectItem>
+                                    {uniqueProducts.map((product) => (
+                                        <SelectItem key={product} value={product}>{product}</SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
