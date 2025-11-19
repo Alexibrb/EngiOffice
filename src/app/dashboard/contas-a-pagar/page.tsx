@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -996,7 +996,7 @@ function PayableTableComponent({ accounts, getPayeeName, onEdit, onDelete, total
                             <TableCell>
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" size="icon" disabled={!isAdmin || isEmployeePayment}>
+                                        <Button variant="ghost" size="icon" disabled={!isAdmin || (isEmployeePayment && account.status === 'pago')}>
                                             <MoreHorizontal className="h-4 w-4" />
                                         </Button>
                                     </DropdownMenuTrigger>
@@ -1047,3 +1047,4 @@ function PayableTableComponent({ accounts, getPayeeName, onEdit, onDelete, total
     
 
     
+
