@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -23,21 +22,18 @@ import {
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from '@/components/ui/badge';
-import { collection, getDocs, deleteDoc, doc, updateDoc, query, orderBy, addDoc, where } from 'firebase/firestore';
+import { collection, getDocs, deleteDoc, doc, updateDoc, query, orderBy, addDoc } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
-import type { Service, Account, Client, Commission, Note } from '@/lib/types';
+import type { Service, Account, Client, Note } from '@/lib/types';
 import { format, isPast } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import {
-  Activity,
   CircleDollarSign,
   ClipboardList,
-  Users,
   Loader2,
   ExternalLink,
-  HandCoins,
   ArrowUp,
   ArrowDown,
   CheckCircle,
@@ -48,8 +44,6 @@ import {
   Pin,
   Trash2,
   StickyNote,
-  ChevronsUpDown,
-  Plus,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -71,7 +65,7 @@ import { useCompanyData } from './layout';
 import Image from 'next/image';
 import { PageHeader } from '@/components/page-header';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 
@@ -99,7 +93,6 @@ export default function DashboardPage() {
   const [services, setServices] = useState<Service[]>([]);
   const [accountsPayable, setAccountsPayable] = useState<Account[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
-  const [commissions, setCommissions] = useState<Commission[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isNotesLoading, setIsNotesLoading] = useState(true);
@@ -144,11 +137,10 @@ export default function DashboardPage() {
 
   const fetchDashboardData = async () => {
       try {
-        const [servicesSnapshot, payableSnapshot, clientsSnapshot, commissionsSnapshot] = await Promise.all([
+        const [servicesSnapshot, payableSnapshot, clientsSnapshot] = await Promise.all([
           getDocs(collection(db, "servicos")),
           getDocs(collection(db, "contas_a_pagar")),
           getDocs(collection(db, "clientes")),
-          getDocs(collection(db, "comissoes")),
         ]);
 
         const servicesData = servicesSnapshot.docs.map(doc => {
@@ -165,12 +157,6 @@ export default function DashboardPage() {
         
         const clientsData = clientsSnapshot.docs.map(doc => ({ ...doc.data(), codigo_cliente: doc.id })) as Client[];
         setClients(clientsData);
-        
-        const commissionsData = commissionsSnapshot.docs.map(doc => {
-            const data = doc.data();
-            return { ...data, id: doc.id, data: data.data.toDate() } as Commission;
-        });
-        setCommissions(commissionsData);
 
       } catch (error) {
         console.error("Erro ao buscar dados do dashboard: ", error);
@@ -272,15 +258,11 @@ export default function DashboardPage() {
 
   const totalReceivablePaid = services.reduce((acc, curr) => acc + (curr.valor_pago || 0), 0);
   const totalPayablePaid = accountsPayable.reduce((acc, curr) => curr.status === 'pago' ? acc + curr.valor : acc, 0);
-  const totalCommissionsPaid = commissions.reduce((acc, curr) => curr.status === 'pago' ? acc + curr.valor : acc, 0);
-  const balance = totalReceivablePaid - totalPayablePaid - totalCommissionsPaid;
+  
+  const balance = totalReceivablePaid - totalPayablePaid;
   
   const completedServices = services.filter(s => s.status_execucao === 'finalizado').length;
   
-  const totalCommissionsPending = commissions
-    .filter((c) => c.status === 'pendente')
-    .reduce((acc, curr) => acc + curr.valor, 0);
-
   const totalReceivablePending = services.reduce((acc, curr) => acc + (curr.saldo_devedor || 0), 0);
 
   const totalPayablePending = accountsPayable
@@ -551,7 +533,6 @@ export default function DashboardPage() {
             valor_pago: novoValorPago,
             saldo_devedor: novoSaldoDevedor,
             status_financeiro: newStatus,
-            lucro_distribuido: false,
         });
 
         toast({ title: 'Sucesso!', description: 'Pagamento lançado com sucesso.' });
@@ -605,7 +586,7 @@ export default function DashboardPage() {
           <CardContent>
              <div className={cn("text-2xl font-bold", balance < 0 ? "text-red-500" : "text-green-500")}>R$ {balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
             <p className="text-xs text-muted-foreground">
-              Recebidos - Contas Pagas - Comissões Pagas
+              Recebidos - Contas Pagas
             </p>
           </CardContent>
         </Card>
@@ -651,7 +632,7 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
          <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Contas a Receber (Pendente)</CardTitle>
@@ -674,20 +655,6 @@ export default function DashboardPage() {
                     <p className="text-xs text-muted-foreground">
                       Soma de todas as contas pendentes
                   </p>
-              </CardContent>
-          </Card>
-          <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Comissões Pendentes
-                </CardTitle>
-                <HandCoins className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-red-500">R$ {totalCommissionsPending.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
-                <p className="text-xs text-muted-foreground">
-                  Total de comissões a pagar
-                </p>
               </CardContent>
           </Card>
            <Card>

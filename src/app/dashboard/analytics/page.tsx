@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -6,7 +5,7 @@ import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
-import type { Service, Client, Account, Commission, Employee, AuthorizedUser } from '@/lib/types';
+import type { Service, Client, Account, Employee, AuthorizedUser } from '@/lib/types';
 import { PageHeader } from '@/components/page-header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@/components/ui/chart';
@@ -29,7 +28,6 @@ export default function AnalyticsPage() {
     const [services, setServices] = useState<Service[]>([]);
     const [clients, setClients] = useState<Client[]>([]);
     const [accountsPayable, setAccountsPayable] = useState<Account[]>([]);
-    const [commissions, setCommissions] = useState<Commission[]>([]);
     const [employees, setEmployees] = useState<Employee[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isAdmin, setIsAdmin] = useState(false);
@@ -72,24 +70,21 @@ export default function AnalyticsPage() {
     const fetchData = async () => {
         setIsLoading(true);
         try {
-            const [servicesSnap, clientsSnap, accountsPayableSnap, commissionsSnap, employeesSnap] = await Promise.all([
+            const [servicesSnap, clientsSnap, accountsPayableSnap, employeesSnap] = await Promise.all([
                 getDocs(collection(db, "servicos")),
                 getDocs(collection(db, "clientes")),
                 getDocs(collection(db, "contas_a_pagar")),
-                getDocs(collection(db, "comissoes")),
                 getDocs(collection(db, "funcionarios")),
             ]);
 
             const servicesData = servicesSnap.docs.map(doc => ({ ...doc.data(), id: doc.id, data_cadastro: doc.data().data_cadastro.toDate() } as Service));
             const clientsData = clientsSnap.docs.map(doc => ({ ...doc.data(), codigo_cliente: doc.id } as Client));
             const accountsData = accountsPayableSnap.docs.map(doc => ({ ...doc.data(), id: doc.id, vencimento: doc.data().vencimento.toDate() } as Account));
-            const commissionsData = commissionsSnap.docs.map(doc => ({ ...doc.data(), id: doc.id, data: doc.data().data.toDate() } as Commission));
             const employeesData = employeesSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Employee));
 
             setServices(servicesData);
             setClients(clientsData);
             setAccountsPayable(accountsData);
-            setCommissions(commissionsData);
             setEmployees(employeesData);
 
         } catch (error) {
@@ -110,18 +105,6 @@ export default function AnalyticsPage() {
         });
     }, [services, dateRange, selectedClient]);
     
-    const filteredCommissions = useMemo(() => {
-         return commissions.filter(commission => {
-            const commissionDate = new Date(commission.data);
-            if (isNaN(commissionDate.getTime())) return false;
-
-            const inDateRange = dateRange?.from ? (commissionDate >= dateRange.from && commissionDate <= (dateRange.to || dateRange.from)) : true;
-            const employeeMatch = selectedEmployee ? commission.funcionario_id === selectedEmployee : true;
-            const clientMatch = selectedClient ? commission.cliente_id === selectedClient : true;
-            return inDateRange && employeeMatch && clientMatch;
-        });
-    }, [commissions, dateRange, selectedClient, selectedEmployee])
-
     const filteredAccountsPayable = useMemo(() => {
          return accountsPayable.filter(account => {
             const dueDate = new Date(account.vencimento);
@@ -170,7 +153,6 @@ export default function AnalyticsPage() {
 
         return intervalDays.map(day => {
             const dayStart = startOfDay(day);
-            const dayEnd = endOfMonth(day);
 
             const dailyRevenue = filteredServices
                 .filter(s => {
@@ -193,41 +175,6 @@ export default function AnalyticsPage() {
             };
         }).filter(d => d.receitas > 0 || d.despesas > 0); 
     }, [filteredServices, filteredAccountsPayable, dateRange]);
-    
-    const commissionableEmployees = useMemo(() => {
-        return employees.filter(e => e.tipo_contratacao === 'comissao' && e.status === 'ativo');
-    }, [employees]);
-
-
-    const commissionByMonthData = () => {
-        const data: { name: string; [key: string]: any }[] = [];
-        for (let i = 5; i >= 0; i--) {
-            const date = subMonths(new Date(), i);
-            const monthName = format(date, 'MMM/yy', { locale: ptBR });
-            const monthStart = startOfMonth(date);
-            const monthEnd = endOfMonth(date);
-            
-            const monthData: { name: string; [key: string]: any } = { name: monthName };
-
-            commissionableEmployees.forEach(emp => {
-                const totalCommission = filteredCommissions
-                    .filter(c => {
-                        const commissionDate = new Date(c.data);
-                        return c.funcionario_id === emp.id && 
-                               c.status === 'pago' && 
-                               !isNaN(commissionDate.getTime()) && 
-                               commissionDate >= monthStart && 
-                               commissionDate <= monthEnd;
-                    })
-                    .reduce((acc, c) => acc + c.valor, 0);
-                
-                monthData[emp.nome] = totalCommission;
-            });
-            
-            data.push(monthData);
-        }
-        return data;
-    }
     
     const revenueStatusData = useMemo(() => {
         const totalPaid = filteredServices.reduce((sum, s) => sum + (s.valor_pago || 0), 0);
@@ -443,27 +390,6 @@ export default function AnalyticsPage() {
                         </ChartContainer>
                     </CardContent>
                 </Card>
-                
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Comissões por Mês</CardTitle>
-                        <CardDescription>Total de comissões pagas por funcionário nos últimos 6 meses (baseado nos filtros).</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <ChartContainer config={{}} className="h-[300px] w-full">
-                           <BarChart data={commissionByMonthData()} stackOffset="sign">
-                                <CartesianGrid vertical={false} />
-                                <XAxis dataKey="name" tickLine={false} axisLine={false} tickMargin={8} />
-                                <YAxis tickFormatter={(value) => `R$${value/1000}k`}/>
-                                <ChartTooltip content={<ChartTooltipContent formatter={(value, name) => `${name}: R$ ${Number(value).toLocaleString('pt-BR')}`} />} />
-                                <ChartLegend content={<ChartLegendContent />} />
-                                {commissionableEmployees.map((emp, index) => (
-                                    <Bar key={emp.id} dataKey={emp.nome} fill={COLORS[index % COLORS.length]} stackId="a" radius={4} />
-                                ))}
-                            </BarChart>
-                        </ChartContainer>
-                    </CardContent>
-                </Card>
 
                 <Card>
                     <CardHeader>
@@ -487,7 +413,3 @@ export default function AnalyticsPage() {
         </div>
     );
 }
-
-    
-
-    

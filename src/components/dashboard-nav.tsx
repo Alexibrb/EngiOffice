@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -6,7 +5,6 @@ import { usePathname } from 'next/navigation';
 import {
   Briefcase,
   LayoutDashboard,
-  Sparkles,
   Truck,
   Users,
   Wrench,
@@ -22,7 +20,6 @@ import {
   Presentation,
   SquareFunction,
   ChevronDown,
-  StickyNote,
 } from 'lucide-react';
 import {
   Collapsible,
@@ -59,7 +56,6 @@ const allNavLinks = [
       { href: '/dashboard/contas-a-pagar', label: 'Despesas', icon: ArrowDown },
       { href: '/dashboard/pagamentos', label: 'Folha de Pagamento', icon: HandCoins, admin: true },
       { href: '/dashboard/contas-a-receber', label: 'Contas a Receber', icon: ArrowUp },
-      { href: '/dashboard/comissoes', label: 'Comissões', icon: HandCoins, admin: true },
     ],
   },
   {

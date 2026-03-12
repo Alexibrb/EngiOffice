@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -22,15 +20,15 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { useToast } from "@/hooks/use-toast"
-import { collection, getDocs, doc, updateDoc, Timestamp, writeBatch, query, where } from 'firebase/firestore';
+import { collection, getDocs, doc, updateDoc, Timestamp, query, where } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
-import { Calendar as CalendarIcon, Download, ExternalLink, XCircle, ArrowUp, TrendingUp, MoreHorizontal, HandCoins, FileText, Loader2, User, Users, CheckCircle, Link as LinkIcon, ClipboardCopy } from 'lucide-react';
+import { Calendar as CalendarIcon, Download, ExternalLink, XCircle, ArrowUp, TrendingUp, MoreHorizontal, HandCoins, FileText, Loader2, Link as LinkIcon, ClipboardCopy } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { format, endOfDay, startOfDay } from 'date-fns';
-import type { Client, Service, Employee, Account, Commission, CompanyData, AuthorizedUser } from '@/lib/types';
+import type { Client, Service, AuthorizedUser } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -62,10 +60,6 @@ const paymentSchema = z.object({
 export default function ContasAReceberPage() {
     const [services, setServices] = useState<Service[]>([]);
     const [clients, setClients] = useState<Client[]>([]);
-    const [financials, setFinancials] = useState({
-      balance: 0,
-      commissionableEmployees: [] as Employee[],
-    });
     const { toast } = useToast();
     const [isAdmin, setIsAdmin] = useState(false);
     const companyData = useCompanyData();
@@ -74,10 +68,6 @@ export default function ContasAReceberPage() {
     const [statusFilter, setStatusFilter] = useState<string>('');
 
     const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
-    const [isDistributionDialogOpen, setIsDistributionDialogOpen] = useState(false);
-    const [distributingService, setDistributingService] = useState<Service | null>(null);
-    const [lastPaymentValue, setLastPaymentValue] = useState(0);
-
     const [editingService, setEditingService] = useState<Service | null>(null);
     const [isPaymentLoading, setIsPaymentLoading] = useState(false);
 
@@ -108,45 +98,6 @@ export default function ContasAReceberPage() {
         return () => unsubscribe();
     }, []);
 
-   const fetchFinancials = async () => {
-        try {
-             const [servicesSnap, accountsPayableSnap, employeesSnap, commissionsSnap] = await Promise.all([
-                getDocs(collection(db, "servicos")),
-                getDocs(collection(db, "contas_a_pagar")),
-                getDocs(collection(db, "funcionarios")),
-                getDocs(collection(db, "comissoes")),
-            ]);
-
-            const allServices = servicesSnap.docs.map(doc => doc.data() as Service);
-            const totalRevenue = allServices
-                .reduce((sum, s) => sum + (s.valor_pago || 0), 0);
-
-
-            const allAccountsPayable = accountsPayableSnap.docs.map(doc => doc.data() as Account);
-            const totalExpenses = allAccountsPayable
-                .filter(acc => acc.status === 'pago')
-                .reduce((sum, currentAccount) => sum + currentAccount.valor, 0);
-            
-            const allCommissions = commissionsSnap.docs.map(doc => doc.data() as Commission);
-            const totalCommissionsPaid = allCommissions
-                .filter(c => c.status === 'pago')
-                .reduce((sum, c) => sum + c.valor, 0);
-
-            const allEmployees = employeesSnap.docs.map(doc => ({...doc.data(), id: doc.id }) as Employee);
-            const commissionableEmployees = allEmployees.filter(e => e.tipo_contratacao === 'comissao' && e.status === 'ativo');
-
-            setFinancials({
-                balance: totalRevenue - totalExpenses - totalCommissionsPaid,
-                commissionableEmployees,
-            });
-
-        } catch (error) {
-            console.error("Erro ao calcular finanças:", error);
-            toast({ variant: "destructive", title: "Erro", description: "Não foi possível carregar os dados financeiros para distribuição." });
-        }
-  };
-
-
     const fetchData = async () => {
         try {
             const [servicesSnapshot, clientsSnapshot] = await Promise.all([
@@ -167,7 +118,6 @@ export default function ContasAReceberPage() {
             const clientsData = clientsSnapshot.docs.map(doc => ({ ...doc.data(), codigo_cliente: doc.id } as Client));
             setClients(clientsData);
 
-            await fetchFinancials();
         } catch (error) {
             console.error("Erro ao buscar dados: ", error);
             toast({ variant: "destructive", title: "Erro ao buscar dados", description: "Não foi possível carregar os dados." });
@@ -186,12 +136,6 @@ export default function ContasAReceberPage() {
         setEditingService(service);
         paymentForm.reset({ valor_pago: 0 });
         setIsPaymentDialogOpen(true);
-    };
-
-    const handleDistributionClick = (service: Service) => {
-        setLastPaymentValue(0);
-        setDistributingService(service);
-        setIsDistributionDialogOpen(true);
     };
 
     const generateReceipt = (service: Service, paymentValue?: number) => {
@@ -424,7 +368,6 @@ export default function ContasAReceberPage() {
                 valor_pago: novoValorPago,
                 saldo_devedor: novoSaldoDevedor,
                 status_financeiro: newStatus,
-                lucro_distribuido: false, // Resetar para permitir nova distribuição
             });
 
             toast({ title: 'Sucesso!', description: 'Pagamento lançado com sucesso.' });
@@ -619,7 +562,6 @@ export default function ContasAReceberPage() {
                         onPayment={handlePaymentClick}
                         onReceipt={generateReceipt}
                         onProofOfService={generateProofOfService}
-                        onDistribute={handleDistributionClick}
                     />
                 </CardContent>
             </Card>
@@ -662,7 +604,7 @@ export default function ContasAReceberPage() {
 }
 
 
-function ReceivableTableComponent({ services, getClient, totalValor, totalSaldo, onPayment, onReceipt, onProofOfService, onDistribute }: { 
+function ReceivableTableComponent({ services, getClient, totalValor, totalSaldo, onPayment, onReceipt, onProofOfService }: { 
     services: Service[], 
     getClient: (id: string) => Client | undefined,
     totalValor: number,
@@ -670,7 +612,6 @@ function ReceivableTableComponent({ services, getClient, totalValor, totalSaldo,
     onPayment: (service: Service) => void,
     onReceipt: (service: Service) => void,
     onProofOfService: (service: Service) => void,
-    onDistribute: (service: Service) => void,
 }) {
     const router = useRouter();
     const [isAdmin, setIsAdmin] = useState(false);
@@ -701,20 +642,6 @@ function ReceivableTableComponent({ services, getClient, totalValor, totalSaldo,
         router.push(`/dashboard/servicos?edit=${serviceId}`);
     };
     
-    const getDistributionStatus = (service: Service) => {
-        const isDistributable = service.status_financeiro !== 'cancelado' && (service.valor_pago || 0) > 0;
-        
-        if (!isDistributable) {
-            return { text: 'Aguardando', variant: 'outline' as const };
-        }
-        
-        if (service.lucro_distribuido) {
-            return { text: 'Realizada', variant: 'secondary' as const };
-        }
-        
-        return { text: 'Pendente', variant: 'destructive' as const };
-    }
-
     return (
         <div className="border rounded-lg">
             <Table>
@@ -732,7 +659,6 @@ function ReceivableTableComponent({ services, getClient, totalValor, totalSaldo,
                         const client = getClient(service.cliente_id);
                         const obra = service.endereco_obra;
                         const formattedObra = (obra && obra.street) ? `Obra: ${obra.street}, ${obra.number} - ${obra.neighborhood}, ${obra.city}` : '';
-                        const distributionStatus = getDistributionStatus(service);
                         const coordenadas = (service.coordenadas?.lat && service.coordenadas?.lng) ? `Coords: ${service.coordenadas.lat}, ${service.coordenadas.lng}` : '';
 
                         return (
@@ -762,7 +688,6 @@ function ReceivableTableComponent({ services, getClient, totalValor, totalSaldo,
                                 </TableCell>
                                  <TableCell className="align-top space-y-1">
                                     <Badge variant={service.status_execucao === 'concluído' ? 'secondary' : service.status_execucao === 'cancelado' ? 'destructive' : 'default'}>{service.status_execucao}</Badge>
-                                    <Badge variant={distributionStatus.variant}>{distributionStatus.text}</Badge>
                                 </TableCell>
                                 <TableCell>
                                     <DropdownMenu>
@@ -783,13 +708,6 @@ function ReceivableTableComponent({ services, getClient, totalValor, totalSaldo,
                                                 Lançar Pagamento
                                             </DropdownMenuItem>
                                             <DropdownMenuSeparator />
-                                             <DropdownMenuItem 
-                                                onClick={() => onDistribute(service)} 
-                                                disabled={!isAdmin || service.status_financeiro === 'cancelado' || (service.valor_pago || 0) === 0 || service.lucro_distribuido}
-                                             >
-                                                <Users className="mr-2 h-4 w-4" />
-                                                Distribuir Lucro
-                                            </DropdownMenuItem>
                                             <DropdownMenuItem onClick={() => onReceipt(service)}>
                                                 <FileText className="mr-2 h-4 w-4" />
                                                 Gerar Recibo
@@ -823,192 +741,3 @@ function ReceivableTableComponent({ services, getClient, totalValor, totalSaldo,
         </div>
     );
 }
-
-function ProfitDistributionDialog({ isOpen, setIsOpen, service, paymentValue, financials, toast, onDistributionComplete }: {
-    isOpen: boolean;
-    setIsOpen: (isOpen: boolean) => void;
-    service: Service;
-    paymentValue: number;
-    financials: { balance: number; commissionableEmployees: Employee[] };
-    toast: any;
-    onDistributionComplete: () => void;
-}) {
-    const [isLoading, setIsLoading] = useState(false);
-    const [serviceCosts, setServiceCosts] = useState(0);
-    const [profitMargin, setProfitMargin] = useState(0);
-
-    const isManualTrigger = paymentValue === 0;
-    const amountPaidSoFar = service.valor_pago || 0;
-    const valueForCalculation = isManualTrigger ? amountPaidSoFar : paymentValue;
-
-    useEffect(() => {
-        const fetchCostsAndCalculateMargin = async () => {
-            if (!service || !isOpen) return;
-            
-            setIsLoading(true);
-            try {
-                const accountsPayableSnap = await getDocs(collection(db, 'contas_a_pagar'));
-                const accountsPayable = accountsPayableSnap.docs.map(doc => doc.data() as Account);
-                const relatedExpenses = accountsPayable
-                    .filter(acc => acc.servico_id === service.id)
-                    .reduce((sum, acc) => sum + acc.valor, 0);
-                
-                const totalCosts = relatedExpenses;
-                setServiceCosts(totalCosts);
-
-                if (service.valor_total > 0) {
-                    const margin = (service.valor_total - totalCosts) / service.valor_total;
-                    setProfitMargin(margin);
-                } else {
-                    setProfitMargin(0);
-                }
-
-            } catch (error) {
-                console.error("Erro ao buscar custos do serviço:", error);
-                toast({ variant: 'destructive', title: 'Erro', description: 'Não foi possível calcular os custos do serviço.' });
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        fetchCostsAndCalculateMargin();
-    }, [isOpen, service, toast]);
-
-    const profitFromPayment = valueForCalculation * profitMargin;
-    const cashBalanceBeforeThisPayment = financials.balance - valueForCalculation;
-
-    let amountToDistribute = profitFromPayment;
-    let deficitCoverage = 0;
-
-    if (cashBalanceBeforeThisPayment < 0) {
-        deficitCoverage = Math.min(profitFromPayment, Math.abs(cashBalanceBeforeThisPayment));
-        amountToDistribute -= deficitCoverage;
-    }
-    
-    amountToDistribute = Math.max(0, amountToDistribute);
-
-    const handleConfirmDistribution = async () => {
-        if (financials.commissionableEmployees.length === 0) {
-            toast({ variant: 'destructive', title: 'Erro', description: 'Nenhum funcionário comissionado ativo encontrado.' });
-            return;
-        }
-        
-        setIsLoading(true);
-        try {
-            const batch = writeBatch(db);
-            
-            financials.commissionableEmployees.forEach(employee => {
-                const commissionRate = (employee.taxa_comissao || 0) / 100;
-                const individualCommission = amountToDistribute * commissionRate;
-
-                if (individualCommission > 0) {
-                    const commissionData = {
-                        funcionario_id: employee.id,
-                        servico_id: service.id,
-                        cliente_id: service.cliente_id,
-                        valor: individualCommission,
-                        data: Timestamp.now(),
-                        status: 'pago', 
-                    };
-                    const commissionDocRef = doc(collection(db, 'comissoes'));
-                    batch.set(commissionDocRef, commissionData);
-                }
-            });
-            
-            const serviceDocRef = doc(db, 'servicos', service.id);
-            const isFullyPaid = (service.saldo_devedor || 0) <= 0;
-            batch.update(serviceDocRef, { lucro_distribuido: isFullyPaid });
-
-
-            await batch.commit();
-
-            toast({ title: 'Sucesso!', description: 'Comissões distribuídas e lançadas com sucesso!' });
-            setIsOpen(false);
-            onDistributionComplete();
-        } catch (error) {
-            console.error('Erro ao distribuir lucro:', error);
-            toast({ variant: 'destructive', title: 'Erro', description: 'Ocorreu um erro ao salvar as comissões.' });
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    return (
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogContent className="sm:max-w-lg">
-                <DialogHeader>
-                    <DialogTitle>Distribuir Lucro do Serviço</DialogTitle>
-                    <DialogDescription>
-                       {isManualTrigger 
-                        ? `Revisão da distribuição do lucro total já pago para "${service.descricao}".`
-                        : `Distribuição de lucro referente ao último pagamento para "${service.descricao}".`
-                       }
-                    </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
-                    <div className="p-4 border rounded-lg space-y-2 bg-muted/50">
-                        <h4 className="font-semibold text-center mb-2">Resumo da Distribuição</h4>
-                        <div className="flex justify-between items-center text-sm">
-                            <span className="text-muted-foreground">{isManualTrigger ? 'Valor Total Pago:' : 'Valor do Pagamento:'}</span>
-                            <span className="font-medium text-green-600">{valueForCalculation.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-                        </div>
-                         <div className="flex justify-between items-center text-sm">
-                            <span className="text-muted-foreground">Margem de Lucro do Serviço:</span>
-                            <span className="font-medium">{profitMargin.toLocaleString('pt-BR', { style: 'percent', minimumFractionDigits: 2 })}</span>
-                        </div>
-                        <div className="flex justify-between items-center text-sm">
-                            <span className="text-muted-foreground">Lucro deste Montante:</span>
-                            <span className="font-medium text-green-600">{profitFromPayment.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-                        </div>
-                        <div className="flex justify-between items-center text-sm">
-                            <span className="text-muted-foreground">Saldo de Caixa (antes do valor):</span>
-                            <span className={cn("font-medium", cashBalanceBeforeThisPayment < 0 ? 'text-red-600' : 'text-green-600')}>{cashBalanceBeforeThisPayment.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-                        </div>
-                         {cashBalanceBeforeThisPayment < 0 && (
-                             <div className="flex justify-between items-center text-sm">
-                                <span className="text-muted-foreground">Cobertura de Déficit:</span>
-                                <span className="font-medium text-orange-500">-{deficitCoverage.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-                            </div>
-                         )}
-                        <div className="flex justify-between items-center text-lg border-t pt-2 mt-2">
-                            <span className="font-bold">Valor Base para Comissões:</span>
-                            <span className="font-bold text-primary">{amountToDistribute.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-                        </div>
-                    </div>
-                     <div className="p-4 border rounded-lg space-y-2">
-                        <h4 className="font-semibold text-center mb-2">Comissão por Funcionário</h4>
-                        {financials.commissionableEmployees.length > 0 ? (
-                            financials.commissionableEmployees.map(emp => {
-                                const commissionRate = (emp.taxa_comissao || 0) / 100;
-                                const individualCommission = amountToDistribute * commissionRate;
-                                return (
-                                    <div key={emp.id} className="flex justify-between items-center text-sm">
-                                        <span className="text-muted-foreground">{emp.nome} ({emp.taxa_comissao}%)</span>
-                                        <span className="font-medium text-green-600">{individualCommission.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-                                    </div>
-                                )
-                            })
-                        ) : (
-                            <p className="text-center text-sm text-red-500">Nenhum funcionário comissionado ativo encontrado.</p>
-                        )}
-                    </div>
-                </div>
-                <DialogFooter>
-                    <Button variant="ghost" onClick={() => setIsOpen(false)}>Cancelar</Button>
-                    <Button variant="accent" onClick={handleConfirmDistribution} disabled={isLoading || amountToDistribute <= 0}>
-                        {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
-                        Confirmar e Lançar
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    );
-}
-
-
-
-
-
-
-
-    

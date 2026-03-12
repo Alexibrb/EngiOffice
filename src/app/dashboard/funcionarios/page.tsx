@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -59,7 +58,6 @@ const employeeSchema = z.object({
   status: z.enum(['ativo', 'inativo']),
   tipo_contratacao: z.enum(['salario_fixo', 'comissao'], { required_error: 'Tipo de contratação é obrigatório.'}),
   salario: z.coerce.number().optional(),
-  taxa_comissao: z.coerce.number().optional(),
   dia_pagamento: z.coerce.number().optional(),
 }).refine(data => {
     if (data.tipo_contratacao === 'salario_fixo') {
@@ -77,14 +75,6 @@ const employeeSchema = z.object({
 }, {
     message: 'Dia do pagamento é obrigatório (1-31).',
     path: ['dia_pagamento'],
-}).refine(data => {
-    if (data.tipo_contratacao === 'comissao') {
-        return data.taxa_comissao !== undefined && data.taxa_comissao > 0;
-    }
-    return true;
-}, {
-    message: 'Taxa de comissão é obrigatória para este tipo de contratação.',
-    path: ['taxa_comissao'],
 });
 
 
@@ -108,7 +98,7 @@ export default function FuncionariosPage() {
       telefone: '',
       email: '',
       status: 'ativo',
-      tipo_contratacao: 'comissao',
+      tipo_contratacao: 'salario_fixo',
     },
   });
   
@@ -146,7 +136,6 @@ export default function FuncionariosPage() {
       const employeeData = {
           ...values,
           salario: values.tipo_contratacao === 'salario_fixo' ? values.salario : 0,
-          taxa_comissao: values.tipo_contratacao === 'comissao' ? values.taxa_comissao : 0,
           dia_pagamento: values.tipo_contratacao === 'salario_fixo' ? values.dia_pagamento : 0,
       }
       if (editingEmployee) {
@@ -237,9 +226,8 @@ export default function FuncionariosPage() {
       telefone: '',
       email: '',
       status: 'ativo',
-      tipo_contratacao: 'comissao',
+      tipo_contratacao: 'salario_fixo',
       salario: 0,
-      taxa_comissao: 0,
       dia_pagamento: 5,
     });
     setEditingEmployee(null);
@@ -428,7 +416,6 @@ export default function FuncionariosPage() {
                                     </SelectTrigger>
                                     </FormControl>
                                     <SelectContent>
-                                    <SelectItem value="comissao">Comissão</SelectItem>
                                     <SelectItem value="salario_fixo">Salário Fixo</SelectItem>
                                     </SelectContent>
                                 </Select>
@@ -465,21 +452,6 @@ export default function FuncionariosPage() {
                                 )}
                                 />
                                 </>
-                            )}
-                            {tipoContratacao === 'comissao' && (
-                                <FormField
-                                control={form.control}
-                                name="taxa_comissao"
-                                render={({ field }) => (
-                                    <FormItem>
-                                    <FormLabel>Taxa de Comissão (%) *</FormLabel>
-                                    <FormControl>
-                                        <Input type="number" step="0.01" {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                    </FormItem>
-                                )}
-                                />
                             )}
                         </div>
                         <DialogFooter>
@@ -529,7 +501,7 @@ export default function FuncionariosPage() {
                     <TableRow key={employee.id}>
                         <TableCell className="font-medium">{employee.nome}</TableCell>
                         <TableCell>{employee.cargo}</TableCell>
-                        <TableCell>{employee.tipo_contratacao === 'salario_fixo' ? `Salário Fixo (Dia ${employee.dia_pagamento || 'N/A'})` : `Comissão (${employee.taxa_comissao || 0}%)`}</TableCell>
+                        <TableCell>{employee.tipo_contratacao === 'salario_fixo' ? `Salário Fixo (Dia ${employee.dia_pagamento || 'N/A'})` : `Comissão`}</TableCell>
                         <TableCell>
                         <Badge variant={employee.status === 'ativo' ? 'secondary' : 'destructive'}>
                             {employee.status}

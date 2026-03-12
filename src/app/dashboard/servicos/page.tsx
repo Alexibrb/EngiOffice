@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -28,8 +26,8 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import type { Service, Client, ServiceType, Commission, Account, Employee, CompanyData, City, AuthorizedUser } from '@/lib/types';
-import { PlusCircle, Search, MoreHorizontal, Loader2, Calendar as CalendarIcon, Wrench, Link as LinkIcon, ExternalLink, ClipboardCopy, XCircle, FileText, CheckCircle, ArrowUp, TrendingUp, HandCoins, Users, Trash } from 'lucide-react';
+import type { Service, Client, ServiceType, City, AuthorizedUser } from '@/lib/types';
+import { PlusCircle, Search, MoreHorizontal, Loader2, Calendar as CalendarIcon, Wrench, Link as LinkIcon, ExternalLink, ClipboardCopy, XCircle, FileText, CheckCircle, ArrowUp, TrendingUp, HandCoins, Trash } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -53,7 +51,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { cn, formatCPF_CNPJ, formatTelefone, formatCEP } from '@/lib/utils';
+import { cn, formatCEP } from '@/lib/utils';
 import { format, endOfDay, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -61,7 +59,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { DateRange } from 'react-day-picker';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { Label } from '@/components/ui/label';
 import { PageHeader } from '@/components/page-header';
 import { useCompanyData } from '../layout';
 import { Separator } from '@/components/ui/separator';
@@ -232,17 +229,10 @@ export default function ServicosPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isServiceTypeDialogOpen, setIsServiceTypeDialogOpen] = useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
-  const [isDistributionDialogOpen, setIsDistributionDialogOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
-  const [distributingService, setDistributingService] = useState<Service | null>(null);
-  const [lastPaymentValue, setLastPaymentValue] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [isPaymentLoading, setIsPaymentLoading] = useState(false);
   const [isDeletingAll, setIsDeletingAll] = useState(false);
-  const [financials, setFinancials] = useState({
-      balance: 0,
-      commissionableEmployees: [] as Employee[],
-  });
   const { toast } = useToast();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -297,44 +287,6 @@ export default function ServicosPage() {
     });
     return () => unsubscribe();
 }, []);
-
- const fetchFinancials = async () => {
-        try {
-            const [servicesSnap, accountsPayableSnap, employeesSnap, commissionsSnap] = await Promise.all([
-                getDocs(collection(db, "servicos")),
-                getDocs(collection(db, "contas_a_pagar")),
-                getDocs(collection(db, "funcionarios")),
-                getDocs(collection(db, "comissoes")),
-            ]);
-
-            const allServices = servicesSnap.docs.map(doc => doc.data() as Service);
-            const totalRevenue = allServices
-                .reduce((sum, s) => sum + (s.valor_pago || 0), 0);
-
-            const allAccountsPayable = accountsPayableSnap.docs.map(doc => doc.data() as Account);
-            const totalExpenses = allAccountsPayable
-                .filter(acc => acc.status === 'pago')
-                .reduce((sum, currentAccount) => sum + currentAccount.valor, 0);
-            
-            const allCommissions = commissionsSnap.docs.map(doc => doc.data() as Commission);
-            const totalCommissionsPaid = allCommissions
-                .filter(c => c.status === 'pago')
-                .reduce((sum, c) => sum + c.valor, 0);
-
-            const allEmployees = employeesSnap.docs.map(doc => ({...doc.data(), id: doc.id }) as Employee);
-            const commissionableEmployees = allEmployees.filter(e => e.tipo_contratacao === 'comissao' && e.status === 'ativo');
-
-            setFinancials({
-                balance: totalRevenue - totalExpenses - totalCommissionsPaid,
-                commissionableEmployees,
-            });
-
-        } catch (error) {
-            console.error("Erro ao calcular finanças:", error);
-            toast({ variant: "destructive", title: "Erro", description: "Não foi possível carregar os dados financeiros para distribuição." });
-        }
-  };
-
 
   const fetchServiceTypes = async () => {
     try {
@@ -395,7 +347,6 @@ export default function ServicosPage() {
 
       await fetchClientsAndCities();
       await fetchServiceTypes();
-      await fetchFinancials();
 
 
       const editId = searchParams.get('edit');
@@ -444,7 +395,6 @@ export default function ServicosPage() {
         valor_pago: valorPago,
         saldo_devedor: saldoDevedor,
         status_financeiro: status_financeiro,
-        lucro_distribuido: editingService?.lucro_distribuido || false,
         endereco_obra: {
             street: values.endereco_obra?.street || '',
             number: values.endereco_obra?.number || '',
@@ -518,7 +468,6 @@ export default function ServicosPage() {
             valor_pago: novoValorPago,
             saldo_devedor: novoSaldoDevedor,
             status_financeiro: newStatus,
-            lucro_distribuido: false, // Resetar para permitir nova distribuição
         });
 
         toast({ title: 'Sucesso!', description: 'Pagamento lançado com sucesso.' });
@@ -624,12 +573,6 @@ export default function ServicosPage() {
     setEditingService(service);
     paymentForm.reset({ valor_pago: 0 });
     setIsPaymentDialogOpen(true);
-  };
-
-  const handleDistributionClick = (service: Service) => {
-    setLastPaymentValue(0); // Reset last payment value for manual trigger
-    setDistributingService(service);
-    setIsDistributionDialogOpen(true);
   };
 
   const generateReceipt = (service: Service, paymentValue?: number) => {

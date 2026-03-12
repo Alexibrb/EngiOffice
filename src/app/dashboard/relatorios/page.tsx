@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -20,11 +18,11 @@ import {
   TableRow,
   TableFooter,
 } from '@/components/ui/table';
-import type { Client, Supplier, Service, Account, Employee, CompanyData, Commission, AuthorizedUser } from '@/lib/types';
+import type { Client, Supplier, Service, Account, Employee, AuthorizedUser } from '@/lib/types';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Download, Search, XCircle, Calendar as CalendarIcon, ChevronDown, ChevronRight, Link as LinkIcon, ExternalLink, ClipboardCopy } from 'lucide-react';
-import { collection, getDocs, doc, getDoc, query, where } from 'firebase/firestore';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import { useToast } from "@/hooks/use-toast"
 import { format, startOfDay, endOfDay } from 'date-fns';
@@ -41,7 +39,7 @@ import { PageHeader } from '@/components/page-header';
 import { useCompanyData } from '../layout';
 import { onAuthStateChanged } from 'firebase/auth';
 
-type ReportType = 'clients' | 'suppliers' | 'services' | 'accountsPayable' | 'commissions';
+type ReportType = 'clients' | 'suppliers' | 'services' | 'accountsPayable';
 
 function ClientReportRow({ client }: { client: Client }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -144,7 +142,6 @@ export default function RelatoriosPage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [accountsPayable, setAccountsPayable] = useState<Account[]>([]);
-  const [commissions, setCommissions] = useState<Commission[]>([]);
   const companyData = useCompanyData();
   const [isLoading, setIsLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -178,13 +175,12 @@ export default function RelatoriosPage() {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const [clientsSnapshot, suppliersSnapshot, servicesSnapshot, accountsPayableSnapshot, employeesSnapshot, commissionsSnapshot] = await Promise.all([
+      const [clientsSnapshot, suppliersSnapshot, servicesSnapshot, accountsPayableSnapshot, employeesSnapshot] = await Promise.all([
         getDocs(collection(db, "clientes")),
         getDocs(collection(db, "fornecedores")),
         getDocs(collection(db, "servicos")),
         getDocs(collection(db, "contas_a_pagar")),
         getDocs(collection(db, "funcionarios")),
-        getDocs(collection(db, "comissoes")),
       ]);
 
       setClients(clientsSnapshot.docs.map(doc => ({ ...doc.data(), codigo_cliente: doc.id })) as Client[]);
@@ -192,7 +188,6 @@ export default function RelatoriosPage() {
       setServices(servicesSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, data_cadastro: doc.data().data_cadastro.toDate() })) as Service[]);
       setAccountsPayable(accountsPayableSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, vencimento: doc.data().vencimento.toDate() })) as Account[]);
       setEmployees(employeesSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Employee[]);
-      setCommissions(commissionsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, data: doc.data().data.toDate() })) as Commission[]);
 
     } catch (error) {
       console.error("Erro ao buscar dados: ", error);
@@ -211,8 +206,6 @@ export default function RelatoriosPage() {
   }, []);
   
   const getClient = (clientId: string) => clients.find(c => c.codigo_cliente === clientId);
-  const getEmployeeName = (employeeId: string) => employees.find(e => e.id === employeeId)?.nome || 'Desconhecido';
-  const getService = (serviceId: string) => services.find(s => s.id === serviceId);
 
   const getPayeeName = (account: Account) => {
       if (account.tipo_referencia === 'funcionario') return employees.find(e => e.id === account.referencia_id)?.nome || 'Funcionário não encontrado';
@@ -266,27 +259,9 @@ export default function RelatoriosPage() {
                     return a.vencimento >= from && a.vencimento <= to;
                 });
             break;
-        case 'commissions':
-             data = commissions
-                .filter(c => statusFilter ? c.status === statusFilter : true)
-                .filter(c => {
-                    const service = getService(c.servico_id);
-                    if (!service) return false;
-                    const client = getClient(service.cliente_id);
-                    return getEmployeeName(c.funcionario_id).toLowerCase().includes(searchLower) || 
-                           service.descricao.toLowerCase().includes(searchLower) ||
-                           (client && client.nome_completo.toLowerCase().includes(searchLower));
-                })
-                .filter(c => {
-                    if (!dateRange?.from) return true;
-                    const from = startOfDay(dateRange.from);
-                    const to = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from);
-                    return c.data >= from && c.data <= to;
-                });
-            break;
     }
     return data;
-  }, [selectedReport, clients, suppliers, services, accountsPayable, commissions, searchFilter, statusFilter, dateRange]);
+  }, [selectedReport, clients, suppliers, services, accountsPayable, searchFilter, statusFilter, dateRange]);
 
  const totals = useMemo(() => {
     if (!filteredData) return {};
@@ -297,10 +272,6 @@ export default function RelatoriosPage() {
                 saldo_devedor: filteredData.reduce((sum, item) => sum + (item.saldo_devedor || 0), 0)
             };
         case 'accountsPayable':
-            return {
-                valor: filteredData.reduce((sum, item) => sum + (item.valor || 0), 0)
-            };
-        case 'commissions':
             return {
                 valor: filteredData.reduce((sum, item) => sum + (item.valor || 0), 0)
             };
@@ -396,28 +367,6 @@ export default function RelatoriosPage() {
         foot = [['Total', '', '', `R$ ${(totals.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, '']];
         fileName = 'relatorio_contas_a_pagar.pdf';
         break;
-       case 'commissions':
-        doc = new jsPDF();
-        reportTitle = 'Relatório de Comissões';
-        head = [['Funcionário', 'Cliente', 'Serviço Referente', 'Data', 'Valor da Comissão', 'Status']];
-        body = data.map((item: Commission) => {
-            const service = getService(item.servico_id);
-            const client = service ? getClient(service.cliente_id) : undefined;
-            const address = service?.endereco_obra;
-            const formattedAddress = address ? `${address.street}, ${address.number}, ${address.neighborhood}, ${address.city} - ${address.state}` : '';
-
-            return [
-                getEmployeeName(item.funcionario_id), 
-                client?.nome_completo || 'Desconhecido',
-                `${service?.descricao || 'Desconhecido'}\n${formattedAddress}`,
-                item.data ? format(item.data, "dd/MM/yyyy") : '-',
-                `R$ ${item.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 
-                item.status
-            ];
-        });
-        foot = [['Total', '', '', '',`R$ ${(totals.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, '']];
-        fileName = 'relatorio_comissoes.pdf';
-        break;
       default: return;
     }
 
@@ -473,20 +422,18 @@ export default function RelatoriosPage() {
   };
   
   const renderFilterControls = () => {
-    const hasStatus = ['services', 'accountsPayable', 'commissions'].includes(selectedReport);
-    const hasDate = ['services', 'accountsPayable', 'commissions'].includes(selectedReport);
+    const hasStatus = ['services', 'accountsPayable'].includes(selectedReport);
+    const hasDate = ['services', 'accountsPayable'].includes(selectedReport);
     const searchPlaceholder = {
         clients: "Buscar por nome ou CPF/CNPJ...",
         suppliers: "Buscar por razão social ou CNPJ...",
         services: "Buscar por descrição ou cliente...",
         accountsPayable: "Buscar por descrição ou favorecido...",
-        commissions: "Buscar por funcionário, serviço ou cliente...",
     }[selectedReport];
 
     const statusOptions = {
         services: [{value: 'não iniciado', label: 'Não iniciado'}, {value: 'em andamento', label: 'Em andamento'}, {value: 'paralisado', label: 'Paralisado'}, {value: 'fiscalizado', label: 'Fiscalizado'}, {value: 'finalizado', label: 'Finalizado'}],
         accountsPayable: [{value: 'pendente', label: 'Pendente'}, {value: 'pago', label: 'Pago'}],
-        commissions: [{value: 'pendente', label: 'Pendente'}, {value: 'pago', label: 'Pago'}],
     }[selectedReport] || [];
 
     return (
@@ -718,65 +665,6 @@ export default function RelatoriosPage() {
             </CardContent>
           </Card>
         );
-       case 'commissions':
-        return (
-          <Card>
-            <CardHeader>
-                <div className="flex flex-row items-center justify-between">
-                    <div>
-                        <CardTitle>Relatório de Comissões</CardTitle>
-                        <CardDescription>Exporte o histórico de comissões pagas e pendentes.</CardDescription>
-                    </div>
-                    <Button onClick={generatePdf} variant="accent"><Download className="mr-2 h-4 w-4" />Exportar PDF</Button>
-                </div>
-                {renderFilterControls()}
-            </CardHeader>
-            <CardContent>
-              <div className="border rounded-lg">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                        <TableHead>Funcionário</TableHead>
-                        <TableHead>Cliente</TableHead>
-                        <TableHead>Serviço Referente</TableHead>
-                        <TableHead>Data</TableHead>
-                        <TableHead className="text-right">Valor da Comissão</TableHead>
-                        <TableHead>Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredData.length > 0 ? filteredData.slice(0, 10).map((comm: Commission) => {
-                        const service = getService(comm.servico_id);
-                        const client = service ? getClient(service.cliente_id) : undefined;
-                        const address = service?.endereco_obra;
-                        const formattedAddress = address ? `${address.street}, ${address.number}, ${address.neighborhood}, ${address.city} - ${address.state}` : '';
-                        return (
-                            <TableRow key={comm.id}>
-                                <TableCell className="font-medium">{getEmployeeName(comm.funcionario_id)}</TableCell>
-                                <TableCell>{client?.nome_completo || 'Desconhecido'}</TableCell>
-                                <TableCell>
-                                    <div className="font-medium">{service?.descricao || 'Desconhecido'}</div>
-                                    <div className="text-xs text-muted-foreground">{formattedAddress}</div>
-                                </TableCell>
-                                <TableCell>{comm.data ? format(comm.data, "dd/MM/yyyy") : '-'}</TableCell>
-                                <TableCell className="text-right text-green-500">R$ {comm.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
-                                <TableCell><Badge variant={comm.status === 'pago' ? 'secondary' : 'destructive'}>{comm.status}</Badge></TableCell>
-                            </TableRow>
-                        )
-                    }) : (<TableRow><TableCell colSpan={6} className="h-24 text-center">Nenhuma comissão encontrada.</TableCell></TableRow>)}
-                  </TableBody>
-                   <TableFooter>
-                    <TableRow>
-                      <TableCell colSpan={4} className="font-bold">Total</TableCell>
-                      <TableCell className="text-right font-bold text-green-500">R$ {(totals.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
-                      <TableCell></TableCell>
-                    </TableRow>
-                  </TableFooter>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
-        );
       default:
         return null;
     }
@@ -808,7 +696,6 @@ export default function RelatoriosPage() {
                 <SelectItem value="suppliers">Fornecedores</SelectItem>
                 <SelectItem value="services">Serviços</SelectItem>
                 <SelectItem value="accountsPayable">Contas a Pagar</SelectItem>
-                {isAdmin && <SelectItem value="commissions">Comissões</SelectItem>}
             </SelectContent>
         </Select>
       </div>
