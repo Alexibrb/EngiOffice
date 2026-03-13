@@ -369,6 +369,8 @@ export default function DespesasPage() {
       .reduce((acc, curr) => acc + curr.valor, 0);
 
     const filteredTotal = filteredPayable.reduce((acc, curr) => acc + curr.valor, 0);
+    const filteredPago = useMemo(() => filteredPayable.filter(a => a.status === 'pago').reduce((acc, curr) => acc + curr.valor, 0), [filteredPayable]);
+    const filteredPendente = useMemo(() => filteredPayable.filter(a => a.status === 'pendente').reduce((acc, curr) => acc + curr.valor, 0), [filteredPayable]);
 
     const generatePdf = () => {
         const doc = new jsPDF();
@@ -462,6 +464,20 @@ export default function DespesasPage() {
                     </div>
                 </CardHeader>
                 <CardContent>
+                    {/* Barra de Totais Filtrados */}
+                    <div className="bg-slate-900 text-white p-4 rounded-t-lg flex flex-row justify-between items-center border-x border-t">
+                        <div className="font-bold text-lg pl-2">Totais Filtrados</div>
+                        <div className="flex flex-row gap-12 pr-4">
+                            <div className="text-right">
+                                <div className="text-sm font-bold text-green-500">Pago: R$ {filteredPago.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                                <div className="text-sm font-bold text-red-500">Pendente: R$ {filteredPendente.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                            </div>
+                            <div className="text-right">
+                                <div className="text-sm font-bold text-blue-400">Total Filtrado: R$</div>
+                                <div className="text-lg font-bold text-blue-300">{filteredTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                            </div>
+                        </div>
+                    </div>
                     <PayableTableComponent accounts={filteredPayable} getPayeeName={getPayeeName} onEdit={handleEditClick} onDelete={handleDeleteAccount} total={filteredTotal} />
                 </CardContent>
             </Card>
@@ -625,7 +641,7 @@ function PayableTableComponent({ accounts, getPayeeName, onEdit, onDelete, total
     accounts: Account[], getPayeeName: (account: Account) => string, onEdit: (account: Account) => void, onDelete: (id: string) => void, total: number
 }) {
     return (
-        <div className="border rounded-lg">
+        <div className="border border-t-0 rounded-b-lg overflow-hidden">
             <Table>
                 <TableHeader><TableRow><TableHead>Descrição</TableHead><TableHead>Favorecido</TableHead><TableHead>Vencimento</TableHead><TableHead className="text-right">Valor</TableHead><TableHead>Status</TableHead><TableHead></TableHead></TableRow></TableHeader>
                 <TableBody>
@@ -637,24 +653,26 @@ function PayableTableComponent({ accounts, getPayeeName, onEdit, onDelete, total
                             <TableCell className="text-right text-red-500">R$ {acc.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
                             <TableCell><Badge variant={acc.status === 'pago' ? 'secondary' : 'destructive'}>{acc.status}</Badge></TableCell>
                             <TableCell>
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                        <DropdownMenuItem onClick={() => onEdit(acc)}>Editar</DropdownMenuItem>
-                                        <AlertDialog>
-                                            <AlertDialogTrigger asChild><DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600">Excluir</DropdownMenuItem></AlertDialogTrigger>
-                                            <AlertDialogContent>
-                                                <AlertDialogHeader><AlertDialogTitle>Excluir lançamento?</AlertDialogTitle></AlertDialogHeader>
-                                                <AlertDialogFooter><AlertDialogCancel>Voltar</AlertDialogCancel><AlertDialogAction onClick={() => onDelete(acc.id)} variant="destructive">Excluir</AlertDialogAction></AlertDialogFooter>
-                                            </AlertDialogContent>
-                                        </AlertDialog>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
+                                <div className="flex justify-end items-center">
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            <DropdownMenuItem onClick={() => onEdit(acc)}>Editar</DropdownMenuItem>
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild><DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600">Excluir</DropdownMenuItem></AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                    <AlertDialogHeader><AlertDialogTitle>Excluir lançamento?</AlertDialogTitle></AlertDialogHeader>
+                                                    <AlertDialogFooter>
+                                                        <AlertDialogCancel>Voltar</AlertDialogCancel><AlertDialogAction onClick={() => onDelete(acc.id)} variant="destructive">Excluir</AlertDialogAction></AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </div>
                             </TableCell>
                         </TableRow>
                     )) : <TableRow><TableCell colSpan={6} className="text-center py-4">Vazio</TableCell></TableRow>}
                 </TableBody>
-                <TableFooter><TableRow><TableCell colSpan={3} className="font-bold">Total Filtrado</TableCell><TableCell className="text-right font-bold text-red-500">R$ {total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell><TableCell colSpan={2}></TableCell></TableRow></TableFooter>
             </Table>
         </div>
     );
