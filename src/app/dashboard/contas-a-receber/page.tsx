@@ -682,7 +682,7 @@ function ReceivableTableComponent({ services, getClient, totalValor, totalSaldo,
                         <TableHead>Cliente</TableHead>
                         <TableHead>Detalhes do Serviço</TableHead>
                         <TableHead>Valores</TableHead>
-                        <TableHead>Status</TableHead>
+                        <TableHead>Status Pagto</TableHead>
                          <TableHead><span className="sr-only">Ações</span></TableHead>
                     </TableRow>
                 </TableHeader>
@@ -719,7 +719,15 @@ function ReceivableTableComponent({ services, getClient, totalValor, totalSaldo,
                                     {service.quantidade_m2 ? <div className="text-xs text-muted-foreground">Área: {service.quantidade_m2} m²</div> : null}
                                 </TableCell>
                                  <TableCell className="align-top space-y-1">
-                                    <Badge variant={service.status_execucao === 'finalizado' ? 'secondary' : service.status_execucao === 'cancelado' ? 'destructive' : 'default'}>{service.status_execucao}</Badge>
+                                    <Badge 
+                                        className="capitalize"
+                                        variant={service.status_financeiro === 'pago' ? 'secondary' : service.status_financeiro === 'cancelado' ? 'outline' : 'destructive'}
+                                    >
+                                        {service.status_financeiro}
+                                    </Badge>
+                                    <div className="text-[10px] text-muted-foreground capitalize">
+                                        Execução: {service.status_execucao}
+                                    </div>
                                 </TableCell>
                                 <TableCell>
                                     <DropdownMenu>
