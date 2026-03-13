@@ -479,7 +479,7 @@ export default function PagamentosPage() {
                                     Agendar Pagamento
                                 </Button>
                             </form>
-                        </form>
+                        </Form>
                     </CardContent>
                 </Card>
 
