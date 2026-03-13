@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -15,10 +16,10 @@ import {
   TableFooter,
 } from '@/components/ui/table';
 import { useToast } from "@/hooks/use-toast"
-import { collection, addDoc, getDocs, doc, query, where, deleteDoc, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, doc, query, where, deleteDoc, updateDoc, Timestamp } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import { Loader2, Trash, DollarSign, CalendarIcon, CheckCircle, XCircle, Download } from 'lucide-react';
-import type { Account, Employee, AuthorizedUser } from '@/lib/types';
+import type { Account, Employee, AuthorizedUser, Client, Service } from '@/lib/types';
 import { format, startOfDay, endOfDay } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -43,11 +44,15 @@ const paymentSchema = z.object({
   referencia_id: z.string().min(1, 'Funcionário é obrigatório.'),
   valor: z.coerce.number().min(0.01, 'O valor deve ser maior que zero.'),
   vencimento: z.date({ required_error: 'Data de pagamento é obrigatória.' }),
+  cliente_id: z.string().optional(),
+  servico_id: z.string().optional(),
 });
 
 export default function PagamentosPage() {
     const [payments, setPayments] = useState<Account[]>([]);
     const [employees, setEmployees] = useState<Employee[]>([]);
+    const [clients, setClients] = useState<Client[]>([]);
+    const [services, setServices] = useState<Service[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isAdmin, setIsAdmin] = useState(false);
@@ -63,10 +68,14 @@ export default function PagamentosPage() {
         defaultValues: {
             vencimento: new Date(),
             valor: 0,
+            referencia_id: '',
+            cliente_id: '',
+            servico_id: '',
         },
     });
 
     const selectedEmployeeId = form.watch('referencia_id');
+    const selectedClientId = form.watch('cliente_id');
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -89,17 +98,26 @@ export default function PagamentosPage() {
     const fetchData = async () => {
         setIsLoading(true);
         try {
-            const [employeesSnapshot, paymentsSnapshot] = await Promise.all([
+            const [employeesSnapshot, paymentsSnapshot, clientsSnapshot, servicesSnapshot] = await Promise.all([
                 getDocs(query(collection(db, "funcionarios"), where("status", "==", "ativo"))),
-                getDocs(query(collection(db, "contas_a_pagar"), where("tipo_referencia", "==", "funcionario")))
+                getDocs(query(collection(db, "contas_a_pagar"), where("tipo_referencia", "==", "funcionario"))),
+                getDocs(collection(db, "clientes")),
+                getDocs(collection(db, "servicos")),
             ]);
 
             const employeesData = employeesSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Employee[];
             setEmployees(employeesData);
 
-            const paymentsData = paymentsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, vencimento: doc.data().vencimento.toDate() })) as Account[];
+            const paymentsData = paymentsSnapshot.docs.map(doc => ({ 
+                ...doc.data(), 
+                id: doc.id, 
+                vencimento: doc.data().vencimento instanceof Timestamp ? doc.data().vencimento.toDate() : new Date(doc.data().vencimento) 
+            })) as Account[];
             paymentsData.sort((a, b) => b.vencimento.getTime() - a.vencimento.getTime());
             setPayments(paymentsData);
+
+            setClients(clientsSnapshot.docs.map(doc => ({ ...doc.data(), codigo_cliente: doc.id })) as Client[]);
+            setServices(servicesSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Service[]);
             
         } catch (error) {
             console.error("Erro ao buscar dados: ", error);
@@ -131,7 +149,14 @@ export default function PagamentosPage() {
         }
     }, [selectedEmployeeId, employees, form]);
 
+    const filteredServices = useMemo(() => {
+        if (!selectedClientId) return [];
+        return services.filter(s => s.cliente_id === selectedClientId);
+    }, [selectedClientId, services]);
+
     const getEmployeeName = (id: string) => employees.find(e => e.id === id)?.nome || 'Desconhecido';
+    const getClientName = (id: string) => clients.find(c => c.codigo_cliente === id)?.nome_completo || '-';
+    const getServiceDesc = (id: string) => services.find(s => s.id === id)?.descricao || '-';
 
     const handleSavePayment = async (values: z.infer<typeof paymentSchema>) => {
         setIsSubmitting(true);
@@ -141,6 +166,8 @@ export default function PagamentosPage() {
                 descricao: `Pagamento de Salário - ${getEmployeeName(values.referencia_id)}`,
                 tipo_referencia: 'funcionario' as const,
                 status: 'pendente' as const,
+                cliente_id: values.cliente_id === 'none' ? '' : values.cliente_id,
+                servico_id: values.servico_id === 'none' ? '' : values.servico_id,
             };
 
             await addDoc(collection(db, 'contas_a_pagar'), paymentData);
@@ -149,6 +176,8 @@ export default function PagamentosPage() {
                 referencia_id: '',
                 valor: 0,
                 vencimento: new Date(),
+                cliente_id: '',
+                servico_id: '',
             });
             await fetchData();
         } catch (error) {
@@ -280,19 +309,20 @@ export default function PagamentosPage() {
         // Tabela
         autoTable(doc, {
             startY: currentY,
-            head: [['Funcionário', 'Data', 'Status', 'Valor']],
+            head: [['Funcionário', 'Cliente / Serviço', 'Data', 'Status', 'Valor']],
             body: filteredPayments.map(p => [
                 getEmployeeName(p.referencia_id),
+                `${getClientName(p.cliente_id || '')} / ${getServiceDesc(p.servico_id || '')}`,
                 format(p.vencimento, 'dd/MM/yyyy'),
                 p.status.toUpperCase(),
                 p.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
             ]),
             foot: [[
-                { content: 'Total Pago (Filtrado)', colSpan: 3, styles: { halign: 'right', fontStyle: 'bold' } },
+                { content: 'Total Pago (Filtrado)', colSpan: 4, styles: { halign: 'right', fontStyle: 'bold' } },
                 { content: totalPaid.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), styles: { fontStyle: 'bold' } }
             ]],
             theme: 'striped',
-            headStyles: { fillColor: [34, 139, 34] }, // Verde floresta
+            headStyles: { fillColor: [34, 139, 34] },
             footStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0] }
         });
 
@@ -310,7 +340,7 @@ export default function PagamentosPage() {
                 <Card className="lg:col-span-1">
                     <CardHeader>
                         <CardTitle>Lançar Pagamento de Salário</CardTitle>
-                        <CardDescription>Selecione um funcionário para registrar o pagamento.</CardDescription>
+                        <CardDescription>Registre o pagamento e vincule a um cliente/serviço.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <Form {...form}>
@@ -339,6 +369,60 @@ export default function PagamentosPage() {
                                         </FormItem>
                                     )}
                                 />
+
+                                <FormField
+                                    control={form.control}
+                                    name="cliente_id"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Cliente Vinculado</FormLabel>
+                                            <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                                                <FormControl>
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Selecione um cliente" />
+                                                    </SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent>
+                                                    <SelectItem value="none">Nenhum</SelectItem>
+                                                    {clients.map(c => (
+                                                        <SelectItem key={c.codigo_cliente} value={c.codigo_cliente}>{c.nome_completo}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+
+                                <FormField
+                                    control={form.control}
+                                    name="servico_id"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Serviço Vinculado</FormLabel>
+                                            <Select 
+                                                onValueChange={field.onChange} 
+                                                value={field.value} 
+                                                defaultValue={field.value}
+                                                disabled={!selectedClientId || selectedClientId === 'none'}
+                                            >
+                                                <FormControl>
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Selecione um serviço" />
+                                                    </SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent>
+                                                    <SelectItem value="none">Nenhum</SelectItem>
+                                                    {filteredServices.map(s => (
+                                                        <SelectItem key={s.id} value={s.id}>{s.descricao}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+
                                 <FormField
                                     control={form.control}
                                     name="valor"
@@ -459,7 +543,8 @@ export default function PagamentosPage() {
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead>Funcionário</TableHead>
-                                        <TableHead>Data do Pagamento</TableHead>
+                                        <TableHead>Cliente / Serviço</TableHead>
+                                        <TableHead>Data</TableHead>
                                         <TableHead>Status</TableHead>
                                         <TableHead className="text-right">Valor</TableHead>
                                         {isAdmin && <TableHead className="w-[50px] text-right">Ações</TableHead>}
@@ -468,13 +553,17 @@ export default function PagamentosPage() {
                                 <TableBody>
                                     {isLoading ? (
                                         <TableRow>
-                                            <TableCell colSpan={isAdmin ? 5 : 4} className="h-24 text-center">
+                                            <TableCell colSpan={isAdmin ? 6 : 5} className="h-24 text-center">
                                                 <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
                                             </TableCell>
                                         </TableRow>
                                     ) : filteredPayments.length > 0 ? filteredPayments.map((payment) => (
                                         <TableRow key={payment.id}>
                                             <TableCell className="font-medium">{getEmployeeName(payment.referencia_id)}</TableCell>
+                                            <TableCell className="text-xs">
+                                                <div className="font-medium">{getClientName(payment.cliente_id || '')}</div>
+                                                <div className="text-muted-foreground">{getServiceDesc(payment.servico_id || '')}</div>
+                                            </TableCell>
                                             <TableCell>{format(payment.vencimento, 'dd/MM/yyyy')}</TableCell>
                                             <TableCell>
                                                 <Badge variant={payment.status === 'pago' ? 'secondary' : 'destructive'}>
@@ -513,13 +602,13 @@ export default function PagamentosPage() {
                                         </TableRow>
                                     )) : (
                                         <TableRow>
-                                            <TableCell colSpan={isAdmin ? 5 : 4} className="h-24 text-center">Nenhum pagamento encontrado.</TableCell>
+                                            <TableCell colSpan={isAdmin ? 6 : 5} className="h-24 text-center">Nenhum pagamento encontrado.</TableCell>
                                         </TableRow>
                                     )}
                                 </TableBody>
                                 <TableFooter>
                                     <TableRow>
-                                        <TableCell colSpan={isAdmin ? 3 : 3} className="font-bold text-right">Total Pago (Filtrado)</TableCell>
+                                        <TableCell colSpan={isAdmin ? 4 : 4} className="font-bold text-right">Total Pago (Filtrado)</TableCell>
                                         <TableCell className="text-right font-bold text-green-500">
                                             {totalPaid.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                         </TableCell>

@@ -79,6 +79,7 @@ export type Account = {
     referencia_id: string; 
     tipo_referencia?: 'fornecedor' | 'funcionario';
     cliente_id?: string;
+    servico_id?: string;
     valor: number;
     vencimento: Date; 
     status: 'pago' | 'pendente';
