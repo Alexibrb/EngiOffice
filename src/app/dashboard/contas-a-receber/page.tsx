@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -67,6 +66,7 @@ export default function ContasAReceberPage() {
     
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
     const [statusFilter, setStatusFilter] = useState<string>('');
+    const [selectedClient, setSelectedClient] = useState<string>('');
 
     const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
     const [editingService, setEditingService] = useState<Service | null>(null);
@@ -114,7 +114,7 @@ export default function ContasAReceberPage() {
             setServices(servicesData);
 
             const clientsData = clientsSnapshot.docs.map(doc => ({ ...doc.data(), codigo_cliente: doc.id } as Client));
-            setClients(clientsData);
+            setClients(clientsData.sort((a, b) => a.nome_completo.localeCompare(b.nome_completo)));
 
         } catch (error) {
             console.error("Erro ao buscar dados: ", error);
@@ -398,13 +398,16 @@ export default function ContasAReceberPage() {
                 return statusFilter ? service.status_financeiro === statusFilter : true;
             })
             .filter(service => {
+                return selectedClient ? service.cliente_id === selectedClient : true;
+            })
+            .filter(service => {
                 if (!dateRange?.from) return true;
                 const fromDate = startOfDay(dateRange.from);
                 const toDate = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from);
                 const serviceDate = service.data_cadastro;
                 return serviceDate >= fromDate && serviceDate <= toDate;
             });
-    }, [services, statusFilter, dateRange]);
+    }, [services, statusFilter, selectedClient, dateRange]);
 
     const totalReceivablePending = services
         .reduce((acc, curr) => acc + (curr.saldo_devedor || 0), 0);
@@ -455,6 +458,7 @@ export default function ContasAReceberPage() {
     const handleClearFilters = () => {
         setDateRange(undefined);
         setStatusFilter('');
+        setSelectedClient('');
     }
 
     return (
@@ -502,7 +506,7 @@ export default function ContasAReceberPage() {
                             Exportar PDF
                         </Button>
                     </div>
-                     <div className="flex items-center gap-4 p-4 mt-4 bg-muted rounded-lg">
+                     <div className="flex flex-wrap items-center gap-4 p-4 mt-4 bg-muted rounded-lg">
                         <div className="flex items-center gap-2">
                             <Popover>
                                 <PopoverTrigger asChild>
@@ -547,6 +551,20 @@ export default function ContasAReceberPage() {
                                     <SelectItem value="pendente">Pendente</SelectItem>
                                     <SelectItem value="pago">Pago</SelectItem>
                                     <SelectItem value="cancelado">Cancelado</SelectItem>
+                                </SelectContent>
+                            </Select>
+                         </div>
+                         <div className="flex items-center gap-2">
+                            <Select value={selectedClient} onValueChange={setSelectedClient}>
+                                <SelectTrigger className="w-[250px]">
+                                    <SelectValue placeholder="Filtrar por cliente..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {clients.map(c => (
+                                        <SelectItem key={c.codigo_cliente} value={c.codigo_cliente}>
+                                            {c.nome_completo}
+                                        </SelectItem>
+                                    ))}
                                 </SelectContent>
                             </Select>
                          </div>
