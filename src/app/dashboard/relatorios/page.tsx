@@ -226,6 +226,17 @@ export default function RelatoriosPage() {
     });
   };
 
+  const getExecutionStatusBadge = (status: Service['status_execucao']) => {
+    switch (status) {
+        case 'não iniciado': return 'secondary';
+        case 'em andamento': return 'default';
+        case 'paralisado': return 'destructive';
+        case 'fiscalizado': return 'outline';
+        case 'finalizado': return 'accent';
+        default: return 'default';
+    }
+  };
+
   const filteredData = useMemo(() => {
     let data: any[] = [];
     const searchLower = searchFilter.toLowerCase();
@@ -609,7 +620,7 @@ export default function RelatoriosPage() {
                                     {s.quantidade_m2 ? <div className="text-xs text-muted-foreground">Área: {s.quantidade_m2} m²</div> : null}
                                 </TableCell>
                                 <TableCell className="align-top space-y-1">
-                                    <Badge variant={s.status_execucao === 'finalizado' ? 'secondary' : s.status_execucao === 'paralisado' ? 'destructive' : 'default'}>{s.status_execucao}</Badge>
+                                    <Badge variant={getExecutionStatusBadge(s.status_execucao)} className="block w-fit">{s.status_execucao}</Badge>
                                     <Badge variant={financialStatus.variant}>{financialStatus.text}</Badge>
                                 </TableCell>
                             </TableRow>

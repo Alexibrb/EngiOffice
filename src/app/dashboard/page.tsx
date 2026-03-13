@@ -255,6 +255,17 @@ export default function DashboardPage() {
     }
   };
 
+  const getExecutionStatusBadge = (status: Service['status_execucao']) => {
+    switch (status) {
+        case 'não iniciado': return 'secondary';
+        case 'em andamento': return 'default';
+        case 'paralisado': return 'destructive';
+        case 'fiscalizado': return 'outline';
+        case 'finalizado': return 'accent';
+        default: return 'default';
+    }
+  };
+
   const ongoingServices = services.filter(
     (s) => s.status_execucao === 'em andamento'
   );
@@ -811,7 +822,7 @@ export default function DashboardPage() {
                                                 <div className="text-xs text-muted-foreground">{formattedAddress}</div>
                                             </TableCell>
                                             <TableCell>
-                                                <Badge variant={service.status_execucao === 'em andamento' ? 'secondary' : 'default'}>
+                                                <Badge variant={getExecutionStatusBadge(service.status_execucao)}>
                                                     {service.status_execucao}
                                                 </Badge>
                                             </TableCell>

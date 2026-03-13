@@ -634,11 +634,11 @@ export default function ServicosPage() {
 
   const getExecutionStatusBadge = (status: Service['status_execucao']) => {
     switch (status) {
-        case 'não iniciado': return 'default';
-        case 'em andamento': return 'secondary';
+        case 'não iniciado': return 'secondary';
+        case 'em andamento': return 'default';
         case 'paralisado': return 'destructive';
         case 'fiscalizado': return 'outline';
-        case 'finalizado': return 'default';
+        case 'finalizado': return 'accent';
         default: return 'default';
     }
   };
