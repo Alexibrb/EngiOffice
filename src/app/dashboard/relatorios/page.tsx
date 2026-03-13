@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -418,13 +419,17 @@ export default function RelatoriosPage() {
 
     // BLOCO DE RESUMO NO TOPO (Apenas para Serviços e Contas a Pagar)
     if (selectedReport === 'services') {
+        const contractsTotal = data.reduce((sum, item) => sum + (item.valor_total || 0), 0);
+        const paidTotal = data.reduce((sum, item) => sum + (item.valor_pago || 0), 0);
+        const debtTotal = data.reduce((sum, item) => sum + (item.saldo_devedor || 0), 0);
+
         autoTable(doc, {
             startY: currentY,
-            head: [['Resumo Financeiro', '']], // Corrigido para 2 colunas
+            head: [['Resumo Financeiro do Filtro', '']],
             body: [
-                ['Total dos Contratos:', `R$ ${(totals.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
-                ['Total Recebido:', `R$ ${(totals.valor_pago || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
-                ['Total Saldo Devedor:', `R$ ${(totals.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
+                ['Total dos Contratos:', `R$ ${contractsTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
+                ['Total Recebido:', `R$ ${paidTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
+                ['Total Saldo Devedor:', `R$ ${debtTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
             ],
             theme: 'grid',
             headStyles: { fillColor: [34, 139, 34] },
@@ -434,13 +439,16 @@ export default function RelatoriosPage() {
         });
         currentY = (doc as any).lastAutoTable.finalY + 10;
     } else if (selectedReport === 'accountsPayable') {
+        const paid = data.filter((a: any) => a.status === 'pago').reduce((sum, item) => sum + (item.valor || 0), 0);
+        const pending = data.filter((a: any) => a.status === 'pendente').reduce((sum, item) => sum + (item.valor || 0), 0);
+
         autoTable(doc, {
             startY: currentY,
-            head: [['Resumo de Despesas', '']], // Corrigido para 2 colunas
+            head: [['Resumo de Despesas do Filtro', '']],
             body: [
-                ['Total Pago:', `R$ ${(totals.pago || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
-                ['Total Pendente:', `R$ ${(totals.pendente || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
-                ['Total Geral:', `R$ ${(totals.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
+                ['Total Pago:', `R$ ${paid.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
+                ['Total Pendente:', `R$ ${pending.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
+                ['Total Geral:', `R$ ${(paid + pending).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
             ],
             theme: 'grid',
             headStyles: { fillColor: [34, 139, 34] },
@@ -458,6 +466,7 @@ export default function RelatoriosPage() {
       body: body,
       theme: 'striped',
       headStyles: { fillColor: [34, 139, 34] },
+      rowPageBreak: 'avoid', // Impede que uma linha seja dividida entre páginas
     });
     doc.save(fileName);
   };
