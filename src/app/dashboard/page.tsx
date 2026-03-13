@@ -113,6 +113,7 @@ export default function DashboardPage() {
   const [filteredServices, setFilteredServices] = useState<Service[]>([]);
   const [showAllNotes, setShowAllNotes] = useState(false);
   const [showOverdueDetails, setShowOverdueAlerts] = useState(false);
+  const [showActiveServices, setShowActiveServices] = useState(false);
 
 
   const paymentForm = useForm<z.infer<typeof paymentSchema>>({
@@ -761,128 +762,139 @@ export default function DashboardPage() {
        </div>
 
       <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
-        <Card>
-            <Tabs defaultValue="execucao">
-                <CardHeader>
-                    <div className="flex items-start justify-between">
-                        <div>
-                            <CardTitle>Serviços Ativos</CardTitle>
-                            <CardDescription>
-                                Visualize projetos por status de execução ou pendência financeira.
-                            </CardDescription>
-                        </div>
-                        <TabsList>
-                            <TabsTrigger value="execucao">Por Execução</TabsTrigger>
-                            <TabsTrigger value="pagamento">Pagamento Pendente</TabsTrigger>
-                        </TabsList>
-                    </div>
-                </CardHeader>
-                <CardContent>
-                    <TabsContent value="execucao">
-                         <Table>
-                            <TableHeader>
-                                <TableRow>
-                                <TableHead>Cliente</TableHead>
-                                <TableHead>Descrição / Endereço</TableHead>
-                                <TableHead>Status Execução</TableHead>
-                                <TableHead><span className="sr-only">Ações</span></TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {ongoingServices.length > 0 ? ongoingServices.map((service) => {
-                                const client = getClient(service.cliente_id);
-                                const address = service?.endereco_obra;
-                                const formattedAddress = address ? `${address.street}, ${address.number}` : 'N/A';
-                                return (
-                                    <TableRow key={service.id}>
-                                        <TableCell className="font-medium">{client?.nome_completo || 'Desconhecido'}</TableCell>
-                                        <TableCell>
-                                            <div className="font-medium">{service.descricao}</div>
-                                            <div className="text-xs text-muted-foreground">{formattedAddress}</div>
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge variant={service.status_execucao === 'em andamento' ? 'secondary' : 'default'}>
-                                                {service.status_execucao}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell>
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild><Button aria-haspopup="true" size="icon" variant="ghost"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end">
-                                                    <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                                                    <DropdownMenuItem onClick={() => handleEditService(service.id)}>Editar</DropdownMenuItem>
-                                                    <DropdownMenuItem onClick={() => handlePaymentClick(service)} disabled={service.status_financeiro === 'pago'}>Lançar Pagamento</DropdownMenuItem>
-                                                    <DropdownMenuItem onClick={() => generateReceipt(service)}>Gerar Recibo</DropdownMenuItem>
-                                                    <DropdownMenuItem onClick={() => generateProofOfService(service)}>Gerar Comprovante</DropdownMenuItem>
-                                                    <AlertDialog><AlertDialogTrigger asChild><DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600">Excluir</DropdownMenuItem></AlertDialogTrigger>
-                                                        <AlertDialogContent>
-                                                            <AlertDialogHeader><AlertDialogTitle>Você tem certeza?</AlertDialogTitle><AlertDialogDescription>Essa ação não pode ser desfeita.</AlertDialogDescription></AlertDialogHeader>
-                                                            <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteService(service.id)} variant="destructive">Excluir</AlertDialogAction></AlertDialogFooter>
-                                                        </AlertDialogContent>
-                                                    </AlertDialog>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
-                                        </TableCell>
+        <Collapsible open={showActiveServices} onOpenChange={setShowActiveServices}>
+          <Card>
+              <Tabs defaultValue="execucao">
+                  <CardHeader>
+                      <div className="flex items-start justify-between">
+                          <div>
+                              <CardTitle className="flex items-center gap-2">
+                                Serviços Ativos
+                                <CollapsibleTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-6 w-6">
+                                    {showActiveServices ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                                  </Button>
+                                </CollapsibleTrigger>
+                              </CardTitle>
+                              <CardDescription>
+                                  Visualize projetos por status de execução ou pendência financeira.
+                              </CardDescription>
+                          </div>
+                          <TabsList>
+                              <TabsTrigger value="execucao">Por Execução</TabsTrigger>
+                              <TabsTrigger value="pagamento">Pagamento Pendente</TabsTrigger>
+                          </TabsList>
+                      </div>
+                  </CardHeader>
+                  <CollapsibleContent>
+                    <CardContent>
+                        <TabsContent value="execucao">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                    <TableHead>Cliente</TableHead>
+                                    <TableHead>Descrição / Endereço</TableHead>
+                                    <TableHead>Status Execução</TableHead>
+                                    <TableHead><span className="sr-only">Ações</span></TableHead>
                                     </TableRow>
-                                )
-                                }) : (
-                                <TableRow><TableCell colSpan={4} className="h-24 text-center">Nenhum serviço em andamento.</TableCell></TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
-                    </TabsContent>
-                    <TabsContent value="pagamento">
-                         <Table>
-                            <TableHeader>
-                                <TableRow>
-                                <TableHead>Cliente</TableHead>
-                                <TableHead>Descrição / Endereço</TableHead>
-                                <TableHead>Saldo Devedor</TableHead>
-                                <TableHead><span className="sr-only">Ações</span></TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {pendingPaymentServices.length > 0 ? pendingPaymentServices.map((service) => {
-                                const client = getClient(service.cliente_id);
-                                const address = service?.endereco_obra;
-                                const formattedAddress = address ? `${address.street}, ${address.number}` : 'N/A';
-                                return (
-                                    <TableRow key={service.id}>
-                                        <TableCell className="font-medium">{client?.nome_completo || 'Desconhecido'}</TableCell>
-                                        <TableCell>
-                                            <div className="font-medium">{service.descricao}</div>
-                                            <div className="text-xs text-muted-foreground">{formattedAddress}</div>
-                                        </TableCell>
-                                        <TableCell className="text-red-500">R$ {(service.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2})}</TableCell>
-                                        <TableCell>
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild><Button aria-haspopup="true" size="icon" variant="ghost"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end">
-                                                    <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                                                    <DropdownMenuItem onClick={() => handleEditService(service.id)}>Editar</DropdownMenuItem>
-                                                    <DropdownMenuItem onClick={() => handlePaymentClick(service)} disabled={service.status_financeiro === 'pago'}>Lançar Pagamento</DropdownMenuItem>
-                                                    <DropdownMenuItem onClick={() => generateReceipt(service)}>Gerar Recibo</DropdownMenuItem>
-                                                    <DropdownMenuItem onClick={() => generateProofOfService(service)}>Gerar Comprovante</DropdownMenuItem>
-                                                    <AlertDialog><AlertDialogTrigger asChild><DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600">Excluir</DropdownMenuItem></AlertDialogTrigger>
-                                                        <AlertDialogContent>
-                                                            <AlertDialogHeader><AlertDialogTitle>Você tem certeza?</AlertDialogTitle><AlertDialogDescription>Essa ação não pode ser desfeita.</AlertDialogDescription></AlertDialogHeader>
-                                                            <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteService(service.id)} variant="destructive">Excluir</AlertDialogAction></AlertDialogFooter>
-                                                        </AlertDialogContent>
-                                                    </AlertDialog>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
-                                        </TableCell>
+                                </TableHeader>
+                                <TableBody>
+                                    {ongoingServices.length > 0 ? ongoingServices.map((service) => {
+                                    const client = getClient(service.cliente_id);
+                                    const address = service?.endereco_obra;
+                                    const formattedAddress = address ? `${address.street}, ${address.number}` : 'N/A';
+                                    return (
+                                        <TableRow key={service.id}>
+                                            <TableCell className="font-medium">{client?.nome_completo || 'Desconhecido'}</TableCell>
+                                            <TableCell>
+                                                <div className="font-medium">{service.descricao}</div>
+                                                <div className="text-xs text-muted-foreground">{formattedAddress}</div>
+                                            </TableCell>
+                                            <TableCell>
+                                                <Badge variant={service.status_execucao === 'em andamento' ? 'secondary' : 'default'}>
+                                                    {service.status_execucao}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell>
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild><Button aria-haspopup="true" size="icon" variant="ghost"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end">
+                                                        <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                                                        <DropdownMenuItem onClick={() => handleEditService(service.id)}>Editar</DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => handlePaymentClick(service)} disabled={service.status_financeiro === 'pago'}>Lançar Pagamento</DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => generateReceipt(service)}>Gerar Recibo</DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => generateProofOfService(service)}>Gerar Comprovante</DropdownMenuItem>
+                                                        <AlertDialog><AlertDialogTrigger asChild><DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600">Excluir</DropdownMenuItem></AlertDialogTrigger>
+                                                            <AlertDialogContent>
+                                                                <AlertDialogHeader><AlertDialogTitle>Você tem certeza?</AlertDialogTitle><AlertDialogDescription>Essa ação não pode ser desfeita.</AlertDialogDescription></AlertDialogHeader>
+                                                                <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteService(service.id)} variant="destructive">Excluir</AlertDialogAction></AlertDialogFooter>
+                                                            </AlertDialogContent>
+                                                        </AlertDialog>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            </TableCell>
+                                        </TableRow>
+                                    )
+                                    }) : (
+                                    <TableRow><TableCell colSpan={4} className="h-24 text-center">Nenhum serviço em andamento.</TableCell></TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </TabsContent>
+                        <TabsContent value="pagamento">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                    <TableHead>Cliente</TableHead>
+                                    <TableHead>Descrição / Endereço</TableHead>
+                                    <TableHead>Saldo Devedor</TableHead>
+                                    <TableHead><span className="sr-only">Ações</span></TableHead>
                                     </TableRow>
-                                )
-                                }) : (
-                                <TableRow><TableCell colSpan={4} className="h-24 text-center">Nenhum serviço com pagamento pendente.</TableCell></TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
-                    </TabsContent>
-                </CardContent>
-            </Tabs>
-        </Card>
+                                </TableHeader>
+                                <TableBody>
+                                    {pendingPaymentServices.length > 0 ? pendingPaymentServices.map((service) => {
+                                    const client = getClient(service.cliente_id);
+                                    const address = service?.endereco_obra;
+                                    const formattedAddress = address ? `${address.street}, ${address.number}` : 'N/A';
+                                    return (
+                                        <TableRow key={service.id}>
+                                            <TableCell className="font-medium">{client?.nome_completo || 'Desconhecido'}</TableCell>
+                                            <TableCell>
+                                                <div className="font-medium">{service.descricao}</div>
+                                                <div className="text-xs text-muted-foreground">{formattedAddress}</div>
+                                            </TableCell>
+                                            <TableCell className="text-red-500">R$ {(service.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2})}</TableCell>
+                                            <TableCell>
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild><Button aria-haspopup="true" size="icon" variant="ghost"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end">
+                                                        <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                                                        <DropdownMenuItem onClick={() => handleEditService(service.id)}>Editar</DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => handlePaymentClick(service)} disabled={service.status_financeiro === 'pago'}>Lançar Pagamento</DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => generateReceipt(service)}>Gerar Recibo</DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => generateProofOfService(service)}>Gerar Comprovante</DropdownMenuItem>
+                                                        <AlertDialog><AlertDialogTrigger asChild><DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600">Excluir</DropdownMenuItem></AlertDialogTrigger>
+                                                            <AlertDialogContent>
+                                                                <AlertDialogHeader><AlertDialogTitle>Você tem certeza?</AlertDialogTitle><AlertDialogDescription>Essa ação não pode ser desfeita.</AlertDialogDescription></AlertDialogHeader>
+                                                                <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteService(service.id)} variant="destructive">Excluir</AlertDialogAction></AlertDialogFooter>
+                                                            </AlertDialogContent>
+                                                        </AlertDialog>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            </TableCell>
+                                        </TableRow>
+                                    )
+                                    }) : (
+                                    <TableRow><TableCell colSpan={4} className="h-24 text-center">Nenhum serviço com pagamento pendente.</TableCell></TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </TabsContent>
+                    </CardContent>
+                  </CollapsibleContent>
+              </Tabs>
+          </Card>
+        </Collapsible>
         <Card>
           <CardHeader>
             <CardTitle>Contas a Pagar Próximas</CardTitle>
