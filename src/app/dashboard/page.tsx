@@ -46,6 +46,8 @@ import {
   Trash2,
   StickyNote,
   AlertCircle,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -67,7 +69,7 @@ import { useCompanyData } from './layout';
 import Image from 'next/image';
 import { PageHeader } from '@/components/page-header';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -111,6 +113,7 @@ export default function DashboardPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [filteredServices, setFilteredServices] = useState<Service[]>([]);
   const [showAllNotes, setShowAllNotes] = useState(false);
+  const [showOverdueDetails, setShowOverdueAlerts] = useState(false);
 
 
   const paymentForm = useForm<z.infer<typeof paymentSchema>>({
@@ -602,40 +605,64 @@ export default function DashboardPage() {
 
       {/* Seção de Alertas de Recebimento */}
       {overdueReceivables.length > 0 && (
-        <div className="space-y-4">
-          <h2 className="text-xl font-bold flex items-center gap-2 text-destructive">
-            <AlertCircle className="h-5 w-5" />
-            Alertas de Recebimento
-          </h2>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {overdueReceivables.map(service => {
-              const client = getClient(service.cliente_id);
-              const lastDate = service.data_ultimo_pagamento || service.data_cadastro;
-              const daysInactive = differenceInDays(new Date(), lastDate);
-              
-              return (
-                <Alert key={service.id} variant="destructive" className="bg-destructive/10">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertTitle className="font-bold">{client?.nome_completo || 'Cliente Desconhecido'}</AlertTitle>
-                  <AlertDescription className="text-sm">
-                    Serviço: <strong>{service.descricao}</strong><br/>
-                    Saldo a receber: <strong>R$ {service.saldo_devedor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong><br/>
-                    <span className="text-xs font-medium uppercase mt-2 block">
-                      Inativo há {daysInactive} dias
-                    </span>
-                    <Button 
-                      variant="link" 
-                      className="p-0 h-auto text-destructive underline mt-2"
-                      onClick={() => handlePaymentClick(service)}
-                    >
-                      Lançar Pagamento
-                    </Button>
-                  </AlertDescription>
-                </Alert>
-              )
-            })}
-          </div>
-        </div>
+        <Collapsible open={showOverdueDetails} onOpenChange={setShowOverdueAlerts} className="space-y-4">
+          <Alert variant="destructive" className="bg-destructive/10 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5" />
+              <div>
+                <AlertTitle className="font-bold mb-0">Atenção: Inadimplência detectada!</AlertTitle>
+                <AlertDescription className="text-sm">
+                  Existem <strong>{overdueReceivables.length}</strong> serviços sem recebimento há mais de 30 dias.
+                </AlertDescription>
+              </div>
+            </div>
+            <CollapsibleTrigger asChild>
+              <Button variant="outline" size="sm" className="ml-auto bg-white dark:bg-slate-950">
+                {showOverdueDetails ? (
+                  <>Ocultar Detalhes <ChevronUp className="ml-2 h-4 w-4" /></>
+                ) : (
+                  <>Ver Detalhes <ChevronDown className="ml-2 h-4 w-4" /></>
+                )}
+              </Button>
+            </CollapsibleTrigger>
+          </Alert>
+
+          <CollapsibleContent>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mt-4">
+              {overdueReceivables.map(service => {
+                const client = getClient(service.cliente_id);
+                const lastDate = service.data_ultimo_pagamento || service.data_cadastro;
+                const daysInactive = differenceInDays(new Date(), lastDate);
+                
+                return (
+                  <Card key={service.id} className="border-destructive/50 bg-destructive/5">
+                    <CardHeader className="p-4 pb-2">
+                      <CardTitle className="text-sm font-bold">{client?.nome_completo || 'Cliente Desconhecido'}</CardTitle>
+                      <CardDescription className="text-xs">Serviço: {service.descricao}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="p-4 pt-0">
+                      <div className="text-sm mb-2">
+                        Saldo a receber: <span className="font-bold">R$ {service.saldo_devedor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                      </div>
+                      <Badge variant="destructive" className="text-[10px] uppercase">
+                        Inativo há {daysInactive} dias
+                      </Badge>
+                    </CardContent>
+                    <CardFooter className="p-4 pt-0">
+                      <Button 
+                        variant="link" 
+                        className="p-0 h-auto text-destructive underline text-xs"
+                        onClick={() => handlePaymentClick(service)}
+                      >
+                        Lançar Pagamento
+                      </Button>
+                    </CardFooter>
+                  </Card>
+                )
+              })}
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
       )}
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
