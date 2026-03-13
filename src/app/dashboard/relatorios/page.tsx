@@ -420,7 +420,7 @@ export default function RelatoriosPage() {
     if (selectedReport === 'services') {
         autoTable(doc, {
             startY: currentY,
-            head: [['Resumo Financeiro']],
+            head: [['Resumo Financeiro', '']], // Corrigido para 2 colunas
             body: [
                 ['Total dos Contratos:', `R$ ${(totals.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
                 ['Total Recebido:', `R$ ${(totals.valor_pago || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
@@ -436,7 +436,7 @@ export default function RelatoriosPage() {
     } else if (selectedReport === 'accountsPayable') {
         autoTable(doc, {
             startY: currentY,
-            head: [['Resumo de Despesas']],
+            head: [['Resumo de Despesas', '']], // Corrigido para 2 colunas
             body: [
                 ['Total Pago:', `R$ ${(totals.pago || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
                 ['Total Pendente:', `R$ ${(totals.pendente || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
