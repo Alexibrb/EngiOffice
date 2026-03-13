@@ -102,62 +102,6 @@ const paymentSchema = z.object({
   valor_pago: z.coerce.number().min(0.01, "O valor deve ser maior que zero.")
 });
 
-const AnexosList = ({ urls, toast }: { urls: string[], toast: any }) => {
-  const handleCopy = (url: string) => {
-    navigator.clipboard.writeText(url);
-    toast({
-      title: "Sucesso!",
-      description: "Link copiado para a área de transferência.",
-    });
-  };
-
-  if (!urls || urls.length === 0) {
-    return (
-      <div className="text-sm text-muted-foreground p-4 text-center border rounded-md">
-        Nenhum anexo para este serviço.
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-2">
-      {urls.map((url, index) => {
-        const isWebUrl = url.startsWith('http://') || url.startsWith('https://');
-        return (
-            <div key={index} className="flex items-center gap-2 p-2 rounded-md bg-muted text-sm">
-                <LinkIcon className="h-4 w-4 text-primary shrink-0" />
-                {isWebUrl ? (
-                    <a
-                      href={url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1 truncate hover:underline"
-                    >
-                      {url}
-                    </a>
-                ) : (
-                    <span className="flex-1 truncate">{url}</span>
-                )}
-                
-                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleCopy(url)}>
-                    <ClipboardCopy className="h-4 w-4" />
-                </Button>
-
-                {isWebUrl && (
-                  <a href={url} target="_blank" rel="noopener noreferrer">
-                      <Button variant="ghost" size="icon" className="h-6 w-6">
-                        <ExternalLink className="h-4 w-4 text-muted-foreground" />
-                      </Button>
-                  </a>
-                )}
-            </div>
-        )
-      })}
-    </div>
-  );
-};
-
-
 function AddServiceTypeDialog({ isOpen, setIsOpen, onServiceTypeAdded }: { 
     isOpen: boolean, 
     setIsOpen: (isOpen: boolean) => void, 
@@ -266,22 +210,16 @@ export default function ServicosPage() {
     defaultValues: { valor_pago: 0 },
   });
 
-  const anexosValue = useWatch({ control: form.control, name: 'anexos' });
-
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
         if (user) {
-            if (user.email === 'alexandro.ibrb@gmail.com') {
-                setIsAdmin(true);
+            const q = query(collection(db, "authorized_users"), where("email", "==", user.email));
+            const querySnapshot = await getDocs(q);
+            if (!querySnapshot.empty) {
+                const userData = querySnapshot.docs[0].data() as AuthorizedUser;
+                setIsAdmin(userData.role === 'admin' || user.email === 'alexandro.ibrb@gmail.com');
             } else {
-                const q = query(collection(db, "authorized_users"), where("email", "==", user.email));
-                const querySnapshot = await getDocs(q);
-                if (!querySnapshot.empty) {
-                    const userData = querySnapshot.docs[0].data() as AuthorizedUser;
-                    setIsAdmin(userData.role === 'admin');
-                } else {
-                    setIsAdmin(false);
-                }
+                setIsAdmin(false);
             }
         } else {
             setIsAdmin(false);
@@ -307,8 +245,8 @@ export default function ServicosPage() {
   const fetchClientsAndCities = async () => {
     try {
         const [clientsSnapshot, citiesSnapshot] = await Promise.all([
-          getDocs(collection(db, "clients")),
-          getDocs(collection(db, "cities"))
+          getDocs(collection(db, "clientes")),
+          getDocs(collection(db, "cidades"))
         ]);
         const clientsData = clientsSnapshot.docs.map(doc => ({
             ...doc.data(),
@@ -462,7 +400,6 @@ export default function ServicosPage() {
         const serviceDocRef = doc(db, 'servicos', editingService.id);
         const newStatus = novoSaldoDevedor <= 0 ? 'pago' : 'pendente';
         
-        // Atualiza saldo e data do último pagamento
         await updateDoc(serviceDocRef, {
             valor_pago: novoValorPago,
             saldo_devedor: novoSaldoDevedor,
@@ -649,7 +586,8 @@ export default function ServicosPage() {
     return services
         .filter(service => {
             const searchTermLower = search.toLowerCase();
-            const clientName = getClient(service.cliente_id)?.nome_completo.toLowerCase() || '';
+            const client = getClient(service.cliente_id);
+            const clientName = client?.nome_completo.toLowerCase() || '';
             return (
                 service.descricao.toLowerCase().includes(searchTermLower) ||
                 clientName.includes(searchTermLower)
@@ -895,7 +833,7 @@ export default function ServicosPage() {
         </CardContent>
       </Card>
 
-      <AddServiceTypeDialog isOpen={isServiceTypeDialogOpen} setIsOpen={isServiceTypeDialogOpen} onServiceTypeAdded={fetchServiceTypes} />
+      <AddServiceTypeDialog isOpen={isServiceTypeDialogOpen} setIsOpen={setIsServiceTypeDialogOpen} onServiceTypeAdded={fetchServiceTypes} />
     
       <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
           <DialogContent className="sm:max-w-md">

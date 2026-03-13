@@ -80,17 +80,13 @@ export default function ContasAReceberPage() {
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
             if (user) {
-                if (user.email === 'alexandro.ibrb@gmail.com') {
-                    setIsAdmin(true);
+                const q = query(collection(db, "authorized_users"), where("email", "==", user.email));
+                const querySnapshot = await getDocs(q);
+                if (!querySnapshot.empty) {
+                    const userData = querySnapshot.docs[0].data() as AuthorizedUser;
+                    setIsAdmin(userData.role === 'admin' || user.email === 'alexandro.ibrb@gmail.com');
                 } else {
-                    const q = query(collection(db, "authorized_users"), where("email", "==", user.email));
-                    const querySnapshot = await getDocs(q);
-                    if (!querySnapshot.empty) {
-                        const userData = querySnapshot.docs[0].data() as AuthorizedUser;
-                        setIsAdmin(userData.role === 'admin');
-                    } else {
-                        setIsAdmin(false);
-                    }
+                    setIsAdmin(false);
                 }
             } else {
                 setIsAdmin(false);
@@ -103,7 +99,7 @@ export default function ContasAReceberPage() {
         try {
             const [servicesSnapshot, clientsSnapshot] = await Promise.all([
                 getDocs(collection(db, "servicos")),
-                getDocs(collection(db, "clients")),
+                getDocs(collection(db, "clientes")),
             ]);
             
             const servicesData = servicesSnapshot.docs.map(doc => {
@@ -367,7 +363,6 @@ export default function ContasAReceberPage() {
             const serviceDocRef = doc(db, 'servicos', editingService.id);
             const newStatus = novoSaldoDevedor === 0 ? 'pago' : 'pendente';
             
-            // Grava o saldo e a data da movimentação
             await updateDoc(serviceDocRef, {
                 valor_pago: novoValorPago,
                 saldo_devedor: novoSaldoDevedor,
@@ -624,17 +619,13 @@ function ReceivableTableComponent({ services, getClient, totalValor, totalSaldo,
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
             if (user) {
-                if (user.email === 'alexandro.ibrb@gmail.com') {
-                    setIsAdmin(true);
+                const q = query(collection(db, "authorized_users"), where("email", "==", user.email));
+                const querySnapshot = await getDocs(q);
+                if (!querySnapshot.empty) {
+                    const userData = querySnapshot.docs[0].data() as AuthorizedUser;
+                    setIsAdmin(userData.role === 'admin' || user.email === 'alexandro.ibrb@gmail.com');
                 } else {
-                    const q = query(collection(db, "authorized_users"), where("email", "==", user.email));
-                    const querySnapshot = await getDocs(q);
-                    if (!querySnapshot.empty) {
-                        const userData = querySnapshot.docs[0].data() as AuthorizedUser;
-                        setIsAdmin(userData.role === 'admin');
-                    } else {
-                        setIsAdmin(false);
-                    }
+                    setIsAdmin(false);
                 }
             } else {
                 setIsAdmin(false);
