@@ -354,18 +354,18 @@ export default function ContasAReceberPage() {
             const novoValorPago = valorPagoAtual + values.valor_pago;
             const novoSaldoDevedor = editingService.valor_total - novoValorPago;
 
-            if (novoSaldoDevedor < 0) {
+            if (novoSaldoDevedor < -0.01) {
                 toast({ variant: 'destructive', title: 'Erro', description: 'O valor pago não pode ser maior que o saldo devedor.' });
                 setIsPaymentLoading(false);
                 return;
             }
 
             const serviceDocRef = doc(db, 'servicos', editingService.id);
-            const newStatus = novoSaldoDevedor === 0 ? 'pago' : 'pendente';
+            const newStatus = novoSaldoDevedor <= 0.01 ? 'pago' : 'pendente';
             
             await updateDoc(serviceDocRef, {
                 valor_pago: novoValorPago,
-                saldo_devedor: novoSaldoDevedor,
+                saldo_devedor: Math.max(0, novoSaldoDevedor),
                 status_financeiro: newStatus,
                 data_ultimo_pagamento: Timestamp.now(),
             });
@@ -375,7 +375,7 @@ export default function ContasAReceberPage() {
             const updatedServiceForReceipt = {
                 ...editingService,
                 valor_pago: novoValorPago,
-                saldo_devedor: novoSaldoDevedor,
+                saldo_devedor: Math.max(0, novoSaldoDevedor),
             };
             generateReceipt(updatedServiceForReceipt, values.valor_pago);
 
@@ -693,6 +693,14 @@ function ReceivableTableComponent({ services, getClient, totalValor, totalSaldo,
                         const formattedObra = (obra && obra.street) ? `Obra: ${obra.street}, ${obra.number} - ${obra.neighborhood}, ${obra.city}` : '';
                         const coordenadas = (service.coordenadas?.lat && service.coordenadas?.lng) ? `Coords: ${service.coordenadas.lat}, ${service.coordenadas.lng}` : '';
 
+                        // Lógica derivada para garantir que o status exibido corresponda ao saldo real
+                        const isFullyPaid = (service.saldo_devedor || 0) <= 0.01;
+                        const financialStatus = service.status_financeiro === 'cancelado' 
+                            ? { text: 'Cancelado', variant: 'outline' as const }
+                            : isFullyPaid 
+                                ? { text: 'Pago', variant: 'secondary' as const }
+                                : { text: 'Pendente', variant: 'destructive' as const };
+
                         return (
                             <TableRow key={service.id}>
                                 <TableCell className="align-top">
@@ -715,15 +723,17 @@ function ReceivableTableComponent({ services, getClient, totalValor, totalSaldo,
                                 </TableCell>
                                 <TableCell className="align-top">
                                     <div className="font-medium">Total: R$ {(service.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
-                                    <div className="text-sm text-red-500">Saldo: R$ {(service.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                                    <div className={cn("text-sm font-medium", isFullyPaid ? "text-muted-foreground" : "text-red-500")}>
+                                        Saldo: R$ {(service.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                    </div>
                                     {service.quantidade_m2 ? <div className="text-xs text-muted-foreground">Área: {service.quantidade_m2} m²</div> : null}
                                 </TableCell>
                                  <TableCell className="align-top space-y-1">
                                     <Badge 
                                         className="capitalize"
-                                        variant={service.status_financeiro === 'pago' ? 'secondary' : service.status_financeiro === 'cancelado' ? 'outline' : 'destructive'}
+                                        variant={financialStatus.variant}
                                     >
-                                        {service.status_financeiro}
+                                        {financialStatus.text}
                                     </Badge>
                                     <div className="text-[10px] text-muted-foreground capitalize">
                                         Execução: {service.status_execucao}
@@ -743,7 +753,7 @@ function ReceivableTableComponent({ services, getClient, totalValor, totalSaldo,
                                                 <ExternalLink className="mr-2 h-4 w-4" />
                                                 Ver/Editar Serviço
                                             </DropdownMenuItem>
-                                            <DropdownMenuItem onClick={() => onPayment(service)} disabled={service.status_financeiro === 'pago' || service.status_financeiro === 'cancelado'}>
+                                            <DropdownMenuItem onClick={() => onPayment(service)} disabled={isFullyPaid || service.status_financeiro === 'cancelado'}>
                                                 <HandCoins className="mr-2 h-4 w-4" />
                                                 Lançar Pagamento
                                             </DropdownMenuItem>

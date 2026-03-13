@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -331,13 +330,13 @@ export default function ServicosPage() {
       }
 
       const saldoDevedor = values.valor_total - valorPago;
-      const status_financeiro = saldoDevedor <= 0 ? 'pago' : 'pendente';
+      const status_financeiro = saldoDevedor <= 0.01 ? 'pago' : 'pendente';
 
       const serviceData: Omit<Service, 'id'> = {
         ...values,
         anexos: values.anexos?.split('\n').filter(a => a.trim() !== '') || [],
         valor_pago: valorPago,
-        saldo_devedor: saldoDevedor,
+        saldo_devedor: Math.max(0, saldoDevedor),
         status_financeiro: status_financeiro,
         endereco_obra: {
             street: values.endereco_obra?.street || '',
@@ -358,8 +357,8 @@ export default function ServicosPage() {
         const updatedServiceData = {
           ...serviceData,
           valor_pago: editingService.valor_pago,
-          saldo_devedor: values.valor_total - editingService.valor_pago,
-          status_financeiro: (values.valor_total - editingService.valor_pago) <= 0 ? 'pago' : 'pendente',
+          saldo_devedor: Math.max(0, values.valor_total - editingService.valor_pago),
+          status_financeiro: (values.valor_total - editingService.valor_pago) <= 0.01 ? 'pago' : 'pendente',
         };
         await setDoc(serviceDocRef, updatedServiceData, { merge: true });
         toast({ title: "Sucesso!", description: "Serviço atualizado com sucesso." });
@@ -390,18 +389,18 @@ export default function ServicosPage() {
         const novoValorPago = valorPagoAtual + values.valor_pago;
         const novoSaldoDevedor = editingService.valor_total - novoValorPago;
 
-        if (novoSaldoDevedor < 0) {
+        if (novoSaldoDevedor < -0.01) {
             toast({ variant: 'destructive', title: 'Erro', description: 'O valor pago não pode ser maior que o saldo devedor.' });
             setIsPaymentLoading(false);
             return;
         }
 
         const serviceDocRef = doc(db, 'servicos', editingService.id);
-        const newStatus = novoSaldoDevedor <= 0 ? 'pago' : 'pendente';
+        const newStatus = novoSaldoDevedor <= 0.01 ? 'pago' : 'pendente';
         
         await updateDoc(serviceDocRef, {
             valor_pago: novoValorPago,
-            saldo_devedor: novoSaldoDevedor,
+            saldo_devedor: Math.max(0, novoSaldoDevedor),
             status_financeiro: newStatus,
             data_ultimo_pagamento: Timestamp.now(),
         });
@@ -411,7 +410,7 @@ export default function ServicosPage() {
         const updatedServiceForReceipt = {
             ...editingService,
             valor_pago: novoValorPago,
-            saldo_devedor: novoSaldoDevedor,
+            saldo_devedor: Math.max(0, novoSaldoDevedor),
         };
         generateReceipt(updatedServiceForReceipt, values.valor_pago);
         
@@ -646,7 +645,7 @@ export default function ServicosPage() {
     
   const getFinancialStatus = (service: Service) => {
     if (service.status_financeiro === 'cancelado') return { text: 'Cancelado', variant: 'destructive' as const };
-    if (service.status_financeiro === 'pago') return { text: 'Pago', variant: 'secondary' as const };
+    if (service.saldo_devedor <= 0.01 || service.status_financeiro === 'pago') return { text: 'Pago', variant: 'secondary' as const };
     return { text: 'Pendente', variant: 'destructive' as const };
   }
 
@@ -751,7 +750,7 @@ export default function ServicosPage() {
                 <div className="flex flex-row gap-12 pr-4">
                     <div className="text-right">
                         <div className="text-sm font-bold">Contratos: R$ {filteredTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
-                        <div className="text-sm font-bold text-red-500">Saldo: R$ {filteredSaldoDevedor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                        <div className={cn("text-sm font-bold", filteredSaldoDevedor > 0 ? "text-red-500" : "text-muted-foreground")}>Saldo: R$ {filteredSaldoDevedor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
                     </div>
                     <div className="text-right">
                         <div className="text-sm font-bold text-green-600">Lucro Total: R$</div>
@@ -777,6 +776,8 @@ export default function ServicosPage() {
                         const client = getClient(service.cliente_id);
                         const obra = service?.endereco_obra;
                         const formattedObra = (obra && obra.street) ? `${obra.street}, ${obra.number} - ${obra.neighborhood}` : 'Endereço não cadastrado';
+                        
+                        const isFullyPaid = (service.saldo_devedor || 0) <= 0.01;
                         const financial = getFinancialStatus(service);
                         const stats = getServiceProfitability(service.id, service.valor_total);
 
@@ -825,7 +826,9 @@ export default function ServicosPage() {
                                 <TableCell className="align-top">
                                     <div className="text-xs">Total: <span className="font-bold">R$ {service.valor_total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span></div>
                                     <div className="text-xs text-green-600">Pago: R$ {service.valor_pago.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
-                                    <div className="text-xs text-red-500 font-medium">Saldo: R$ {service.saldo_devedor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                                    <div className={cn("text-xs font-medium", isFullyPaid ? "text-muted-foreground" : "text-red-500")}>
+                                        Saldo: R$ {service.saldo_devedor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                    </div>
                                 </TableCell>
                                 <TableCell className="align-top text-right">
                                     <div className="text-xs text-red-500">Gastos: R$ {stats.expenses.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
@@ -840,7 +843,7 @@ export default function ServicosPage() {
                                     <DropdownMenuContent align="end">
                                         <DropdownMenuLabel>Gestão</DropdownMenuLabel>
                                         <DropdownMenuItem onClick={() => handleEditClick(service)} disabled={!isAdmin}>Editar Dados</DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => handlePaymentClick(service)} disabled={service.status_financeiro === 'pago' || service.status_financeiro === 'cancelado'}>Lançar Pagamento</DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handlePaymentClick(service)} disabled={isFullyPaid || service.status_financeiro === 'cancelado'}>Lançar Pagamento</DropdownMenuItem>
                                         <DropdownMenuSeparator />
                                         <DropdownMenuLabel>Documentos</DropdownMenuLabel>
                                         <DropdownMenuItem onClick={() => generateReceipt(service)}>Gerar Recibo</DropdownMenuItem>

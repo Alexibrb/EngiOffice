@@ -260,14 +260,14 @@ export default function DashboardPage() {
   );
   
   const pendingPaymentServices = services.filter(
-    (s) => s.saldo_devedor > 0 && s.status_financeiro === 'pendente'
+    (s) => s.saldo_devedor > 0.01 && s.status_financeiro === 'pendente'
   );
 
   // Lógica de Alerta: Serviços com saldo devedor e sem pagamento há mais de 30 dias
   const overdueReceivables = useMemo(() => {
     const today = new Date();
     return services.filter(s => {
-      if (s.saldo_devedor <= 0 || s.status_financeiro === 'cancelado') return false;
+      if (s.saldo_devedor <= 0.01 || s.status_financeiro === 'cancelado') return false;
       
       const lastReferenceDate = s.data_ultimo_pagamento || s.data_cadastro;
       const daysSince = differenceInDays(today, lastReferenceDate);
@@ -546,19 +546,19 @@ export default function DashboardPage() {
         const novoValorPago = valorPagoAtual + values.valor_pago;
         const novoSaldoDevedor = editingService.valor_total - novoValorPago;
 
-        if (novoSaldoDevedor < 0) {
+        if (novoSaldoDevedor < -0.01) {
             toast({ variant: 'destructive', title: 'Erro', description: 'O valor pago não pode ser maior que o saldo devedor.' });
             setIsPaymentLoading(false);
             return;
         }
 
         const serviceDocRef = doc(db, 'servicos', editingService.id);
-        const newStatus = novoSaldoDevedor <= 0 ? 'pago' : 'pendente';
+        const newStatus = novoSaldoDevedor <= 0.01 ? 'pago' : 'pendente';
         
         // Atualiza valor, saldo e a data do último pagamento
         await updateDoc(serviceDocRef, {
             valor_pago: novoValorPago,
-            saldo_devedor: novoSaldoDevedor,
+            saldo_devedor: Math.max(0, novoSaldoDevedor),
             status_financeiro: newStatus,
             data_ultimo_pagamento: Timestamp.now(),
         });
@@ -568,7 +568,7 @@ export default function DashboardPage() {
         const updatedServiceForReceipt = {
           ...editingService,
           valor_pago: novoValorPago,
-          saldo_devedor: novoSaldoDevedor,
+          saldo_devedor: Math.max(0, novoSaldoDevedor),
         };
         generateReceipt(updatedServiceForReceipt, values.valor_pago);
 
@@ -821,7 +821,7 @@ export default function DashboardPage() {
                                                     <DropdownMenuContent align="end">
                                                         <DropdownMenuLabel>Ações</DropdownMenuLabel>
                                                         <DropdownMenuItem onClick={() => handleEditService(service.id)}>Editar</DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => handlePaymentClick(service)} disabled={service.status_financeiro === 'pago'}>Lançar Pagamento</DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => handlePaymentClick(service)} disabled={(service.saldo_devedor || 0) <= 0.01 || service.status_financeiro === 'pago'}>Lançar Pagamento</DropdownMenuItem>
                                                         <DropdownMenuItem onClick={() => generateReceipt(service)}>Gerar Recibo</DropdownMenuItem>
                                                         <DropdownMenuItem onClick={() => generateProofOfService(service)}>Gerar Comprovante</DropdownMenuItem>
                                                         <AlertDialog><AlertDialogTrigger asChild><DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600">Excluir</DropdownMenuItem></AlertDialogTrigger>
@@ -870,7 +870,7 @@ export default function DashboardPage() {
                                                     <DropdownMenuContent align="end">
                                                         <DropdownMenuLabel>Ações</DropdownMenuLabel>
                                                         <DropdownMenuItem onClick={() => handleEditService(service.id)}>Editar</DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => handlePaymentClick(service)} disabled={service.status_financeiro === 'pago'}>Lançar Pagamento</DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => handlePaymentClick(service)} disabled={(service.saldo_devedor || 0) <= 0.01 || service.status_financeiro === 'pago'}>Lançar Pagamento</DropdownMenuItem>
                                                         <DropdownMenuItem onClick={() => generateReceipt(service)}>Gerar Recibo</DropdownMenuItem>
                                                         <DropdownMenuItem onClick={() => generateProofOfService(service)}>Gerar Comprovante</DropdownMenuItem>
                                                         <AlertDialog><AlertDialogTrigger asChild><DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600">Excluir</DropdownMenuItem></AlertDialogTrigger>
