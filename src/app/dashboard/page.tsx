@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -606,18 +605,18 @@ export default function DashboardPage() {
       {/* Seção de Alertas de Recebimento */}
       {overdueReceivables.length > 0 && (
         <Collapsible open={showOverdueDetails} onOpenChange={setShowOverdueAlerts} className="space-y-4">
-          <Alert variant="destructive" className="bg-destructive/10 flex items-center justify-between">
+          <Alert variant="destructive" className="bg-destructive/10 dark:bg-red-950/30 border-destructive/50 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <AlertCircle className="h-5 w-5" />
+              <AlertCircle className="h-5 w-5 text-destructive dark:text-red-400" />
               <div>
-                <AlertTitle className="font-bold mb-0">Atenção: Inadimplência detectada!</AlertTitle>
-                <AlertDescription className="text-sm">
+                <AlertTitle className="font-bold mb-0 text-destructive dark:text-red-400">Atenção: Inadimplência detectada!</AlertTitle>
+                <AlertDescription className="text-sm text-destructive/90 dark:text-red-400/90">
                   Existem <strong>{overdueReceivables.length}</strong> serviços sem recebimento há mais de 30 dias.
                 </AlertDescription>
               </div>
             </div>
             <CollapsibleTrigger asChild>
-              <Button variant="outline" size="sm" className="ml-auto bg-white dark:bg-slate-950">
+              <Button variant="outline" size="sm" className="ml-auto border-destructive/50 text-destructive hover:bg-destructive/10 dark:text-red-400 dark:border-red-400/50 dark:hover:bg-red-400/10">
                 {showOverdueDetails ? (
                   <>Ocultar Detalhes <ChevronUp className="ml-2 h-4 w-4" /></>
                 ) : (
@@ -635,9 +634,9 @@ export default function DashboardPage() {
                 const daysInactive = differenceInDays(new Date(), lastDate);
                 
                 return (
-                  <Card key={service.id} className="border-destructive/50 bg-destructive/5">
+                  <Card key={service.id} className="border-destructive/50 bg-destructive/5 dark:bg-red-950/10 dark:border-red-900/50">
                     <CardHeader className="p-4 pb-2">
-                      <CardTitle className="text-sm font-bold">{client?.nome_completo || 'Cliente Desconhecido'}</CardTitle>
+                      <CardTitle className="text-sm font-bold text-destructive dark:text-red-400">{client?.nome_completo || 'Cliente Desconhecido'}</CardTitle>
                       <CardDescription className="text-xs">Serviço: {service.descricao}</CardDescription>
                     </CardHeader>
                     <CardContent className="p-4 pt-0">
@@ -651,7 +650,7 @@ export default function DashboardPage() {
                     <CardFooter className="p-4 pt-0">
                       <Button 
                         variant="link" 
-                        className="p-0 h-auto text-destructive underline text-xs"
+                        className="p-0 h-auto text-destructive dark:text-red-400 underline text-xs"
                         onClick={() => handlePaymentClick(service)}
                       >
                         Lançar Pagamento
