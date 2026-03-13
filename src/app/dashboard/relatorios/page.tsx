@@ -18,7 +18,7 @@ import {
   TableRow,
   TableFooter,
 } from '@/components/ui/table';
-import type { Client, Supplier, Service, Account, Employee, AuthorizedUser } from '@/lib/types';
+import type { Client, Supplier, Service, Account, Employee, AuthorizedUser, City } from '@/lib/types';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Download, Search, XCircle, Calendar as CalendarIcon, ChevronDown, ChevronRight, Link as LinkIcon, ExternalLink, ClipboardCopy } from 'lucide-react';
@@ -57,10 +57,11 @@ function ClientReportRow({ client }: { client: Client }) {
         <TableCell className="font-medium">{client.nome_completo}</TableCell>
         <TableCell>{client.cpf_cnpj || '-'}</TableCell>
         <TableCell>{client.telefone || '-'}</TableCell>
+        <TableCell>{residencial?.city || '-'}</TableCell>
       </TableRow>
       {isOpen && (
         <TableRow>
-          <TableCell colSpan={4} className="p-0">
+          <TableCell colSpan={5} className="p-0">
             <div className="p-6 bg-muted/50">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
@@ -142,6 +143,7 @@ export default function RelatoriosPage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [accountsPayable, setAccountsPayable] = useState<Account[]>([]);
+  const [cities, setCities] = useState<City[]>([]);
   const companyData = useCompanyData();
   const [isLoading, setIsLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -149,6 +151,7 @@ export default function RelatoriosPage() {
   const [selectedReport, setSelectedReport] = useState<ReportType>('clients');
   const [searchFilter, setSearchFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [selectedCityFilter, setSelectedCityFilter] = useState('');
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   
 
@@ -175,12 +178,13 @@ export default function RelatoriosPage() {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const [clientsSnapshot, suppliersSnapshot, servicesSnapshot, accountsPayableSnapshot, employeesSnapshot] = await Promise.all([
+      const [clientsSnapshot, suppliersSnapshot, servicesSnapshot, accountsPayableSnapshot, employeesSnapshot, citiesSnapshot] = await Promise.all([
         getDocs(collection(db, "clientes")),
         getDocs(collection(db, "fornecedores")),
         getDocs(collection(db, "servicos")),
         getDocs(collection(db, "contas_a_pagar")),
         getDocs(collection(db, "funcionarios")),
+        getDocs(collection(db, "cidades")),
       ]);
 
       setClients(clientsSnapshot.docs.map(doc => ({ ...doc.data(), codigo_cliente: doc.id })) as Client[]);
@@ -188,6 +192,7 @@ export default function RelatoriosPage() {
       setServices(servicesSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, data_cadastro: doc.data().data_cadastro.toDate() })) as Service[]);
       setAccountsPayable(accountsPayableSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, vencimento: doc.data().vencimento.toDate() })) as Account[]);
       setEmployees(employeesSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Employee[]);
+      setCities(citiesSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as City[]);
 
     } catch (error) {
       console.error("Erro ao buscar dados: ", error);
@@ -215,6 +220,7 @@ export default function RelatoriosPage() {
   const clearFilters = () => {
       setSearchFilter('');
       setStatusFilter('');
+      setSelectedCityFilter('');
       setDateRange(undefined);
   };
   
@@ -243,7 +249,9 @@ export default function RelatoriosPage() {
     
     switch (selectedReport) {
         case 'clients':
-            data = clients.filter(c => c.nome_completo.toLowerCase().includes(searchLower) || c.cpf_cnpj?.includes(searchFilter));
+            data = clients
+                .filter(c => c.nome_completo.toLowerCase().includes(searchLower) || c.cpf_cnpj?.includes(searchFilter))
+                .filter(c => selectedCityFilter ? c.endereco_residencial?.city === selectedCityFilter : true);
             break;
         case 'suppliers':
             data = suppliers.filter(s => s.razao_social.toLowerCase().includes(searchLower) || s.cnpj?.includes(searchFilter));
@@ -272,28 +280,35 @@ export default function RelatoriosPage() {
             break;
     }
     return data;
-  }, [selectedReport, clients, suppliers, services, accountsPayable, searchFilter, statusFilter, dateRange]);
+  }, [selectedReport, clients, suppliers, services, accountsPayable, searchFilter, statusFilter, selectedCityFilter, dateRange]);
 
  const totals = useMemo(() => {
     if (!filteredData) return {};
     switch(selectedReport) {
         case 'services':
             return {
+                count: filteredData.length,
                 valor_total: filteredData.reduce((sum, item) => sum + (item.valor_total || 0), 0),
+                valor_pago: filteredData.reduce((sum, item) => sum + (item.valor_pago || 0), 0),
                 saldo_devedor: filteredData.reduce((sum, item) => sum + (item.saldo_devedor || 0), 0)
             };
         case 'accountsPayable':
+            const pago = filteredData.filter(a => a.status === 'pago').reduce((sum, item) => sum + (item.valor || 0), 0);
+            const pendente = filteredData.filter(a => a.status === 'pendente').reduce((sum, item) => sum + (item.valor || 0), 0);
             return {
-                valor: filteredData.reduce((sum, item) => sum + (item.valor || 0), 0)
+                count: filteredData.length,
+                pago,
+                pendente,
+                valor: pago + pendente
             };
         default:
-            return {};
+            return { count: filteredData.length };
     }
   }, [filteredData, selectedReport]);
 
   const getFinancialStatus = (service: Service) => {
       if (service.status_financeiro === 'cancelado') return { text: 'Cancelado', variant: 'destructive' as const };
-      if (service.status_financeiro === 'pago') return { text: 'Pago', variant: 'secondary' as const };
+      if (service.saldo_devedor <= 0.01) return { text: 'Pago', variant: 'secondary' as const };
       return { text: 'Pendente', variant: 'destructive' as const };
   }
 
@@ -433,6 +448,7 @@ export default function RelatoriosPage() {
   };
   
   const renderFilterControls = () => {
+    const isClients = selectedReport === 'clients';
     const hasStatus = ['services', 'accountsPayable'].includes(selectedReport);
     const hasDate = ['services', 'accountsPayable'].includes(selectedReport);
     const searchPlaceholder = {
@@ -458,6 +474,20 @@ export default function RelatoriosPage() {
                     onChange={(e) => setSearchFilter(e.target.value)}
                 />
             </div>
+            {isClients && (
+                <Select value={selectedCityFilter} onValueChange={setSelectedCityFilter}>
+                    <SelectTrigger className="w-full sm:w-[200px]">
+                        <SelectValue placeholder="Filtrar por cidade..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {cities.map(city => (
+                            <SelectItem key={city.id} value={city.nome_cidade}>
+                                {city.nome_cidade}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            )}
             {hasDate && (
                 <Popover>
                     <PopoverTrigger asChild>
@@ -488,6 +518,57 @@ export default function RelatoriosPage() {
         </div>
     );
   };
+
+  const renderTotalsBar = () => {
+    switch (selectedReport) {
+        case 'clients':
+        case 'suppliers':
+            return (
+                <div className="bg-slate-900 text-white p-4 rounded-t-lg flex flex-row justify-between items-center border-x border-t">
+                    <div className="font-bold text-lg pl-2">Cadastros Encontrados</div>
+                    <div className="flex flex-row gap-12 pr-4">
+                        <div className="text-right">
+                            <div className="text-sm font-bold text-blue-400">Total:</div>
+                            <div className="text-lg font-bold text-blue-300">{totals.count}</div>
+                        </div>
+                    </div>
+                </div>
+            );
+        case 'services':
+            return (
+                <div className="bg-slate-900 text-white p-4 rounded-t-lg flex flex-row justify-between items-center border-x border-t">
+                    <div className="font-bold text-lg pl-2">Totais Filtrados</div>
+                    <div className="flex flex-row gap-12 pr-4">
+                        <div className="text-right">
+                            <div className="text-sm font-bold text-green-500">Recebido: R$ {totals.valor_pago?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                            <div className="text-sm font-bold text-red-500">Saldo: R$ {totals.saldo_devedor?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                        </div>
+                        <div className="text-right">
+                            <div className="text-sm font-bold text-blue-400">Total Contratos: R$</div>
+                            <div className="text-lg font-bold text-blue-300">{totals.valor_total?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                        </div>
+                    </div>
+                </div>
+            );
+        case 'accountsPayable':
+            return (
+                <div className="bg-slate-900 text-white p-4 rounded-t-lg flex flex-row justify-between items-center border-x border-t">
+                    <div className="font-bold text-lg pl-2">Totais Filtrados</div>
+                    <div className="flex flex-row gap-12 pr-4">
+                        <div className="text-right">
+                            <div className="text-sm font-bold text-green-500">Pago: R$ {totals.pago?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                            <div className="text-sm font-bold text-red-500">Pendente: R$ {totals.pendente?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                        </div>
+                        <div className="text-right">
+                            <div className="text-sm font-bold text-blue-400">Total Geral: R$</div>
+                            <div className="text-lg font-bold text-blue-300">{totals.valor?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                        </div>
+                    </div>
+                </div>
+            );
+        default: return null;
+    }
+  }
   
   const renderReportCard = () => {
     switch (selectedReport) {
@@ -505,13 +586,22 @@ export default function RelatoriosPage() {
               {renderFilterControls()}
             </CardHeader>
             <CardContent>
-              <div className="border rounded-lg">
+              {renderTotalsBar()}
+              <div className="border border-t-0 rounded-b-lg overflow-hidden">
                 <Table>
-                  <TableHeader><TableRow><TableHead className="w-[50px]"></TableHead><TableHead>Nome</TableHead><TableHead>CPF/CNPJ</TableHead><TableHead>Telefone</TableHead></TableRow></TableHeader>
+                  <TableHeader>
+                    <TableRow>
+                        <TableHead className="w-[50px]"></TableHead>
+                        <TableHead>Nome</TableHead>
+                        <TableHead>CPF/CNPJ</TableHead>
+                        <TableHead>Telefone</TableHead>
+                        <TableHead>Cidade</TableHead>
+                    </TableRow>
+                  </TableHeader>
                   <TableBody>
-                    {filteredData.length > 0 ? filteredData.slice(0, 10).map((client: Client) => (
+                    {filteredData.length > 0 ? filteredData.slice(0, 50).map((client: Client) => (
                       <ClientReportRow key={client.codigo_cliente} client={client} />
-                    )) : (<TableRow><TableCell colSpan={4} className="h-24 text-center">Nenhum cliente encontrado.</TableCell></TableRow>)}
+                    )) : (<TableRow><TableCell colSpan={5} className="h-24 text-center">Nenhum cliente encontrado.</TableCell></TableRow>)}
                   </TableBody>
                 </Table>
               </div>
@@ -532,11 +622,12 @@ export default function RelatoriosPage() {
                 {renderFilterControls()}
             </CardHeader>
             <CardContent>
-              <div className="border rounded-lg">
+              {renderTotalsBar()}
+              <div className="border border-t-0 rounded-b-lg overflow-hidden">
                 <Table>
                   <TableHeader><TableRow><TableHead className="w-[50px]"></TableHead><TableHead>Razão Social</TableHead><TableHead>CNPJ</TableHead><TableHead>Telefone</TableHead><TableHead>Email</TableHead></TableRow></TableHeader>
                   <TableBody>
-                    {filteredData.length > 0 ? filteredData.slice(0, 10).map((supplier: Supplier) => (
+                    {filteredData.length > 0 ? filteredData.slice(0, 50).map((supplier: Supplier) => (
                       <SupplierReportRow key={supplier.id} supplier={supplier} />
                     )) : (<TableRow><TableCell colSpan={5} className="h-24 text-center">Nenhum fornecedor encontrado.</TableCell></TableRow>)}
                   </TableBody>
@@ -559,7 +650,8 @@ export default function RelatoriosPage() {
                 {renderFilterControls()}
             </CardHeader>
             <CardContent>
-              <div className="border rounded-lg">
+              {renderTotalsBar()}
+              <div className="border border-t-0 rounded-b-lg overflow-hidden">
                 <Table>
                     <TableHeader>
                         <TableRow>
@@ -570,7 +662,7 @@ export default function RelatoriosPage() {
                         </TableRow>
                     </TableHeader>
                   <TableBody>
-                    {filteredData.length > 0 ? filteredData.slice(0, 10).map((s: Service) => {
+                    {filteredData.length > 0 ? filteredData.slice(0, 50).map((s: Service) => {
                          const client = getClient(s.cliente_id);
                          const obra = s.endereco_obra;
                          const formattedObra = (obra && obra.street) ? `Obra: ${obra.street}, ${obra.number} - ${obra.neighborhood}, ${obra.city}` : '';
@@ -616,7 +708,7 @@ export default function RelatoriosPage() {
                                 </TableCell>
                                 <TableCell className="align-top">
                                     <div className="font-medium">Total: R$ {(s.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
-                                    <div className="text-sm text-red-500">Saldo: R$ {(s.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                                    <div className={cn("text-sm font-medium", s.saldo_devedor > 0.01 ? "text-red-500" : "text-muted-foreground")}>Saldo: R$ {(s.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
                                     {s.quantidade_m2 ? <div className="text-xs text-muted-foreground">Área: {s.quantidade_m2} m²</div> : null}
                                 </TableCell>
                                 <TableCell className="align-top space-y-1">
@@ -627,16 +719,6 @@ export default function RelatoriosPage() {
                          )
                     }) : (<TableRow><TableCell colSpan={4} className="h-24 text-center">Nenhum serviço encontrado.</TableCell></TableRow>)}
                   </TableBody>
-                  <TableFooter>
-                    <TableRow>
-                      <TableCell colSpan={2} className="font-bold">Total</TableCell>
-                      <TableCell className="font-bold">
-                        <div>Total: R$ {(totals.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
-                        <div className="text-red-500">Saldo: R$ {(totals.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
-                      </TableCell>
-                      <TableCell></TableCell>
-                    </TableRow>
-                  </TableFooter>
                 </Table>
               </div>
             </CardContent>
@@ -656,21 +738,15 @@ export default function RelatoriosPage() {
                 {renderFilterControls()}
             </CardHeader>
             <CardContent>
-              <div className="border rounded-lg">
+              {renderTotalsBar()}
+              <div className="border border-t-0 rounded-b-lg overflow-hidden">
                 <Table>
                   <TableHeader><TableRow><TableHead>Descrição</TableHead><TableHead>Favorecido</TableHead><TableHead>Vencimento</TableHead><TableHead className="text-right">Valor</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
                   <TableBody>
-                    {filteredData.length > 0 ? filteredData.slice(0, 10).map((acc: Account) => (
+                    {filteredData.length > 0 ? filteredData.slice(0, 50).map((acc: Account) => (
                       <TableRow key={acc.id}><TableCell className="font-medium">{acc.descricao}</TableCell><TableCell>{getPayeeName(acc)}</TableCell><TableCell>{acc.vencimento ? format(acc.vencimento, "dd/MM/yyyy") : '-'}</TableCell><TableCell className="text-right text-red-500">R$ {acc.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell><TableCell><Badge variant={acc.status === 'pago' ? 'secondary' : 'destructive'}>{acc.status}</Badge></TableCell></TableRow>
                     )) : (<TableRow><TableCell colSpan={5} className="h-24 text-center">Nenhuma conta a pagar encontrada.</TableCell></TableRow>)}
                   </TableBody>
-                   <TableFooter>
-                    <TableRow>
-                      <TableCell colSpan={3} className="font-bold">Total</TableCell>
-                      <TableCell className="text-right font-bold text-red-500">R$ {(totals.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
-                      <TableCell></TableCell>
-                    </TableRow>
-                  </TableFooter>
                 </Table>
               </div>
             </CardContent>
