@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -26,7 +25,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { Client, City, AuthorizedUser } from '@/lib/types';
-import { PlusCircle, Search, MoreHorizontal, Loader2, Trash, ChevronDown, ChevronRight } from 'lucide-react';
+import { PlusCircle, Search, MoreHorizontal, Loader2, Trash, ChevronDown, ChevronRight, XCircle } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -49,7 +48,7 @@ import {
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatCPF_CNPJ, formatTelefone, formatCEP } from '@/lib/utils';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageHeader } from '@/components/page-header';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -248,6 +247,7 @@ export default function ClientesPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [cities, setCities] = useState<City[]>([]);
   const [search, setSearch] = useState('');
+  const [selectedCityFilter, setSelectedCityFilter] = useState<string>('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -449,11 +449,20 @@ export default function ClientesPage() {
     setIsDialogOpen(true);
   }
 
-  const filteredClients = clients.filter(
-    (client) =>
-      client.nome_completo.toLowerCase().includes(search.toLowerCase()) ||
-      (client.cpf_cnpj && client.cpf_cnpj.includes(search))
-  );
+  const handleClearFilters = () => {
+    setSearch('');
+    setSelectedCityFilter('');
+  };
+
+  const filteredClients = clients
+    .filter(
+      (client) =>
+        client.nome_completo.toLowerCase().includes(search.toLowerCase()) ||
+        (client.cpf_cnpj && client.cpf_cnpj.includes(search))
+    )
+    .filter((client) => 
+      selectedCityFilter ? client.endereco_residencial?.city === selectedCityFilter : true
+    );
 
   return (
     <div className="flex flex-col gap-8">
@@ -700,6 +709,26 @@ export default function ClientesPage() {
                     </DialogContent>
                     </Dialog>
                 </div>
+                <div className="flex flex-wrap items-center gap-4 mt-4 p-4 bg-muted rounded-lg">
+                    <div className="flex items-center gap-2">
+                        <Select value={selectedCityFilter} onValueChange={setSelectedCityFilter}>
+                            <SelectTrigger className="w-[250px]">
+                                <SelectValue placeholder="Filtrar por cidade..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {cities.map(city => (
+                                    <SelectItem key={city.id} value={city.nome_cidade}>
+                                        {city.nome_cidade}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <Button variant="ghost" onClick={handleClearFilters} className="text-muted-foreground">
+                        <XCircle className="mr-2 h-4 w-4"/>
+                        Limpar Filtros
+                    </Button>
+                </div>
             </CardHeader>
 
             <CardContent>
@@ -733,5 +762,3 @@ export default function ClientesPage() {
     </div>
   );
 }
-    
-    
