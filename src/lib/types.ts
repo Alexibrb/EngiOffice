@@ -45,9 +45,11 @@ export type Employee = {
   telefone: string;
   email: string;
   status: 'ativo' | 'inativo';
-  tipo_contratacao: 'salario_fixo' | 'salario_variavel';
+  tipo_contratacao: 'salario_fixo' | 'salario_variavel' | 'comissao';
   salario?: number;
+  taxa_comissao?: number;
   dia_pagamento?: number;
+  endereco_residencial?: Address;
 };
 
 export type Service = {
