@@ -495,6 +495,14 @@ export default function ServicosPage() {
     setDateRange(undefined);
   }
 
+  const handleCopyLink = (url: string) => {
+    navigator.clipboard.writeText(url);
+    toast({
+      title: "Sucesso!",
+      description: "Link copiado para a área de transferência.",
+    });
+  };
+
   const generateReceipt = (service: Service, paymentValue?: number) => {
     const client = clients.find(c => c.codigo_cliente === service.cliente_id);
     if (!client) return;
@@ -780,10 +788,33 @@ export default function ServicosPage() {
                                     <div className="text-xs text-muted-foreground">Cadastrado em: {format(service.data_cadastro, 'dd/MM/yyyy')}</div>
                                 </TableCell>
                                 <TableCell className="align-top">
-                                  <div className="text-xs font-medium">{formattedObra}</div>
+                                  <div className="text-xs font-medium">Obra: {formattedObra}</div>
+                                  {(service.coordenadas?.lat && service.coordenadas?.lng) && (
+                                    <div className="text-[10px] text-muted-foreground">
+                                        Coords: {service.coordenadas.lat}, {service.coordenadas.lng}
+                                    </div>
+                                  )}
                                   {(service.anexos && service.anexos.length > 0) && (
-                                    <div className="flex gap-2 mt-2">
-                                        <Badge variant="outline" className="text-[10px]"><LinkIcon className="h-2 w-2 mr-1"/>{service.anexos.length} anexo(s)</Badge>
+                                    <div className="text-[10px] text-muted-foreground mt-1 space-y-1">
+                                        {service.anexos.map((anexo, index) => {
+                                             const isWebUrl = anexo.startsWith('http://') || anexo.startsWith('https://');
+                                             return (
+                                                <div key={index} className="flex items-center gap-1 group max-w-[250px]">
+                                                    <LinkIcon className="h-3 w-3 shrink-0 text-primary" />
+                                                    <span className="truncate flex-1" title={anexo}>{anexo}</span>
+                                                    <Button variant="ghost" size="icon" className="h-4 w-4 opacity-50 group-hover:opacity-100" onClick={() => handleCopyLink(anexo)}>
+                                                        <ClipboardCopy className="h-2 w-2" />
+                                                    </Button>
+                                                    {isWebUrl && (
+                                                    <a href={anexo} target="_blank" rel="noopener noreferrer">
+                                                        <Button variant="ghost" size="icon" className="h-4 w-4 opacity-50 group-hover:opacity-100">
+                                                            <ExternalLink className="h-2 w-2" />
+                                                        </Button>
+                                                    </a>
+                                                    )}
+                                                </div>
+                                            )
+                                        })}
                                     </div>
                                   )}
                                 </TableCell>
