@@ -87,7 +87,7 @@ export default function PagamentosPage() {
         setIsLoading(true);
         try {
             const [employeesSnapshot, paymentsSnapshot] = await Promise.all([
-                getDocs(query(collection(db, "funcionarios"), where("tipo_contratacao", "==", "salario_fixo"))),
+                getDocs(query(collection(db, "funcionarios"), where("status", "==", "ativo"))),
                 getDocs(query(collection(db, "contas_a_pagar"), where("tipo_referencia", "==", "funcionario")))
             ]);
 
@@ -113,12 +113,18 @@ export default function PagamentosPage() {
     useEffect(() => {
         if (selectedEmployeeId) {
             const employee = employees.find(e => e.id === selectedEmployeeId);
-            if (employee && employee.salario) {
-                form.setValue('valor', employee.salario);
-            }
-            if (employee && employee.dia_pagamento) {
-                const today = new Date();
-                form.setValue('vencimento', new Date(today.getFullYear(), today.getMonth(), employee.dia_pagamento));
+            if (employee && employee.tipo_contratacao === 'salario_fixo') {
+                if (employee.salario) {
+                    form.setValue('valor', employee.salario);
+                }
+                if (employee.dia_pagamento) {
+                    const today = new Date();
+                    form.setValue('vencimento', new Date(today.getFullYear(), today.getMonth(), employee.dia_pagamento));
+                }
+            } else {
+                // For Variable Salary, we reset values or leave as user input
+                form.setValue('valor', 0);
+                form.setValue('vencimento', new Date());
             }
         }
     }, [selectedEmployeeId, employees, form]);
@@ -243,7 +249,9 @@ export default function PagamentosPage() {
                                                 </FormControl>
                                                 <SelectContent>
                                                     {employees.map(emp => (
-                                                        <SelectItem key={emp.id} value={emp.id}>{emp.nome}</SelectItem>
+                                                        <SelectItem key={emp.id} value={emp.id}>
+                                                            {emp.nome} ({emp.tipo_contratacao === 'salario_fixo' ? 'Fixo' : 'Variável'})
+                                                        </SelectItem>
                                                     ))}
                                                 </SelectContent>
                                             </Select>
@@ -261,6 +269,7 @@ export default function PagamentosPage() {
                                                 <Input
                                                     placeholder="Valor do Salário"
                                                     type="number"
+                                                    step="0.01"
                                                     {...field}
                                                 />
                                             </FormControl>

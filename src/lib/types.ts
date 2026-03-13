@@ -1,5 +1,4 @@
 
-
 export type Address = {
   street: string;
   number: string;
@@ -46,9 +45,8 @@ export type Employee = {
   telefone: string;
   email: string;
   status: 'ativo' | 'inativo';
-  tipo_contratacao: 'salario_fixo' | 'comissao';
+  tipo_contratacao: 'salario_fixo' | 'salario_variavel';
   salario?: number;
-  taxa_comissao?: number;
   dia_pagamento?: number;
 };
 
@@ -150,4 +148,3 @@ export type Note = {
   content: string;
   createdAt: Date;
 };
-    

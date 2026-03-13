@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -56,7 +57,7 @@ const employeeSchema = z.object({
   telefone: z.string().optional(),
   email: z.string().email({ message: 'Email inválido.' }).optional().or(z.literal('')),
   status: z.enum(['ativo', 'inativo']),
-  tipo_contratacao: z.enum(['salario_fixo', 'comissao'], { required_error: 'Tipo de contratação é obrigatório.'}),
+  tipo_contratacao: z.enum(['salario_fixo', 'salario_variavel'], { required_error: 'Tipo de contratação é obrigatório.'}),
   salario: z.coerce.number().optional(),
   dia_pagamento: z.coerce.number().optional(),
 }).refine(data => {
@@ -417,6 +418,7 @@ export default function FuncionariosPage() {
                                     </FormControl>
                                     <SelectContent>
                                     <SelectItem value="salario_fixo">Salário Fixo</SelectItem>
+                                    <SelectItem value="salario_variavel">Salário Variável</SelectItem>
                                     </SelectContent>
                                 </Select>
                                 <FormMessage />
@@ -501,7 +503,7 @@ export default function FuncionariosPage() {
                     <TableRow key={employee.id}>
                         <TableCell className="font-medium">{employee.nome}</TableCell>
                         <TableCell>{employee.cargo}</TableCell>
-                        <TableCell>{employee.tipo_contratacao === 'salario_fixo' ? `Salário Fixo (Dia ${employee.dia_pagamento || 'N/A'})` : `Comissão`}</TableCell>
+                        <TableCell>{employee.tipo_contratacao === 'salario_fixo' ? `Salário Fixo (Dia ${employee.dia_pagamento || 'N/A'})` : `Salário Variável`}</TableCell>
                         <TableCell>
                         <Badge variant={employee.status === 'ativo' ? 'secondary' : 'destructive'}>
                             {employee.status}
