@@ -1,6 +1,7 @@
+
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -22,10 +23,10 @@ import {
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from '@/components/ui/badge';
-import { collection, getDocs, deleteDoc, doc, updateDoc, query, orderBy, addDoc } from 'firebase/firestore';
+import { collection, getDocs, deleteDoc, doc, updateDoc, query, orderBy, addDoc, Timestamp } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import type { Service, Account, Client, Note } from '@/lib/types';
-import { format, isPast } from 'date-fns';
+import { format, isPast, differenceInDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -44,6 +45,7 @@ import {
   Pin,
   Trash2,
   StickyNote,
+  AlertCircle,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -68,6 +70,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const paymentSchema = z.object({
   valor_pago: z.coerce.number().min(0.01, "O valor deve ser maior que zero.")
@@ -145,7 +148,12 @@ export default function DashboardPage() {
 
         const servicesData = servicesSnapshot.docs.map(doc => {
             const data = doc.data();
-            return { ...data, id: doc.id, data_cadastro: data.data_cadastro.toDate() } as Service;
+            return { 
+              ...data, 
+              id: doc.id, 
+              data_cadastro: data.data_cadastro.toDate(),
+              data_ultimo_pagamento: data.data_ultimo_pagamento?.toDate()
+            } as Service;
         });
         setServices(servicesData);
 
@@ -251,6 +259,19 @@ export default function DashboardPage() {
   const pendingPaymentServices = services.filter(
     (s) => s.saldo_devedor > 0 && s.status_financeiro === 'pendente'
   );
+
+  // Lógica de Alerta: Serviços com saldo devedor e sem pagamento há mais de 30 dias
+  const overdueReceivables = useMemo(() => {
+    const today = new Date();
+    return services.filter(s => {
+      if (s.saldo_devedor <= 0 || s.status_financeiro === 'cancelado') return false;
+      
+      const lastReferenceDate = s.data_ultimo_pagamento || s.data_cadastro;
+      const daysSince = differenceInDays(today, lastReferenceDate);
+      
+      return daysSince >= 30;
+    });
+  }, [services]);
   
   const upcomingPayable = accountsPayable
     .filter((a) => a.status === 'pendente')
@@ -410,7 +431,8 @@ export default function DashboardPage() {
     }
     const creaCnpj = [
         companyData?.crea ? `CREA: ${companyData.crea}` : '',
-        companyData?.cnpj ? `CNPJ: ${companyData.cnpj}` : ''
+        companyData?.cnpj ? `CNPJ: ${companyData.cnpj}` :
+        ''
     ].filter(Boolean).join(' | ');
     if (creaCnpj) {
         doc.text(creaCnpj, pageWidth / 2, currentY, { align: 'center' });
@@ -529,10 +551,13 @@ export default function DashboardPage() {
 
         const serviceDocRef = doc(db, 'servicos', editingService.id);
         const newStatus = novoSaldoDevedor <= 0 ? 'pago' : 'pendente';
+        
+        // Atualiza valor, saldo e a data do último pagamento
         await updateDoc(serviceDocRef, {
             valor_pago: novoValorPago,
             saldo_devedor: novoSaldoDevedor,
             status_financeiro: newStatus,
+            data_ultimo_pagamento: Timestamp.now(),
         });
 
         toast({ title: 'Sucesso!', description: 'Pagamento lançado com sucesso.' });
@@ -574,6 +599,44 @@ export default function DashboardPage() {
           title={`Olá, ${user?.displayName || 'Usuário'}!`}
           description="Uma visão geral do seu escritório."
       />
+
+      {/* Seção de Alertas de Recebimento */}
+      {overdueReceivables.length > 0 && (
+        <div className="space-y-4">
+          <h2 className="text-xl font-bold flex items-center gap-2 text-destructive">
+            <AlertCircle className="h-5 w-5" />
+            Alertas de Recebimento
+          </h2>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {overdueReceivables.map(service => {
+              const client = getClient(service.cliente_id);
+              const lastDate = service.data_ultimo_pagamento || service.data_cadastro;
+              const daysInactive = differenceInDays(new Date(), lastDate);
+              
+              return (
+                <Alert key={service.id} variant="destructive" className="bg-destructive/10">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle className="font-bold">{client?.nome_completo || 'Cliente Desconhecido'}</AlertTitle>
+                  <AlertDescription className="text-sm">
+                    Serviço: <strong>{service.descricao}</strong><br/>
+                    Saldo a receber: <strong>R$ {service.saldo_devedor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong><br/>
+                    <span className="text-xs font-medium uppercase mt-2 block">
+                      Inativo há {daysInactive} dias
+                    </span>
+                    <Button 
+                      variant="link" 
+                      className="p-0 h-auto text-destructive underline mt-2"
+                      onClick={() => handlePaymentClick(service)}
+                    >
+                      Lançar Pagamento
+                    </Button>
+                  </AlertDescription>
+                </Alert>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -102,7 +103,7 @@ export default function ContasAReceberPage() {
         try {
             const [servicesSnapshot, clientsSnapshot] = await Promise.all([
                 getDocs(collection(db, "servicos")),
-                getDocs(collection(db, "clientes")),
+                getDocs(collection(db, "clients")),
             ]);
             
             const servicesData = servicesSnapshot.docs.map(doc => {
@@ -111,6 +112,7 @@ export default function ContasAReceberPage() {
                   ...data,
                   id: doc.id,
                   data_cadastro: data.data_cadastro instanceof Timestamp ? data.data_cadastro.toDate() : new Date(data.data_cadastro),
+                  data_ultimo_pagamento: data.data_ultimo_pagamento?.toDate(),
                 } as Service
             });
             setServices(servicesData);
@@ -364,10 +366,13 @@ export default function ContasAReceberPage() {
 
             const serviceDocRef = doc(db, 'servicos', editingService.id);
             const newStatus = novoSaldoDevedor === 0 ? 'pago' : 'pendente';
+            
+            // Grava o saldo e a data da movimentação
             await updateDoc(serviceDocRef, {
                 valor_pago: novoValorPago,
                 saldo_devedor: novoSaldoDevedor,
                 status_financeiro: newStatus,
+                data_ultimo_pagamento: Timestamp.now(),
             });
 
             toast({ title: 'Sucesso!', description: 'Pagamento lançado com sucesso.' });

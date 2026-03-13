@@ -55,6 +55,7 @@ export type Service = {
   descricao: string;
   cliente_id: string;
   data_cadastro: Date;
+  data_ultimo_pagamento?: Date;
   valor_total: number;
   valor_pago: number;
   saldo_devedor: number;

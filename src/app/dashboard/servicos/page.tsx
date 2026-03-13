@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -306,8 +307,8 @@ export default function ServicosPage() {
   const fetchClientsAndCities = async () => {
     try {
         const [clientsSnapshot, citiesSnapshot] = await Promise.all([
-          getDocs(collection(db, "clientes")),
-          getDocs(collection(db, "cidades"))
+          getDocs(collection(db, "clients")),
+          getDocs(collection(db, "cities"))
         ]);
         const clientsData = clientsSnapshot.docs.map(doc => ({
             ...doc.data(),
@@ -341,6 +342,7 @@ export default function ServicosPage() {
           ...data,
           id: doc.id,
           data_cadastro: data.data_cadastro instanceof Timestamp ? data.data_cadastro.toDate() : new Date(data.data_cadastro),
+          data_ultimo_pagamento: data.data_ultimo_pagamento?.toDate(),
         } as Service
       });
       servicesData.sort((a, b) => b.data_cadastro.getTime() - a.data_cadastro.getTime());
@@ -459,10 +461,13 @@ export default function ServicosPage() {
 
         const serviceDocRef = doc(db, 'servicos', editingService.id);
         const newStatus = novoSaldoDevedor <= 0 ? 'pago' : 'pendente';
+        
+        // Atualiza saldo e data do último pagamento
         await updateDoc(serviceDocRef, {
             valor_pago: novoValorPago,
             saldo_devedor: novoSaldoDevedor,
             status_financeiro: newStatus,
+            data_ultimo_pagamento: Timestamp.now(),
         });
 
         toast({ title: 'Sucesso!', description: 'Pagamento lançado com sucesso.' });
@@ -760,7 +765,7 @@ export default function ServicosPage() {
                                 <AlertDialogDescription>Esta ação é irreversível.</AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
-                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogCancel>Voltar</AlertDialogCancel>
                                 <AlertDialogAction onClick={handleDeleteAll} disabled={isDeletingAll}>{isDeletingAll && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Excluir</AlertDialogAction>
                             </AlertDialogFooter>
                         </AlertDialogContent>
@@ -890,7 +895,7 @@ export default function ServicosPage() {
         </CardContent>
       </Card>
 
-      <AddServiceTypeDialog isOpen={isServiceTypeDialogOpen} setIsOpen={setIsServiceTypeDialogOpen} onServiceTypeAdded={fetchServiceTypes} />
+      <AddServiceTypeDialog isOpen={isServiceTypeDialogOpen} setIsOpen={isServiceTypeDialogOpen} onServiceTypeAdded={fetchServiceTypes} />
     
       <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
           <DialogContent className="sm:max-w-md">
