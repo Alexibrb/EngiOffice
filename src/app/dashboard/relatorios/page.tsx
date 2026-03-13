@@ -304,7 +304,6 @@ export default function RelatoriosPage() {
     const data = filteredData;
     let head: any[];
     let body: any[][];
-    let foot: any[][] | undefined = undefined;
     let fileName = '';
     let reportTitle = '';
     let doc: jsPDF;
@@ -367,8 +366,6 @@ export default function RelatoriosPage() {
                 item.status_execucao,
             ];
         });
-
-        foot = [['Total Geral', '', '', `R$ ${(totals.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, `R$ ${(totals.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, '']];
         fileName = 'relatorio_servicos.pdf';
         break;
       case 'accountsPayable':
@@ -376,7 +373,6 @@ export default function RelatoriosPage() {
         reportTitle = 'Relatório de Contas a Pagar';
         head = [['Descrição', 'Favorecido', 'Vencimento', 'Valor', 'Status']];
         body = data.map((item: Account) => [item.descricao, getPayeeName(item), item.vencimento ? format(item.vencimento, "dd/MM/yyyy") : '-', `R$ ${item.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, item.status]);
-        foot = [['Total', '', '', `R$ ${(totals.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, '']];
         fileName = 'relatorio_contas_a_pagar.pdf';
         break;
       default: return;
@@ -420,15 +416,48 @@ export default function RelatoriosPage() {
     doc.text(reportTitle, pageWidth / 2, currentY, { align: 'center' });
     currentY += 8;
 
+    // BLOCO DE RESUMO NO TOPO (Apenas para Serviços e Contas a Pagar)
+    if (selectedReport === 'services') {
+        autoTable(doc, {
+            startY: currentY,
+            head: [['Resumo Financeiro']],
+            body: [
+                ['Total dos Contratos:', `R$ ${(totals.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
+                ['Total Recebido:', `R$ ${(totals.valor_pago || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
+                ['Total Saldo Devedor:', `R$ ${(totals.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
+            ],
+            theme: 'grid',
+            headStyles: { fillColor: [34, 139, 34] },
+            styles: { fontSize: 9 },
+            margin: { left: 14 },
+            tableWidth: 100,
+        });
+        currentY = (doc as any).lastAutoTable.finalY + 10;
+    } else if (selectedReport === 'accountsPayable') {
+        autoTable(doc, {
+            startY: currentY,
+            head: [['Resumo de Despesas']],
+            body: [
+                ['Total Pago:', `R$ ${(totals.pago || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
+                ['Total Pendente:', `R$ ${(totals.pendente || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
+                ['Total Geral:', `R$ ${(totals.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
+            ],
+            theme: 'grid',
+            headStyles: { fillColor: [34, 139, 34] },
+            styles: { fontSize: 9 },
+            margin: { left: 14 },
+            tableWidth: 100,
+        });
+        currentY = (doc as any).lastAutoTable.finalY + 10;
+    }
+
 
     autoTable(doc, {
       startY: currentY,
       head: head,
       body: body,
-      foot: foot,
       theme: 'striped',
       headStyles: { fillColor: [34, 139, 34] },
-      footStyles: { fillColor: [220, 220, 220], textColor: [0, 0, 0], fontStyle: 'bold' }
     });
     doc.save(fileName);
   };
