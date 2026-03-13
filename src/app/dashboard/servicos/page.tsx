@@ -548,6 +548,12 @@ export default function ServicosPage() {
     setIsPaymentDialogOpen(true);
   };
 
+  const handleClearFilters = () => {
+    setSearch('');
+    setStatusFilter('');
+    setDateRange(undefined);
+  }
+
   const generateReceipt = (service: Service, paymentValue?: number) => {
     const client = clients.find(c => c.codigo_cliente === service.cliente_id);
     if (!client) return;
