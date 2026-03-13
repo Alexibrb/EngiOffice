@@ -22,7 +22,6 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-  TableFooter,
 } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -435,7 +434,7 @@ export default function ServicosPage() {
       await fetchData();
     } catch (error) {
       console.error("Erro ao excluir serviço: ", error);
-      toast({ variant: "destructive", title: "Erro", description: "Ocorreu um erro ao excluir o serviço." });
+      toast({ variant: "destructive", title: "Erro", description: "Ocorreu um erro ao excluir the serviço." });
     }
   };
 
@@ -582,6 +581,21 @@ export default function ServicosPage() {
     doc.save(`comprovante_${client.nome_completo.replace(/\s/g, '_')}_${service.id}.pdf`);
   };
   
+  const getServiceProfitability = (serviceId: string, serviceTotal: number) => {
+      const serviceExpenses = expenses
+        .filter(acc => acc.servico_id === serviceId && acc.status === 'pago')
+        .reduce((sum, item) => sum + item.valor, 0);
+      
+      const profit = serviceTotal - serviceExpenses;
+      const margin = serviceTotal > 0 ? (profit / serviceTotal) * 100 : 0;
+
+      return {
+          expenses: serviceExpenses,
+          profit: profit,
+          margin: margin
+      };
+  }
+
   const filteredServices = useMemo(() => {
     return services
         .filter(service => {
@@ -607,21 +621,9 @@ export default function ServicosPage() {
 
   const filteredTotal = filteredServices.reduce((acc, curr) => acc + (curr.valor_total || 0), 0);
   const filteredSaldoDevedor = filteredServices.reduce((acc, curr) => acc + (curr.saldo_devedor || 0), 0);
-
-  const getServiceProfitability = (serviceId: string, serviceTotal: number) => {
-      const serviceExpenses = expenses
-        .filter(acc => acc.servico_id === serviceId && acc.status === 'pago')
-        .reduce((sum, item) => sum + item.valor, 0);
-      
-      const profit = serviceTotal - serviceExpenses;
-      const margin = serviceTotal > 0 ? (profit / serviceTotal) * 100 : 0;
-
-      return {
-          expenses: serviceExpenses,
-          profit: profit,
-          margin: margin
-      };
-  }
+  const filteredLucroTotal = useMemo(() => {
+    return filteredServices.reduce((acc, curr) => acc + getServiceProfitability(curr.id, curr.valor_total).profit, 0);
+  }, [filteredServices, expenses]);
 
   const getExecutionStatusBadge = (status: Service['status_execucao']) => {
     switch (status) {
@@ -735,7 +737,22 @@ export default function ServicosPage() {
             </div>
         </CardHeader>
         <CardContent>
-            <div className="border rounded-lg">
+            {/* Barra de Totais Filtrados */}
+            <div className="bg-slate-900 text-white p-4 rounded-t-lg flex flex-row justify-between items-center border-x border-t">
+                <div className="font-bold text-lg pl-2">Totais Filtrados</div>
+                <div className="flex flex-row gap-12 pr-4">
+                    <div className="text-right">
+                        <div className="text-sm font-bold">Contratos: R$ {filteredTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                        <div className="text-sm font-bold text-red-500">Saldo: R$ {filteredSaldoDevedor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                    </div>
+                    <div className="text-right">
+                        <div className="text-sm font-bold text-green-600">Lucro Total: R$</div>
+                        <div className="text-lg font-bold text-green-500">{filteredLucroTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div className="border border-t-0 rounded-b-lg overflow-hidden">
                 <Table>
                 <TableHeader>
                     <TableRow>
@@ -815,19 +832,6 @@ export default function ServicosPage() {
                         )
                     }) : <TableRow><TableCell colSpan={6} className="h-24 text-center">Nenhum serviço encontrado.</TableCell></TableRow>}
                 </TableBody>
-                <TableFooter>
-                    <TableRow>
-                        <TableCell colSpan={3} className="font-bold">Totais Filtrados</TableCell>
-                        <TableCell className="font-bold">
-                           <div className="text-xs">Contratos: R$ {filteredTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
-                           <div className="text-xs text-red-500">Saldo: R$ {filteredSaldoDevedor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
-                        </TableCell>
-                        <TableCell className="text-right font-bold">
-                            <div className="text-sm text-green-600">Lucro Total: R$ {filteredServices.reduce((acc, curr) => acc + getServiceProfitability(curr.id, curr.valor_total).profit, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
-                        </TableCell>
-                        <TableCell></TableCell>
-                    </TableRow>
-                </TableFooter>
                 </Table>
             </div>
         </CardContent>
