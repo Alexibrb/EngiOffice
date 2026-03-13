@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -392,25 +392,28 @@ export default function ContasAReceberPage() {
         }
     };
     
-    const filteredReceivable = services
-        .filter(service => {
-            return statusFilter ? service.status_financeiro === statusFilter : true;
-        })
-        .filter(service => {
-            if (!dateRange?.from) return true;
-            const fromDate = startOfDay(dateRange.from);
-            const toDate = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from);
-            const serviceDate = service.data_cadastro;
-            return serviceDate >= fromDate && serviceDate <= toDate;
-        });
+    const filteredReceivable = useMemo(() => {
+        return services
+            .filter(service => {
+                return statusFilter ? service.status_financeiro === statusFilter : true;
+            })
+            .filter(service => {
+                if (!dateRange?.from) return true;
+                const fromDate = startOfDay(dateRange.from);
+                const toDate = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from);
+                const serviceDate = service.data_cadastro;
+                return serviceDate >= fromDate && serviceDate <= toDate;
+            });
+    }, [services, statusFilter, dateRange]);
 
     const totalReceivablePending = services
         .reduce((acc, curr) => acc + (curr.saldo_devedor || 0), 0);
 
     const totalReceivablePaid = services.reduce((acc, curr) => acc + (curr.valor_pago || 0), 0);
 
-    const filteredTotal = filteredReceivable.reduce((acc, curr) => acc + curr.valor_total, 0);
-    const filteredSaldoDevedor = filteredReceivable.reduce((acc, curr) => acc + (curr.saldo_devedor || 0), 0);
+    const filteredTotal = useMemo(() => filteredReceivable.reduce((acc, curr) => acc + curr.valor_total, 0), [filteredReceivable]);
+    const filteredSaldoDevedor = useMemo(() => filteredReceivable.reduce((acc, curr) => acc + (curr.saldo_devedor || 0), 0), [filteredReceivable]);
+    const filteredRecebido = useMemo(() => filteredReceivable.reduce((acc, curr) => acc + (curr.valor_pago || 0), 0), [filteredReceivable]);
 
     const generatePdf = () => {
         const doc = new jsPDF();
@@ -554,6 +557,21 @@ export default function ContasAReceberPage() {
                     </div>
                 </CardHeader>
                 <CardContent>
+                    {/* Barra de Totais Filtrados */}
+                    <div className="bg-slate-900 text-white p-4 rounded-t-lg flex flex-row justify-between items-center border-x border-t">
+                        <div className="font-bold text-lg pl-2">Totais Filtrados</div>
+                        <div className="flex flex-row gap-12 pr-4">
+                            <div className="text-right">
+                                <div className="text-sm font-bold text-green-500">Recebido: R$ {filteredRecebido.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                                <div className="text-sm font-bold text-red-500">Saldo: R$ {filteredSaldoDevedor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                            </div>
+                            <div className="text-right">
+                                <div className="text-sm font-bold text-blue-400">Total Contratos: R$</div>
+                                <div className="text-lg font-bold text-blue-300">{filteredTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                            </div>
+                        </div>
+                    </div>
+
                     <ReceivableTableComponent 
                         services={filteredReceivable} 
                         getClient={getClient}
@@ -639,7 +657,7 @@ function ReceivableTableComponent({ services, getClient, totalValor, totalSaldo,
     };
     
     return (
-        <div className="border rounded-lg">
+        <div className="border border-t-0 rounded-b-lg overflow-hidden">
             <Table>
                 <TableHeader>
                     <TableRow>
@@ -683,7 +701,7 @@ function ReceivableTableComponent({ services, getClient, totalValor, totalSaldo,
                                     {service.quantidade_m2 ? <div className="text-xs text-muted-foreground">Área: {service.quantidade_m2} m²</div> : null}
                                 </TableCell>
                                  <TableCell className="align-top space-y-1">
-                                    <Badge variant={service.status_execucao === 'concluído' ? 'secondary' : service.status_execucao === 'cancelado' ? 'destructive' : 'default'}>{service.status_execucao}</Badge>
+                                    <Badge variant={service.status_execucao === 'finalizado' ? 'secondary' : service.status_execucao === 'cancelado' ? 'destructive' : 'default'}>{service.status_execucao}</Badge>
                                 </TableCell>
                                 <TableCell>
                                     <DropdownMenu>
@@ -723,16 +741,6 @@ function ReceivableTableComponent({ services, getClient, totalValor, totalSaldo,
                         </TableRow>
                     )}
                 </TableBody>
-                <TableFooter>
-                    <TableRow>
-                        <TableCell colSpan={2} className="font-bold">Total</TableCell>
-                        <TableCell className="font-bold">
-                           <div>Total: R$ {totalValor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
-                           <div className="text-red-500">Saldo: R$ {totalSaldo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
-                        </TableCell>
-                        <TableCell colSpan={2}></TableCell>
-                    </TableRow>
-                </TableFooter>
             </Table>
         </div>
     );
