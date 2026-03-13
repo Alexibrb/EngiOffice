@@ -334,7 +334,7 @@ export default function RelatoriosPage() {
         head = [['Dados Pessoais', 'Endereço Residencial']];
         body = data.map((item: Client) => {
             const residencial = item.endereco_residencial;
-            const dadosPessoais = `${item.nome_completo}\nRG: ${item.rg || '-'}\nCPF/CNPJ: ${item.cpf_cnpj || '-'}`;
+            const dadosPessoais = `${item.nome_completo}\nRG: ${item.rg || '-'}\nCPF/CNPJ: ${item.cpf_cnpj || '-'}\nTel: ${item.telefone || '-'}`;
             const endereco = residencial ? `${residencial.street}, ${residencial.number}\n${residencial.neighborhood}, ${residencial.city} - ${residencial.state}\nCEP: ${residencial.zip}` : 'N/A';
             return [dadosPessoais, endereco];
         });
