@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -18,7 +17,7 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import { collection, addDoc, getDocs, doc, query, where, deleteDoc, updateDoc } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
-import { Loader2, Trash, DollarSign, CalendarIcon, CheckCircle, XCircle } from 'lucide-react';
+import { Loader2, Trash, DollarSign, CalendarIcon, CheckCircle, XCircle, Download } from 'lucide-react';
 import type { Account, Employee, AuthorizedUser } from '@/lib/types';
 import { format, startOfDay, endOfDay } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -35,6 +34,9 @@ import { cn } from '@/lib/utils';
 import { ptBR } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
 import { DateRange } from 'react-day-picker';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { useCompanyData } from '../layout';
 
 
 const paymentSchema = z.object({
@@ -51,6 +53,7 @@ export default function PagamentosPage() {
     const [isAdmin, setIsAdmin] = useState(false);
     const { toast } = useToast();
     const router = useRouter();
+    const companyData = useCompanyData();
 
     const [selectedEmployeeFilter, setSelectedEmployeeFilter] = useState<string>('');
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
@@ -122,7 +125,6 @@ export default function PagamentosPage() {
                     form.setValue('vencimento', new Date(today.getFullYear(), today.getMonth(), employee.dia_pagamento));
                 }
             } else {
-                // For Variable Salary, we reset values or leave as user input
                 form.setValue('valor', 0);
                 form.setValue('vencimento', new Date());
             }
@@ -218,6 +220,84 @@ export default function PagamentosPage() {
         setSelectedEmployeeFilter('');
         setDateRange(undefined);
     }
+
+    const generatePdf = () => {
+        const doc = new jsPDF();
+        const pageWidth = doc.internal.pageSize.getWidth();
+        let currentY = 15;
+
+        // Cabeçalho da Empresa
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(16);
+        doc.text(companyData?.companyName || 'EngiOffice', pageWidth / 2, currentY, { align: 'center' });
+        currentY += 7;
+        
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        if (companyData?.slogan) {
+            doc.text(companyData.slogan, pageWidth / 2, currentY, { align: 'center' });
+            currentY += 5;
+        }
+        
+        const contactInfo = [
+            companyData?.cnpj ? `CNPJ: ${companyData.cnpj}` : '',
+            companyData?.crea ? `CREA: ${companyData.crea}` : '',
+            companyData?.phone ? `Tel: ${companyData.phone}` : ''
+        ].filter(Boolean).join(' | ');
+        
+        if (contactInfo) {
+            doc.text(contactInfo, pageWidth / 2, currentY, { align: 'center' });
+            currentY += 5;
+        }
+
+        doc.setLineWidth(0.3);
+        doc.line(14, currentY, pageWidth - 14, currentY);
+        currentY += 10;
+
+        // Título do Relatório
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(14);
+        doc.text('Relatório de Folha de Pagamento', pageWidth / 2, currentY, { align: 'center' });
+        currentY += 8;
+
+        // Filtros Aplicados
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        let filterText = 'Filtros: ';
+        if (selectedEmployeeFilter) {
+            filterText += `Funcionário: ${getEmployeeName(selectedEmployeeFilter)} | `;
+        } else {
+            filterText += 'Todos os Funcionários | ';
+        }
+        if (dateRange?.from) {
+            filterText += `Período: ${format(dateRange.from, 'dd/MM/yyyy')} a ${dateRange.to ? format(dateRange.to, 'dd/MM/yyyy') : format(dateRange.from, 'dd/MM/yyyy')}`;
+        } else {
+            filterText += 'Todo o histórico';
+        }
+        doc.text(filterText, 14, currentY);
+        currentY += 7;
+
+        // Tabela
+        autoTable(doc, {
+            startY: currentY,
+            head: [['Funcionário', 'Data', 'Status', 'Valor']],
+            body: filteredPayments.map(p => [
+                getEmployeeName(p.referencia_id),
+                format(p.vencimento, 'dd/MM/yyyy'),
+                p.status.toUpperCase(),
+                p.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+            ]),
+            foot: [[
+                { content: 'Total Pago (Filtrado)', colSpan: 3, styles: { halign: 'right', fontStyle: 'bold' } },
+                { content: totalPaid.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), styles: { fontStyle: 'bold' } }
+            ]],
+            theme: 'striped',
+            headStyles: { fillColor: [34, 139, 34] }, // Verde floresta
+            footStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0] }
+        });
+
+        doc.save(`folha_pagamento_${new Date().getTime()}.pdf`);
+    };
 
     return (
         <div className="flex flex-col gap-8">
@@ -315,8 +395,16 @@ export default function PagamentosPage() {
 
                 <Card className="lg:col-span-2">
                     <CardHeader>
-                        <CardTitle>Histórico de Pagamentos</CardTitle>
-                        <CardDescription>Visualize todos os pagamentos de salários registrados.</CardDescription>
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                            <div>
+                                <CardTitle>Histórico de Pagamentos</CardTitle>
+                                <CardDescription>Visualize todos os pagamentos de salários registrados.</CardDescription>
+                            </div>
+                            <Button onClick={generatePdf} variant="outline" className="shrink-0">
+                                <Download className="mr-2 h-4 w-4" />
+                                Exportar PDF
+                            </Button>
+                        </div>
                         <div className="flex flex-wrap items-center gap-4 pt-4">
                             <Select value={selectedEmployeeFilter} onValueChange={setSelectedEmployeeFilter}>
                                 <SelectTrigger className="w-full sm:w-[250px]">
