@@ -16,7 +16,6 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-  TableFooter,
 } from '@/components/ui/table';
 import type { Client, Supplier, Service, Account, Employee, AuthorizedUser, City } from '@/lib/types';
 import jsPDF from 'jspdf';
@@ -110,22 +109,10 @@ function SupplierReportRow({ supplier }: { supplier: Supplier }) {
         <TableRow>
           <TableCell colSpan={5} className="p-0">
             <div className="p-6 bg-muted/50">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 gap-6">
                 <div>
                   <h4 className="font-semibold mb-2">Endereço</h4>
                   <p className="text-sm">{supplier.endereco || 'N/A'}</p>
-                </div>
-                <div>
-                  <h4 className="font-semibold mb-2">Produtos/Serviços</h4>
-                  {supplier.produtos_servicos && supplier.produtos_servicos.length > 0 ? (
-                    <ul className="list-disc list-inside text-sm">
-                      {supplier.produtos_servicos.map((item, index) => (
-                        <li key={index}>{item}</li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">N/A</p>
-                  )}
                 </div>
               </div>
             </div>
@@ -343,13 +330,12 @@ export default function RelatoriosPage() {
       case 'suppliers':
         doc = new jsPDF();
         reportTitle = 'Relatório de Fornecedores';
-        head = [['Fornecedor', 'Contato', 'Endereço', 'Produtos/Serviços']];
+        head = [['Fornecedor', 'Contato', 'Endereço']];
         body = data.map((item: Supplier) => {
             return [
                 { content: `${item.razao_social}\nCNPJ: ${item.cnpj || '-'}`, styles: { fontStyle: 'bold' } },
                 `${item.telefone || '-'}\n${item.email || ''}`,
-                item.endereco || 'N/A',
-                item.produtos_servicos?.join(', ') || 'N/A'
+                item.endereco || 'N/A'
             ];
         });
         fileName = 'relatorio_fornecedores.pdf';
