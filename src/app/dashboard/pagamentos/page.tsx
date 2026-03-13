@@ -18,7 +18,7 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import { collection, addDoc, getDocs, doc, query, where, deleteDoc, updateDoc, Timestamp } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
-import { Loader2, Trash, DollarSign, CalendarIcon, CheckCircle, XCircle, Download } from 'lucide-react';
+import { Loader2, Trash, DollarSign, CalendarIcon, CheckCircle, XCircle, Download, User, Briefcase, MapPin } from 'lucide-react';
 import type { Account, Employee, AuthorizedUser, Client, Service } from '@/lib/types';
 import { format, startOfDay, endOfDay } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -38,7 +38,6 @@ import { DateRange } from 'react-day-picker';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useCompanyData } from '../layout';
-
 
 const paymentSchema = z.object({
   referencia_id: z.string().min(1, 'Funcionário é obrigatório.'),
@@ -156,7 +155,14 @@ export default function PagamentosPage() {
 
     const getEmployeeName = (id: string) => employees.find(e => e.id === id)?.nome || 'Desconhecido';
     const getClientName = (id: string) => clients.find(c => c.codigo_cliente === id)?.nome_completo || '-';
-    const getServiceDesc = (id: string) => services.find(s => s.id === id)?.descricao || '-';
+    
+    const getServiceDesc = (id: string) => {
+        const s = services.find(srv => srv.id === id);
+        if (!s) return '-';
+        const addr = s.endereco_obra;
+        const addrStr = (addr && addr.street) ? `${addr.street}, ${addr.number} - ${addr.neighborhood}` : 'Endereço não informado';
+        return `${s.descricao} (${addrStr})`;
+    };
 
     const handleSavePayment = async (values: z.infer<typeof paymentSchema>) => {
         setIsSubmitting(true);
@@ -255,7 +261,6 @@ export default function PagamentosPage() {
         const pageWidth = doc.internal.pageSize.getWidth();
         let currentY = 15;
 
-        // Cabeçalho da Empresa
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(16);
         doc.text(companyData?.companyName || 'EngiOffice', pageWidth / 2, currentY, { align: 'center' });
@@ -283,13 +288,11 @@ export default function PagamentosPage() {
         doc.line(14, currentY, pageWidth - 14, currentY);
         currentY += 10;
 
-        // Título do Relatório
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(14);
         doc.text('Relatório de Folha de Pagamento', pageWidth / 2, currentY, { align: 'center' });
         currentY += 8;
 
-        // Filtros Aplicados
         doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
         let filterText = 'Filtros: ';
@@ -306,10 +309,9 @@ export default function PagamentosPage() {
         doc.text(filterText, 14, currentY);
         currentY += 7;
 
-        // Tabela
         autoTable(doc, {
             startY: currentY,
-            head: [['Funcionário', 'Cliente / Serviço', 'Data', 'Status', 'Valor']],
+            head: [['Funcionário', 'Cliente / Projeto (Obra)', 'Data', 'Status', 'Valor']],
             body: filteredPayments.map(p => [
                 getEmployeeName(p.referencia_id),
                 `${getClientName(p.cliente_id || '')} / ${getServiceDesc(p.servico_id || '')}`,
@@ -340,7 +342,7 @@ export default function PagamentosPage() {
                 <Card className="lg:col-span-1">
                     <CardHeader>
                         <CardTitle>Lançar Pagamento de Salário</CardTitle>
-                        <CardDescription>Registre o pagamento e vincule a um cliente/serviço.</CardDescription>
+                        <CardDescription>Registre o pagamento e vincule a um cliente e obra.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <Form {...form}>
@@ -399,7 +401,7 @@ export default function PagamentosPage() {
                                     name="servico_id"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>Serviço Vinculado</FormLabel>
+                                            <FormLabel>Projeto (Obra) Vinculado</FormLabel>
                                             <Select 
                                                 onValueChange={field.onChange} 
                                                 value={field.value} 
@@ -408,14 +410,18 @@ export default function PagamentosPage() {
                                             >
                                                 <FormControl>
                                                     <SelectTrigger>
-                                                        <SelectValue placeholder="Selecione um serviço" />
+                                                        <SelectValue placeholder={!selectedClientId || selectedClientId === 'none' ? "Selecione um cliente primeiro" : "Selecione o endereço da obra"} />
                                                     </SelectTrigger>
                                                 </FormControl>
                                                 <SelectContent>
                                                     <SelectItem value="none">Nenhum</SelectItem>
-                                                    {filteredServices.map(s => (
-                                                        <SelectItem key={s.id} value={s.id}>{s.descricao}</SelectItem>
-                                                    ))}
+                                                    {filteredServices.map(s => {
+                                                        const addr = s.endereco_obra;
+                                                        const label = (addr && addr.street) ? `${s.descricao} (${addr.street}, ${addr.number})` : s.descricao;
+                                                        return (
+                                                            <SelectItem key={s.id} value={s.id}>{label}</SelectItem>
+                                                        );
+                                                    })}
                                                 </SelectContent>
                                             </Select>
                                             <FormMessage />
@@ -473,7 +479,7 @@ export default function PagamentosPage() {
                                     Agendar Pagamento
                                 </Button>
                             </form>
-                        </Form>
+                        </form>
                     </CardContent>
                 </Card>
 
@@ -543,7 +549,7 @@ export default function PagamentosPage() {
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead>Funcionário</TableHead>
-                                        <TableHead>Cliente / Serviço</TableHead>
+                                        <TableHead>Cliente / Projeto (Obra)</TableHead>
                                         <TableHead>Data</TableHead>
                                         <TableHead>Status</TableHead>
                                         <TableHead className="text-right">Valor</TableHead>
@@ -574,29 +580,31 @@ export default function PagamentosPage() {
                                                 {payment.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                             </TableCell>
                                             {isAdmin && (
-                                                <TableCell className="text-right flex items-center justify-end gap-2">
-                                                     <Button variant="outline" size="icon" onClick={() => handleMarkAsPaid(payment.id)} disabled={payment.status === 'pago'}>
-                                                        <CheckCircle className="h-4 w-4 text-green-500" />
-                                                     </Button>
-                                                     <AlertDialog>
-                                                        <AlertDialogTrigger asChild>
-                                                            <Button variant="ghost" size="icon">
-                                                                <Trash className="h-4 w-4 text-destructive" />
-                                                            </Button>
-                                                        </AlertDialogTrigger>
-                                                        <AlertDialogContent>
-                                                            <AlertDialogHeader>
-                                                                <AlertDialogTitle>Excluir este lançamento?</AlertDialogTitle>
-                                                                <AlertDialogDescription>
-                                                                    Esta ação não pode ser desfeita. Isso excluirá permanentemente o registro de pagamento.
-                                                                </AlertDialogDescription>
-                                                            </AlertDialogHeader>
-                                                            <AlertDialogFooter>
-                                                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                                                <AlertDialogAction onClick={() => handleDeletePayment(payment.id)}>Excluir</AlertDialogAction>
-                                                            </AlertDialogFooter>
-                                                        </AlertDialogContent>
-                                                    </AlertDialog>
+                                                <TableCell className="text-right">
+                                                    <div className="flex items-center justify-end gap-2">
+                                                        <Button variant="outline" size="icon" onClick={() => handleMarkAsPaid(payment.id)} disabled={payment.status === 'pago'}>
+                                                            <CheckCircle className="h-4 w-4 text-green-500" />
+                                                        </Button>
+                                                        <AlertDialog>
+                                                            <AlertDialogTrigger asChild>
+                                                                <Button variant="ghost" size="icon">
+                                                                    <Trash className="h-4 w-4 text-destructive" />
+                                                                </Button>
+                                                            </AlertDialogTrigger>
+                                                            <AlertDialogContent>
+                                                                <AlertDialogHeader>
+                                                                    <AlertDialogTitle>Excluir este lançamento?</AlertDialogTitle>
+                                                                    <AlertDialogDescription>
+                                                                        Esta ação não pode ser desfeita. Isso excluirá permanentemente o registro de pagamento.
+                                                                    </AlertDialogDescription>
+                                                                </AlertDialogHeader>
+                                                                <AlertDialogFooter>
+                                                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                                    <AlertDialogAction onClick={() => handleDeletePayment(payment.id)}>Excluir</AlertDialogAction>
+                                                                </AlertDialogFooter>
+                                                            </AlertDialogContent>
+                                                        </AlertDialog>
+                                                    </div>
                                                 </TableCell>
                                             )}
                                         </TableRow>
