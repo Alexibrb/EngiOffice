@@ -302,7 +302,7 @@ export default function ClientesPage() {
       toast({
         variant: "destructive",
         title: "Erro ao buscar cidades",
-        description: "Não foi possível carregar a lista de cidades.",
+        description: "Não foi possível carregar la lista de cidades.",
       });
     }
   };
@@ -732,7 +732,18 @@ export default function ClientesPage() {
             </CardHeader>
 
             <CardContent>
-                <div className="border rounded-lg">
+                {/* Barra de Totais Filtrados */}
+                <div className="bg-slate-900 text-white p-4 rounded-t-lg flex flex-row justify-between items-center border-x border-t">
+                    <div className="font-bold text-lg pl-2">Clientes Encontrados</div>
+                    <div className="flex flex-row gap-12 pr-4">
+                        <div className="text-right">
+                            <div className="text-sm font-bold text-blue-400">Total:</div>
+                            <div className="text-lg font-bold text-blue-300">{filteredClients.length}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="border border-t-0 rounded-b-lg overflow-hidden">
                     <Table>
                     <TableHeader>
                         <TableRow>
