@@ -10,8 +10,8 @@ import { PageHeader } from '@/components/page-header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell, AreaChart, Area, LineChart, Line } from 'recharts';
-import { Loader2, XCircle, Calendar as CalendarIcon, ShieldAlert } from 'lucide-react';
-import { format, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, startOfDay, subDays, isWithinInterval } from 'date-fns';
+import { Loader2, XCircle, Calendar as CalendarIcon, ShieldAlert, Wallet } from 'lucide-react';
+import { format, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, startOfDay, subDays, isWithinInterval, isBefore, endOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -24,6 +24,7 @@ const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 const POSITIVE_COLOR = '#16a34a';
 const NEGATIVE_COLOR = '#dc2626';
 const PAYROLL_COLOR = '#9333ea';
+const BALANCE_COLOR = '#3b82f6';
 
 export default function AnalyticsPage() {
     const [services, setServices] = useState<Service[]>([]);
@@ -114,30 +115,6 @@ export default function AnalyticsPage() {
         }
     };
 
-    const filteredServices = useMemo(() => {
-        return services.filter(service => {
-            const serviceDate = service.data_cadastro;
-            if (isNaN(serviceDate.getTime())) return false;
-
-            const inDateRange = dateRange?.from ? (serviceDate >= dateRange.from && serviceDate <= (dateRange.to || dateRange.from)) : true;
-            const clientMatch = selectedClient ? service.cliente_id === selectedClient : true;
-            const cityMatch = selectedCityFilter ? service.endereco_obra?.city === selectedCityFilter : true;
-
-            return inDateRange && clientMatch && cityMatch;
-        });
-    }, [services, dateRange, selectedClient, selectedCityFilter]);
-    
-    const filteredAccountsPayable = useMemo(() => {
-         return accountsPayable.filter(account => {
-            const dueDate = account.vencimento;
-            if (isNaN(dueDate.getTime())) return false;
-
-            const inDateRange = dateRange?.from ? (dueDate >= dateRange.from && dueDate <= (dateRange.to || dateRange.from)) : true;
-            return inDateRange;
-        });
-    }, [accountsPayable, dateRange])
-
-
     const financialOverviewData = () => {
         const data: { name: string; receitas: number; despesas: number }[] = [];
         for (let i = 5; i >= 0; i--) {
@@ -148,7 +125,6 @@ export default function AnalyticsPage() {
 
             const received = services
                 .filter(s => {
-                    // Para bater com o caixa, usamos a data do pagamento se disponível, senão a de cadastro
                     const dateToUse = s.data_ultimo_pagamento || s.data_cadastro;
                     const isInMonth = s.valor_pago > 0 && dateToUse >= monthStart && dateToUse <= monthEnd;
                     if (!isInMonth) return false;
@@ -216,7 +192,7 @@ export default function AnalyticsPage() {
 
         if (dateRange?.from) {
             start = startOfDay(dateRange.from);
-            end = dateRange.to ? startOfDay(dateRange.to) : start;
+            end = dateRange.to ? endOfDay(dateRange.to) : endOfDay(start);
         } else {
             const allDates = [
                 ...services.filter(s => s.valor_pago > 0).map(s => (s.data_ultimo_pagamento || s.data_cadastro).getTime()),
@@ -226,10 +202,10 @@ export default function AnalyticsPage() {
             if (allDates.length > 0) {
                 const maxD = Math.max(...allDates);
                 start = startOfDay(subDays(new Date(maxD), 90));
-                end = startOfDay(new Date(maxD));
+                end = endOfDay(new Date(maxD));
             } else {
                 start = startOfDay(subDays(new Date(), 30));
-                end = startOfDay(new Date());
+                end = endOfDay(new Date());
             }
         }
 
@@ -238,11 +214,12 @@ export default function AnalyticsPage() {
 
             return intervalDays.map(day => {
                 const dayStart = startOfDay(day);
+                const dayEnd = endOfDay(day);
 
                 const dailyRevenue = services
                     .filter(s => {
-                        const dateToUse = startOfDay(s.data_ultimo_pagamento || s.data_cadastro);
-                        const isSameDay = s.valor_pago > 0 && dateToUse.getTime() === dayStart.getTime();
+                        const dateToUse = s.data_ultimo_pagamento || s.data_cadastro;
+                        const isSameDay = s.valor_pago > 0 && dateToUse >= dayStart && dateToUse <= dayEnd;
                         if (selectedCityFilter) return isSameDay && s.endereco_obra?.city === selectedCityFilter;
                         return isSameDay;
                     })
@@ -250,15 +227,15 @@ export default function AnalyticsPage() {
 
                 const dailyExpensesFornecedores = accountsPayable
                     .filter(a => {
-                        const dueDate = startOfDay(a.vencimento);
-                        return a.status === 'pago' && a.tipo_referencia === 'fornecedor' && dueDate.getTime() === dayStart.getTime();
+                        const dueDate = a.vencimento;
+                        return a.status === 'pago' && a.tipo_referencia === 'fornecedor' && dueDate >= dayStart && dueDate <= dayEnd;
                     })
                     .reduce((sum, a) => sum + a.valor, 0);
 
                 const dailyExpensesFolha = accountsPayable
                     .filter(a => {
-                        const dueDate = startOfDay(a.vencimento);
-                        return a.status === 'pago' && a.tipo_referencia === 'funcionario' && dueDate.getTime() === dayStart.getTime();
+                        const dueDate = a.vencimento;
+                        return a.status === 'pago' && a.tipo_referencia === 'funcionario' && dueDate >= dayStart && dueDate <= dayEnd;
                     })
                     .reduce((sum, a) => sum + a.valor, 0);
 
@@ -273,6 +250,62 @@ export default function AnalyticsPage() {
             return [];
         }
     }, [services, accountsPayable, dateRange, selectedCityFilter]);
+
+    const balanceHistoryData = useMemo(() => {
+        let start: Date;
+        let end: Date = new Date();
+
+        if (dateRange?.from) {
+            start = startOfDay(dateRange.from);
+            if (dateRange.to) end = endOfDay(dateRange.to);
+        } else {
+            start = startOfDay(subDays(new Date(), 90));
+        }
+
+        // 1. Calcular Saldo Inicial (Tudo antes da data 'start')
+        const revenuesBeforeStart = services
+            .filter(s => {
+                const dateToUse = s.data_ultimo_pagamento || s.data_cadastro;
+                return s.valor_pago > 0 && isBefore(dateToUse, start);
+            })
+            .reduce((sum, s) => sum + s.valor_pago, 0);
+
+        const expensesBeforeStart = accountsPayable
+            .filter(a => a.status === 'pago' && isBefore(a.vencimento, start))
+            .reduce((sum, a) => sum + a.valor, 0);
+
+        let currentCumulativeBalance = revenuesBeforeStart - expensesBeforeStart;
+
+        // 2. Gerar histórico dia a dia a partir de 'start'
+        try {
+            const intervalDays = eachDayOfInterval({ start, end });
+            return intervalDays.map(day => {
+                const dayStart = startOfDay(day);
+                const dayEnd = endOfDay(day);
+
+                const dailyRevenue = services
+                    .filter(s => {
+                        const dateToUse = s.data_ultimo_pagamento || s.data_cadastro;
+                        return s.valor_pago > 0 && dateToUse >= dayStart && dateToUse <= dayEnd;
+                    })
+                    .reduce((sum, s) => sum + s.valor_pago, 0);
+
+                const dailyExpenses = accountsPayable
+                    .filter(a => a.status === 'pago' && a.vencimento >= dayStart && a.vencimento <= dayEnd)
+                    .reduce((sum, a) => sum + a.valor, 0);
+
+                currentCumulativeBalance += (dailyRevenue - dailyExpenses);
+
+                return {
+                    name: format(day, 'dd/MM'),
+                    saldo: currentCumulativeBalance,
+                    fullDate: format(day, "dd 'de' MMM, yyyy", { locale: ptBR })
+                };
+            });
+        } catch (e) {
+            return [];
+        }
+    }, [services, accountsPayable, dateRange]);
     
     const revenueStatusData = useMemo(() => {
         const totalPaid = services
@@ -422,6 +455,33 @@ export default function AnalyticsPage() {
             <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
                 <Card className="lg:col-span-2">
                     <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <Wallet className="h-5 w-5 text-blue-500" />
+                            Evolução do Saldo em Caixa (Acumulado)
+                        </CardTitle>
+                        <CardDescription>Acompanhe o saldo real dia a dia, incluindo movimentações anteriores ao período exibido.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <ChartContainer config={{}} className="h-[350px] w-full">
+                            <AreaChart data={balanceHistoryData}>
+                                <defs>
+                                    <linearGradient id="colorSaldo" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor={BALANCE_COLOR} stopOpacity={0.3}/>
+                                        <stop offset="95%" stopColor={BALANCE_COLOR} stopOpacity={0}/>
+                                    </linearGradient>
+                                </defs>
+                                <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                                <XAxis dataKey="name" tickLine={false} axisLine={false} tickMargin={8} />
+                                <YAxis tickFormatter={(value) => `R$${Number(value).toLocaleString('pt-BR', { notation: 'compact' })}`}/>
+                                <ChartTooltip content={<ChartTooltipContent formatter={(value) => `Saldo: R$ ${Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}/>} />
+                                <Area type="stepAfter" dataKey="saldo" stroke={BALANCE_COLOR} strokeWidth={3} fillOpacity={1} fill="url(#colorSaldo)" name="Saldo Acumulado" />
+                            </AreaChart>
+                        </ChartContainer>
+                    </CardContent>
+                </Card>
+
+                <Card className="lg:col-span-2">
+                    <CardHeader>
                         <CardTitle>Desempenho Mensal (Resultados)</CardTitle>
                         <CardDescription>Evolução de receitas, despesas e lucro líquido (dia 1 ao último dia do mês) nos últimos 12 meses.</CardDescription>
                     </CardHeader>
@@ -435,7 +495,7 @@ export default function AnalyticsPage() {
                                 <ChartLegend content={<ChartLegendContent />} />
                                 <Line type="monotone" dataKey="receitas" stroke={POSITIVE_COLOR} strokeWidth={2} dot={{ r: 4 }} name="Receitas" />
                                 <Line type="monotone" dataKey="despesas" stroke={NEGATIVE_COLOR} strokeWidth={2} dot={{ r: 4 }} name="Despesas" />
-                                <Line type="monotone" dataKey="lucro" stroke={COLORS[0]} strokeWidth={4} dot={{ r: 6 }} name="Lucro Líquido" />
+                                <Line type="monotone" dataKey="lucro" stroke={BALANCE_COLOR} strokeWidth={4} dot={{ r: 6 }} name="Lucro Líquido" />
                             </LineChart>
                         </ChartContainer>
                     </CardContent>
