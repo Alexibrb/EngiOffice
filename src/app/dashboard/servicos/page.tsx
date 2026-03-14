@@ -592,7 +592,7 @@ export default function ServicosPage() {
   
   const getServiceProfitability = (serviceId: string, serviceTotal: number) => {
       const serviceExpenses = expenses
-        .filter(acc => acc.servico_id === serviceId && acc.status === 'pago')
+        .filter(acc => acc.servico_id === serviceId && acc.status === 'pago' && acc.tipo_referencia === 'fornecedor')
         .reduce((sum, item) => sum + item.valor, 0);
       
       const profit = serviceTotal - serviceExpenses;
