@@ -21,10 +21,10 @@ import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { DateRange } from 'react-day-picker';
 
-const REVENUE_COLOR = '#16a34a'; // Verde
-const EXPENSE_COLOR = '#dc2626'; // Vermelho
+const REVENUE_COLOR = '#22c55e'; // Verde vibrante
+const EXPENSE_COLOR = '#ef4444'; // Vermelho vibrante
 const BALANCE_COLOR = '#3b82f6';  // Azul
-const PAYROLL_COLOR = '#9333ea'; // Roxo
+const PAYROLL_COLOR = '#a855f7'; // Roxo vibrante
 
 const flowChartConfig = {
     receita: { label: "Receitas", color: REVENUE_COLOR },
@@ -129,6 +129,7 @@ export default function AnalyticsPage() {
                 }
             });
 
+            // Identificar o início do período (primeira transação)
             const allDates = [
                 ...reconstructedReceivables.map(r => r.data.getTime()),
                 ...accountsData.map(a => a.vencimento.getTime())
@@ -136,7 +137,7 @@ export default function AnalyticsPage() {
             
             if (allDates.length > 0 && !dateRange) {
                 const firstDate = new Date(Math.min(...allDates));
-                setDateRange({ from: startOfMonth(firstDate), to: new Date() });
+                setDateRange({ from: startOfDay(firstDate), to: endOfDay(new Date()) });
             }
 
             setServices(servicesData);
@@ -166,49 +167,19 @@ export default function AnalyticsPage() {
 
     // Filtro de Despesas
     const activeExpenses = useMemo(() => {
+        if (!isGlobalView) return []; // Se não for visão global (filtro por cidade), não mostra saídas conforme solicitado
         return accountsPayable
-            .filter(a => a.status === 'pago')
-            .filter(a => {
-                if (isGlobalView) return true;
-                // Para filtro de cidade, precisamos ver se a conta está vinculada a um serviço daquela cidade
-                if (!a.servico_id) return false;
-                const service = services.find(s => s.id === a.servico_id);
-                return service?.endereco_obra?.city === selectedCityFilter;
-            });
-    }, [accountsPayable, services, selectedCityFilter, isGlobalView]);
+            .filter(a => a.status === 'pago');
+    }, [accountsPayable, isGlobalView]);
 
     // Datas da Amostra (Eixo X)
     const sampleRange = useMemo(() => {
-        const start = dateRange?.from || new Date();
+        const start = dateRange?.from || subMonths(new Date(), 3);
         const end = dateRange?.to || new Date();
         return { start, end };
     }, [dateRange]);
 
-    // 1. Evolução Diária (Patrimônio Acumulado)
-    const dailyStepData = useMemo(() => {
-        const days = eachDayOfInterval({ start: sampleRange.start, end: sampleRange.end });
-
-        return days.map(day => {
-            const dEnd = endOfDay(day);
-            
-            const totalReceivedUntilNow = activeReceivables
-                .filter(r => !isAfter(r.data, dEnd))
-                .reduce((acc, r) => acc + (r.valor || 0), 0);
-            
-            const totalPaidUntilNow = activeExpenses
-                .filter(a => !isAfter(a.vencimento, dEnd))
-                .reduce((acc, a) => acc + (a.valor || 0), 0);
-
-            return {
-                date: format(day, 'dd/MM/yy'),
-                saldo: totalReceivedUntilNow - totalPaidUntilNow,
-                receita: totalReceivedUntilNow,
-                despesa: totalPaidUntilNow
-            };
-        });
-    }, [activeReceivables, activeExpenses, sampleRange]);
-
-    // 2. Fluxo Diário Pontual (As 3 Linhas da Imagem - Receita, Despesa, Folha)
+    // 1. Fluxo Diário Pontual (Suavizado - Estilo Imagem)
     const dailyFlowTransactions = useMemo(() => {
         const days = eachDayOfInterval({ start: sampleRange.start, end: sampleRange.end });
 
@@ -229,10 +200,34 @@ export default function AnalyticsPage() {
                 .reduce((acc, a) => acc + (a.valor || 0), 0);
 
             return {
-                date: format(day, 'dd/MM/yy'),
+                date: format(day, 'dd/MM'),
                 receita: receitaDia,
                 despesa: despesaDia,
                 folha: folhaDia
+            };
+        });
+    }, [activeReceivables, activeExpenses, sampleRange]);
+
+    // 2. Evolução do Patrimônio (Acumulado)
+    const dailyStepData = useMemo(() => {
+        const days = eachDayOfInterval({ start: sampleRange.start, end: sampleRange.end });
+
+        return days.map(day => {
+            const dEnd = endOfDay(day);
+            
+            const totalReceivedUntilNow = activeReceivables
+                .filter(r => !isAfter(r.data, dEnd))
+                .reduce((acc, r) => acc + (r.valor || 0), 0);
+            
+            const totalPaidUntilNow = activeExpenses
+                .filter(a => !isAfter(a.vencimento, dEnd))
+                .reduce((acc, a) => acc + (a.valor || 0), 0);
+
+            return {
+                date: format(day, 'dd/MM/yy'),
+                saldo: totalReceivedUntilNow - totalPaidUntilNow,
+                receita: totalReceivedUntilNow,
+                despesa: totalPaidUntilNow
             };
         });
     }, [activeReceivables, activeExpenses, sampleRange]);
@@ -264,36 +259,8 @@ export default function AnalyticsPage() {
         }
     }, [activeReceivables, activeExpenses, sampleRange]);
 
-    // 4. Fluxo de Caixa Mensal
-    const monthlyFlowData = useMemo(() => {
-        try {
-            const months = eachMonthOfInterval({ start: sampleRange.start, end: sampleRange.end });
-            return months.map(month => {
-                const mStart = startOfMonth(month);
-                const mEnd = endOfMonth(month);
-                
-                const receivedInMonth = activeReceivables
-                    .filter(r => r.data >= mStart && r.data <= mEnd)
-                    .reduce((acc, r) => acc + (r.valor || 0), 0);
-                
-                const paidInMonth = activeExpenses
-                    .filter(a => a.vencimento >= mStart && a.vencimento <= mEnd)
-                    .reduce((acc, a) => acc + (a.valor || 0), 0);
-
-                return {
-                    name: format(month, 'MMM/yy', { locale: ptBR }),
-                    entradas: receivedInMonth,
-                    saidas: paidInMonth,
-                };
-            });
-        } catch (e) {
-            return [];
-        }
-    }, [activeReceivables, activeExpenses, sampleRange]);
-
     const handleClearFilters = () => {
         setSelectedCityFilter('none');
-        // Reset to full period if possible
         fetchData();
     };
 
@@ -329,7 +296,7 @@ export default function AnalyticsPage() {
             />
             
             <Card>
-                <CardHeader><CardTitle>Intervalo da Amostra</CardTitle></CardHeader>
+                <CardHeader><CardTitle>Configuração da Amostra</CardTitle></CardHeader>
                 <CardContent className="flex flex-wrap items-center gap-4">
                     <div className="flex items-center gap-2">
                         <span className="text-sm font-medium">Período:</span>
@@ -385,37 +352,50 @@ export default function AnalyticsPage() {
 
             <div className="grid grid-cols-1 gap-8">
                 
-                {/* 1. Fluxo de Caixa Diário (As 3 Linhas da Imagem - COM AREA) */}
+                {/* 1. Fluxo de Caixa Diário (ESTILO SUAVIZADO COM AREA) */}
                 <Card>
                     <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-purple-500">
-                            <Wallet className="h-5 w-5" />
-                            Fluxo de Caixa (Diário)
-                        </CardTitle>
-                        <CardDescription>Entradas e saídas pontuais ocorridas em cada dia.</CardDescription>
+                        <CardTitle className="text-xl font-bold">Fluxo de Caixa (Diário)</CardTitle>
+                        <CardDescription>Entradas e saídas diárias detalhadas.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <ChartContainer config={flowChartConfig} className="h-[400px] w-full">
-                            <AreaChart data={dailyFlowTransactions}>
+                            <AreaChart data={dailyFlowTransactions} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                                 <defs>
                                     <linearGradient id="colorReceita" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor={REVENUE_COLOR} stopOpacity={0.3}/>
-                                        <stop offset="95%" stopColor={REVENUE_COLOR} stopOpacity={0}/>
+                                        <stop offset="5%" stopColor={REVENUE_COLOR} stopOpacity={0.6}/>
+                                        <stop offset="95%" stopColor={REVENUE_COLOR} stopOpacity={0.1}/>
                                     </linearGradient>
                                     <linearGradient id="colorDespesa" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor={EXPENSE_COLOR} stopOpacity={0.3}/>
-                                        <stop offset="95%" stopColor={EXPENSE_COLOR} stopOpacity={0}/>
+                                        <stop offset="5%" stopColor={EXPENSE_COLOR} stopOpacity={0.6}/>
+                                        <stop offset="95%" stopColor={EXPENSE_COLOR} stopOpacity={0.1}/>
                                     </linearGradient>
                                     <linearGradient id="colorFolha" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor={PAYROLL_COLOR} stopOpacity={0.3}/>
-                                        <stop offset="95%" stopColor={PAYROLL_COLOR} stopOpacity={0}/>
+                                        <stop offset="5%" stopColor={PAYROLL_COLOR} stopOpacity={0.6}/>
+                                        <stop offset="95%" stopColor={PAYROLL_COLOR} stopOpacity={0.1}/>
                                     </linearGradient>
                                 </defs>
-                                <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.2} />
-                                <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} minTickGap={60} />
-                                <YAxis tickFormatter={(v) => `R$${Number(v).toLocaleString('pt-BR', { notation: 'compact' })}`} axisLine={false} tickLine={false} />
-                                <ChartTooltip content={<ChartTooltipContent formatter={(v, n) => `${n}: R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />} />
-                                <ChartLegend content={<ChartLegendContent />} />
+                                <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#e5e7eb" />
+                                <XAxis 
+                                    dataKey="date" 
+                                    tickLine={false} 
+                                    axisLine={false} 
+                                    tickMargin={15} 
+                                    minTickGap={30}
+                                    className="text-[10px] text-muted-foreground"
+                                />
+                                <YAxis 
+                                    tickFormatter={(v) => `R$${Number(v).toLocaleString('pt-BR', { notation: 'compact' })}`} 
+                                    axisLine={false} 
+                                    tickLine={false}
+                                    tickMargin={10}
+                                    className="text-[10px] text-muted-foreground"
+                                />
+                                <ChartTooltip 
+                                    cursor={{ stroke: '#ccc', strokeWidth: 1 }}
+                                    content={<ChartTooltipContent formatter={(v, n) => `${n}: R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />} 
+                                />
+                                <ChartLegend verticalAlign="bottom" align="center" iconType="circle" />
                                 <Area 
                                     type="monotone" 
                                     dataKey="receita" 
@@ -499,30 +479,7 @@ export default function AnalyticsPage() {
                 </Card>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    {/* 4. Fluxo de Caixa Mensal (Barras) */}
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <Wallet className="h-5 w-5" />
-                                Entradas vs Saídas Mensais
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <ChartContainer config={{}} className="h-[300px] w-full">
-                                <BarChart data={monthlyFlowData}>
-                                    <CartesianGrid vertical={false} opacity={0.2} />
-                                    <XAxis dataKey="name" tickLine={false} axisLine={false} />
-                                    <YAxis hide />
-                                    <ChartTooltip content={<ChartTooltipContent formatter={(v) => `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />} />
-                                    <ChartLegend content={<ChartLegendContent />} />
-                                    <Bar dataKey="entradas" fill={REVENUE_COLOR} radius={[4, 4, 0, 0]} name="Entradas" />
-                                    <Bar dataKey="saidas" fill={EXPENSE_COLOR} radius={[4, 4, 0, 0]} name="Saídas" />
-                                </BarChart>
-                            </ChartContainer>
-                        </CardContent>
-                    </Card>
-
-                    {/* 5. Top Clientes */}
+                    {/* 4. Top Clientes */}
                     <Card>
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
@@ -549,6 +506,40 @@ export default function AnalyticsPage() {
                                     <YAxis dataKey="name" type="category" width={100} axisLine={false} tickLine={false} className="text-[10px]" />
                                     <ChartTooltip content={<ChartTooltipContent formatter={(v) => `R$ ${Number(v).toLocaleString('pt-BR')}`} />} />
                                     <Bar dataKey="value" fill="#8884d8" radius={[0, 4, 4, 0]} name="Receita Total" />
+                                </BarChart>
+                            </ChartContainer>
+                        </CardContent>
+                    </Card>
+
+                    {/* 5. Top Fornecedores */}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <Truck className="h-5 w-5" />
+                                Maiores Gastos com Fornecedores
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <ChartContainer config={{}} className="h-[300px] w-full">
+                                <BarChart 
+                                    data={Object.entries(activeExpenses
+                                        .filter(a => a.tipo_referencia === 'fornecedor')
+                                        .reduce((acc, curr) => {
+                                            const name = suppliers.find(s => s.id === curr.referencia_id)?.razao_social || 'Desconhecido';
+                                            acc[name] = (acc[name] || 0) + curr.valor;
+                                            return acc;
+                                        }, {} as Record<string, number>))
+                                    .map(([name, value]) => ({ name, value }))
+                                    .sort((a, b) => b.value - a.value)
+                                    .slice(0, 10)} 
+                                    layout="vertical" 
+                                    margin={{ left: 40 }}
+                                >
+                                    <CartesianGrid horizontal={false} opacity={0.2} />
+                                    <XAxis type="number" hide />
+                                    <YAxis dataKey="name" type="category" width={100} axisLine={false} tickLine={false} className="text-[10px]" />
+                                    <ChartTooltip content={<ChartTooltipContent formatter={(v) => `R$ ${Number(v).toLocaleString('pt-BR')}`} />} />
+                                    <Bar dataKey="value" fill="#f43f5e" radius={[0, 4, 4, 0]} name="Gasto Total" />
                                 </BarChart>
                             </ChartContainer>
                         </CardContent>
