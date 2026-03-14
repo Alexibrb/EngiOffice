@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
 import { Loader2, XCircle, Calendar as CalendarIcon, ShieldAlert } from 'lucide-react';
-import { format, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, startOfDay } from 'date-fns';
+import { format, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, startOfDay, subDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -98,7 +98,7 @@ export default function AnalyticsPage() {
     const filteredServices = useMemo(() => {
         return services.filter(service => {
             const serviceDate = new Date(service.data_cadastro);
-            if (isNaN(serviceDate.getTime())) return false; // Invalid date guard
+            if (isNaN(serviceDate.getTime())) return false;
 
             const inDateRange = dateRange?.from ? (serviceDate >= dateRange.from && serviceDate <= (dateRange.to || dateRange.from)) : true;
             const clientMatch = selectedClient ? service.cliente_id === selectedClient : true;
@@ -157,36 +157,63 @@ export default function AnalyticsPage() {
     };
     
     const dailyFinancialsData = useMemo(() => {
-        if (!dateRange?.from) return [];
-        
-        const start = startOfDay(dateRange.from);
-        const end = dateRange.to ? startOfDay(dateRange.to) : start;
+        let start: Date;
+        let end: Date;
 
-        const intervalDays = eachDayOfInterval({ start, end });
+        if (dateRange?.from) {
+            start = startOfDay(dateRange.from);
+            end = dateRange.to ? startOfDay(dateRange.to) : start;
+        } else {
+            // Se for "Todo o período", pegamos o intervalo dos dados ou os últimos 30 dias se vazio
+            const allDates = [
+                ...filteredServices.map(s => new Date(s.data_cadastro).getTime()),
+                ...filteredAccountsPayable.map(a => new Date(a.vencimento).getTime())
+            ].filter(t => !isNaN(t));
 
-        return intervalDays.map(day => {
-            const dayStart = startOfDay(day);
+            if (allDates.length > 0) {
+                const minD = Math.min(...allDates);
+                const maxD = Math.max(...allDates);
+                
+                // Para manter a legibilidade, mostramos no máximo os últimos 90 dias de histórico quando "Todo o período"
+                const limitDate = subDays(new Date(maxD), 90);
+                start = startOfDay(new Date(Math.max(minD, limitDate.getTime())));
+                end = startOfDay(new Date(maxD));
+            } else {
+                // Fallback se não houver dados
+                start = startOfDay(subDays(new Date(), 30));
+                end = startOfDay(new Date());
+            }
+        }
 
-            const dailyRevenue = filteredServices
-                .filter(s => {
-                    const serviceDate = startOfDay(new Date(s.data_cadastro));
-                    return s.valor_pago > 0 && serviceDate.getTime() === dayStart.getTime();
-                })
-                .reduce((sum, s) => sum + s.valor_pago, 0);
+        try {
+            const intervalDays = eachDayOfInterval({ start, end });
 
-            const dailyExpenses = filteredAccountsPayable
-                .filter(a => {
-                    const dueDate = startOfDay(new Date(a.vencimento));
-                    return a.status === 'pago' && dueDate.getTime() === dayStart.getTime();
-                })
-                .reduce((sum, a) => sum + a.valor, 0);
+            return intervalDays.map(day => {
+                const dayStart = startOfDay(day);
 
-            return {
-                name: format(day, 'dd/MM'),
-                receitas: dailyRevenue,
-                despesas: dailyExpenses,
-            };
-        }).filter(d => d.receitas > 0 || d.despesas > 0); 
+                const dailyRevenue = filteredServices
+                    .filter(s => {
+                        const serviceDate = startOfDay(new Date(s.data_cadastro));
+                        return s.valor_pago > 0 && serviceDate.getTime() === dayStart.getTime();
+                    })
+                    .reduce((sum, s) => sum + s.valor_pago, 0);
+
+                const dailyExpenses = filteredAccountsPayable
+                    .filter(a => {
+                        const dueDate = startOfDay(new Date(a.vencimento));
+                        return a.status === 'pago' && dueDate.getTime() === dayStart.getTime();
+                    })
+                    .reduce((sum, a) => sum + a.valor, 0);
+
+                return {
+                    name: format(day, 'dd/MM'),
+                    receitas: dailyRevenue,
+                    despesas: dailyExpenses,
+                };
+            }).filter(d => d.receitas > 0 || d.despesas > 0); 
+        } catch (e) {
+            return [];
+        }
     }, [filteredServices, filteredAccountsPayable, dateRange]);
     
     const revenueStatusData = useMemo(() => {
@@ -411,7 +438,7 @@ export default function AnalyticsPage() {
                 <Card>
                     <CardHeader>
                         <CardTitle>Fluxo de Caixa (Diário)</CardTitle>
-                        <CardDescription>Entradas e saídas diárias (baseado nos filtros).</CardDescription>
+                        <CardDescription>Entradas e saídas diárias (baseado nos filtros de data ou últimos 90 dias de histórico).</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <ChartContainer config={{}} className="h-[300px] w-full">
