@@ -270,6 +270,59 @@ export default function AnalyticsPage() {
             return [];
         }
     }, [services, accountsPayable, dateRange, selectedCityFilter, selectedClient, selectedEmployee]);
+
+    const monthlyCashFlowSuppliersData = useMemo(() => {
+        let start: Date;
+        let end: Date;
+
+        if (dateRange?.from) {
+            start = startOfMonth(dateRange.from);
+            end = dateRange.to ? endOfMonth(dateRange.to) : endOfMonth(start);
+        } else {
+            end = endOfMonth(new Date());
+            start = startOfMonth(subMonths(end, 11));
+        }
+
+        try {
+            const intervalMonths = eachMonthOfInterval({ start, end });
+
+            return intervalMonths.map(month => {
+                const monthStart = startOfMonth(month);
+                const monthEnd = endOfMonth(month);
+
+                const received = services
+                    .filter(s => {
+                        const dateToUse = s.data_ultimo_pagamento || s.data_cadastro;
+                        const isInMonth = s.valor_pago > 0 && dateToUse >= monthStart && dateToUse <= monthEnd;
+                        if (!isInMonth) return false;
+                        if (selectedCityFilter && s.endereco_obra?.city !== selectedCityFilter) return false;
+                        if (selectedClient && s.cliente_id !== selectedClient) return false;
+                        return true;
+                    })
+                    .reduce((acc, s) => acc + (s.valor_pago || 0), 0);
+                
+                const paidSuppliers = accountsPayable
+                    .filter(a => {
+                        const dueDate = a.vencimento;
+                        const isInMonth = a.status === 'pago' && dueDate >= monthStart && dueDate <= monthEnd;
+                        if (!isInMonth) return false;
+                        if (a.tipo_referencia !== 'fornecedor') return false;
+                        if (selectedClient && a.cliente_id !== selectedClient) return false;
+                        return true;
+                    })
+                    .reduce((acc, a) => acc + (a.valor || 0), 0);
+
+                return { 
+                    name: format(month, 'MMM/yy', { locale: ptBR }), 
+                    receitas: received, 
+                    despesas: paidSuppliers,
+                    saldo: received - paidSuppliers
+                };
+            });
+        } catch (e) {
+            return [];
+        }
+    }, [services, accountsPayable, dateRange, selectedCityFilter, selectedClient]);
     
     const dailyFinancialsData = useMemo(() => {
         let start: Date;
@@ -297,7 +350,7 @@ export default function AnalyticsPage() {
         try {
             const intervalDays = eachDayOfInterval({ start, end });
 
-            return intervalDays.map(day => {
+            return intervalMonths.map(day => {
                 const dayStart = startOfDay(day);
                 const dayEnd = endOfDay(day);
 
@@ -594,7 +647,31 @@ export default function AnalyticsPage() {
                     </CardContent>
                 </Card>
 
-                {/* 4. Fluxo de Caixa (Diário) */}
+                {/* 4. Fluxo de Caixa Mensal (Receitas vs. Fornecedores) */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <Banknote className="h-5 w-5 text-green-600" />
+                            Fluxo de Caixa Mensal (Receitas vs. Fornecedores)
+                        </CardTitle>
+                        <CardDescription>Soma de todas as entradas e saídas com fornecedores ocorridas em cada mês.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <ChartContainer config={{}} className="h-[400px] w-full">
+                            <BarChart data={monthlyCashFlowSuppliersData}>
+                                <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                                <XAxis dataKey="name" tickLine={false} axisLine={false} tickMargin={8} />
+                                <YAxis tickFormatter={(value) => `R$${Number(value).toLocaleString('pt-BR', { notation: 'compact' })}`}/>
+                                <ChartTooltip content={<ChartTooltipContent formatter={(value, name) => `${name}: R$ ${Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}/>} />
+                                <ChartLegend content={<ChartLegendContent />} />
+                                <Bar dataKey="receitas" fill={POSITIVE_COLOR} name="Receitas do Mês" radius={[4, 4, 0, 0]} />
+                                <Bar dataKey="despesas" fill="#f97316" name="Gastos Fornecedores" radius={[4, 4, 0, 0]} />
+                            </BarChart>
+                        </ChartContainer>
+                    </CardContent>
+                </Card>
+
+                {/* 5. Fluxo de Caixa (Diário) */}
                 <Card>
                     <CardHeader>
                         <CardTitle>Fluxo de Caixa (Diário)</CardTitle>
@@ -630,7 +707,7 @@ export default function AnalyticsPage() {
                     </CardContent>
                 </Card>
 
-                {/* 5. Receita: Recebido vs. A Receber */}
+                {/* 6. Receita: Recebido vs. A Receber */}
                 <Card>
                     <CardHeader>
                         <CardTitle>Receita: Recebido vs. A Receber</CardTitle>
@@ -650,7 +727,7 @@ export default function AnalyticsPage() {
                     </CardContent>
                 </Card>
 
-                {/* 6. Top 5 Clientes por Receita */}
+                {/* 7. Top 5 Clientes por Receita */}
                 <Card>
                     <CardHeader>
                         <CardTitle>Top 5 Clientes por Receita</CardTitle>
@@ -686,7 +763,7 @@ export default function AnalyticsPage() {
                     </CardContent>
                 </Card>
 
-                {/* 7. Status dos Serviços */}
+                {/* 8. Status dos Serviços */}
                 <Card>
                     <CardHeader>
                         <CardTitle>Status dos Serviços</CardTitle>
