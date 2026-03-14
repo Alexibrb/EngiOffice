@@ -15,9 +15,9 @@ import {
   TableFooter,
 } from '@/components/ui/table';
 import { useToast } from "@/hooks/use-toast"
-import { collection, addDoc, getDocs, doc, query, where, deleteDoc, updateDoc, Timestamp } from 'firebase/firestore';
+import { collection, addDoc, getDocs, doc, query, where, deleteDoc, updateDoc, Timestamp, setDoc } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
-import { Loader2, Trash, DollarSign, CalendarIcon, CheckCircle, XCircle, Download, User, Briefcase, MapPin } from 'lucide-react';
+import { Loader2, Trash, DollarSign, CalendarIcon, CheckCircle, XCircle, Download, User, Briefcase, MapPin, Pencil } from 'lucide-react';
 import type { Account, Employee, AuthorizedUser, Client, Service } from '@/lib/types';
 import { format, startOfDay, endOfDay } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -54,6 +54,7 @@ export default function PagamentosPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isAdmin, setIsAdmin] = useState(false);
+    const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null);
     const { toast } = useToast();
     const router = useRouter();
     const companyData = useCompanyData();
@@ -130,7 +131,7 @@ export default function PagamentosPage() {
     }, []);
 
     useEffect(() => {
-        if (selectedEmployeeId) {
+        if (selectedEmployeeId && !editingPaymentId) {
             const employee = employees.find(e => e.id === selectedEmployeeId);
             if (employee && employee.tipo_contratacao === 'salario_fixo') {
                 if (employee.salario) {
@@ -145,7 +146,7 @@ export default function PagamentosPage() {
                 form.setValue('vencimento', new Date());
             }
         }
-    }, [selectedEmployeeId, employees, form]);
+    }, [selectedEmployeeId, employees, form, editingPaymentId]);
 
     const filteredServices = useMemo(() => {
         if (!selectedClientId) return [];
@@ -171,12 +172,18 @@ export default function PagamentosPage() {
                 descricao: `Pagamento de Salário - ${getEmployeeName(values.referencia_id)}`,
                 tipo_referencia: 'funcionario' as const,
                 status: 'pendente' as const,
-                cliente_id: values.cliente_id === 'none' ? '' : values.cliente_id,
-                servico_id: values.servico_id === 'none' ? '' : values.servico_id,
+                cliente_id: values.cliente_id === 'none' ? '' : (values.cliente_id || ''),
+                servico_id: values.servico_id === 'none' ? '' : (values.servico_id || ''),
             };
 
-            await addDoc(collection(db, 'contas_a_pagar'), paymentData);
-            toast({ title: "Sucesso!", description: "Lançamento de salário agendado com sucesso." });
+            if (editingPaymentId) {
+                await setDoc(doc(db, 'contas_a_pagar', editingPaymentId), paymentData, { merge: true });
+                toast({ title: "Sucesso!", description: "Lançamento atualizado com sucesso." });
+            } else {
+                await addDoc(collection(db, 'contas_a_pagar'), paymentData);
+                toast({ title: "Sucesso!", description: "Lançamento de salário agendado com sucesso." });
+            }
+
             form.reset({
                 referencia_id: '',
                 valor: 0,
@@ -184,6 +191,7 @@ export default function PagamentosPage() {
                 cliente_id: '',
                 servico_id: '',
             });
+            setEditingPaymentId(null);
             await fetchData();
         } catch (error) {
             console.error("Erro ao salvar pagamento: ", error);
@@ -191,6 +199,29 @@ export default function PagamentosPage() {
         } finally {
             setIsSubmitting(false);
         }
+    };
+
+    const handleEditClick = (payment: Account) => {
+        setEditingPaymentId(payment.id);
+        form.reset({
+            referencia_id: payment.referencia_id,
+            valor: payment.valor,
+            vencimento: payment.vencimento,
+            cliente_id: payment.cliente_id || 'none',
+            servico_id: payment.servico_id || 'none',
+        });
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    const handleCancelEdit = () => {
+        setEditingPaymentId(null);
+        form.reset({
+            referencia_id: '',
+            valor: 0,
+            vencimento: new Date(),
+            cliente_id: '',
+            servico_id: '',
+        });
     };
     
     const handleDeletePayment = async (paymentId: string) => {
@@ -340,7 +371,7 @@ export default function PagamentosPage() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <Card className="lg:col-span-1">
                     <CardHeader>
-                        <CardTitle>Lançar Pagamento de Salário</CardTitle>
+                        <CardTitle>{editingPaymentId ? 'Editar Lançamento' : 'Lançar Pagamento de Salário'}</CardTitle>
                         <CardDescription>Registre o pagamento e vincule a um cliente e obra.</CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -473,10 +504,17 @@ export default function PagamentosPage() {
                                     )}
                                 />
 
-                                <Button type="submit" variant="accent" className="w-full" disabled={isSubmitting}>
-                                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                    Agendar Pagamento
-                                </Button>
+                                <div className="flex flex-col gap-2">
+                                    <Button type="submit" variant="accent" className="w-full" disabled={isSubmitting}>
+                                        {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                        {editingPaymentId ? 'Salvar Alterações' : 'Agendar Pagamento'}
+                                    </Button>
+                                    {editingPaymentId && (
+                                        <Button type="button" variant="ghost" className="w-full" onClick={handleCancelEdit}>
+                                            Cancelar Edição
+                                        </Button>
+                                    )}
+                                </div>
                             </form>
                         </Form>
                     </CardContent>
@@ -552,7 +590,7 @@ export default function PagamentosPage() {
                                         <TableHead>Data</TableHead>
                                         <TableHead>Status</TableHead>
                                         <TableHead className="text-right">Valor</TableHead>
-                                        {isAdmin && <TableHead className="w-[50px] text-right">Ações</TableHead>}
+                                        {isAdmin && <TableHead className="w-[120px] text-right">Ações</TableHead>}
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -581,12 +619,17 @@ export default function PagamentosPage() {
                                             {isAdmin && (
                                                 <TableCell className="text-right">
                                                     <div className="flex items-center justify-end gap-2">
-                                                        <Button variant="outline" size="icon" onClick={() => handleMarkAsPaid(payment.id)} disabled={payment.status === 'pago'}>
+                                                        {payment.status === 'pendente' && (
+                                                            <Button variant="ghost" size="icon" onClick={() => handleEditClick(payment)} title="Editar lançamento">
+                                                                <Pencil className="h-4 w-4 text-primary" />
+                                                            </Button>
+                                                        )}
+                                                        <Button variant="outline" size="icon" onClick={() => handleMarkAsPaid(payment.id)} disabled={payment.status === 'pago'} title="Marcar como pago">
                                                             <CheckCircle className="h-4 w-4 text-green-500" />
                                                         </Button>
                                                         <AlertDialog>
                                                             <AlertDialogTrigger asChild>
-                                                                <Button variant="ghost" size="icon">
+                                                                <Button variant="ghost" size="icon" title="Excluir lançamento">
                                                                     <Trash className="h-4 w-4 text-destructive" />
                                                                 </Button>
                                                             </AlertDialogTrigger>
