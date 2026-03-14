@@ -10,8 +10,8 @@ import { PageHeader } from '@/components/page-header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@/components/ui/chart';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, BarChart, Bar, ResponsiveContainer } from 'recharts';
-import { Loader2, XCircle, ShieldAlert, TrendingUp, Wallet, Users, Truck, Activity } from 'lucide-react';
-import { format, subMonths, startOfMonth, endOfMonth, eachMonthOfInterval, isAfter, subDays, eachDayOfInterval, startOfDay, endOfDay } from 'date-fns';
+import { Loader2, XCircle, ShieldAlert, TrendingUp, Wallet, Users, Truck, Activity, Calculator } from 'lucide-react';
+import { format, subMonths, startOfMonth, endOfMonth, eachMonthOfInterval, isAfter, subDays, eachDayOfInterval, startOfDay, endOfDay, isSameDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
@@ -19,6 +19,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 const REVENUE_COLOR = '#16a34a'; // Verde
 const EXPENSE_COLOR = '#dc2626'; // Vermelho
 const BALANCE_COLOR = '#3b82f6';  // Azul
+const PAYROLL_COLOR = '#9333ea'; // Roxo
 
 export default function AnalyticsPage() {
     const [services, setServices] = useState<Service[]>([]);
@@ -186,7 +187,38 @@ export default function AnalyticsPage() {
         });
     }, [filteredReceivables, filteredExpenses, receivables, accountsPayable]);
 
-    // 2. Crescimento Histórico Mensal (Cumulativo)
+    // 2. NOVO: Fluxo Diário (Últimos 90 dias) - Três linhas separadas por dia
+    const dailyFlowTransactions = useMemo(() => {
+        const end = new Date();
+        const start = subDays(end, 89);
+        const days = eachDayOfInterval({ start, end });
+
+        return days.map(day => {
+            const dStart = startOfDay(day);
+            const dEnd = endOfDay(day);
+
+            const receitaDia = filteredReceivables
+                .filter(r => r.data >= dStart && r.data <= dEnd)
+                .reduce((acc, r) => acc + (r.valor || 0), 0);
+            
+            const despesaDia = filteredExpenses
+                .filter(a => a.tipo_referencia !== 'funcionario' && a.vencimento >= dStart && a.vencimento <= dEnd)
+                .reduce((acc, a) => acc + (a.valor || 0), 0);
+
+            const folhaDia = filteredExpenses
+                .filter(a => a.tipo_referencia === 'funcionario' && a.vencimento >= dStart && a.vencimento <= dEnd)
+                .reduce((acc, a) => acc + (a.valor || 0), 0);
+
+            return {
+                date: format(day, 'dd/MM'),
+                receita: receitaDia,
+                despesa: despesaDia,
+                folha: folhaDia
+            };
+        });
+    }, [filteredReceivables, filteredExpenses]);
+
+    // 3. Crescimento Histórico Mensal (Cumulativo)
     const cumulativeMonthlyData = useMemo(() => {
         if (receivables.length === 0 && accountsPayable.length === 0) return [];
         const end = endOfMonth(new Date());
@@ -216,7 +248,7 @@ export default function AnalyticsPage() {
         }
     }, [filteredReceivables, filteredExpenses, receivables, accountsPayable]);
 
-    // 3. Fluxo de Caixa Mensal
+    // 4. Fluxo de Caixa Mensal
     const monthlyFlowData = useMemo(() => {
         const end = endOfMonth(new Date());
         const start = startOfMonth(subMonths(end, 11)); 
@@ -240,7 +272,7 @@ export default function AnalyticsPage() {
         });
     }, [filteredReceivables, filteredExpenses]);
 
-    // 4. Ranking de Clientes
+    // 5. Ranking de Clientes
     const topClientsData = useMemo(() => {
         const clientRevenue: Record<string, number> = {};
         filteredReceivables.forEach(r => {
@@ -253,7 +285,7 @@ export default function AnalyticsPage() {
             .slice(0, 10);
     }, [filteredReceivables, clients]);
 
-    // 5. Gastos por Fornecedor
+    // 6. Gastos por Fornecedor
     const topSuppliersData = useMemo(() => {
         const supplierExpenses: Record<string, number> = {};
         filteredExpenses
@@ -329,7 +361,7 @@ export default function AnalyticsPage() {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 
-                {/* NOVO: Evolução Diária do Saldo (Step Line) */}
+                {/* Evolução Diária do Saldo (Step Line) */}
                 <Card className="lg:col-span-2">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
@@ -349,6 +381,31 @@ export default function AnalyticsPage() {
                                 <Line type="stepAfter" dataKey="receita" stroke={REVENUE_COLOR} strokeWidth={2} dot={false} name="Receita Acum." />
                                 <Line type="stepAfter" dataKey="despesa" stroke={EXPENSE_COLOR} strokeWidth={2} dot={false} name="Despesa Acum." />
                                 <Line type="stepAfter" dataKey="saldo" stroke={BALANCE_COLOR} strokeWidth={4} dot={false} name="Saldo Líquido" />
+                            </LineChart>
+                        </ChartContainer>
+                    </CardContent>
+                </Card>
+
+                {/* NOVO: Fluxo Diário Detalhado (Receita, Despesa e Folha) */}
+                <Card className="lg:col-span-2">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <Wallet className="h-5 w-5 text-purple-500" />
+                            Fluxo Diário de Movimentações (90 Dias)
+                        </CardTitle>
+                        <CardDescription>Entradas vs Saídas diárias, com destaque para a Folha de Pagamento.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <ChartContainer config={{}} className="h-[400px] w-full">
+                            <LineChart data={dailyFlowTransactions}>
+                                <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.3} />
+                                <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} minTickGap={30} />
+                                <YAxis tickFormatter={(v) => `R$${Number(v).toLocaleString('pt-BR', { notation: 'compact' })}`} axisLine={false} tickLine={false} />
+                                <ChartTooltip content={<ChartTooltipContent formatter={(v, n) => `${n}: R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />} />
+                                <ChartLegend content={<ChartLegendContent />} />
+                                <Line type="monotone" dataKey="receita" stroke={REVENUE_COLOR} strokeWidth={3} dot={true} name="Entradas (Receita)" />
+                                <Line type="monotone" dataKey="despesa" stroke={EXPENSE_COLOR} strokeWidth={2} dot={true} name="Saídas (Fornecedores)" />
+                                <Line type="monotone" dataKey="folha" stroke={PAYROLL_COLOR} strokeWidth={2} dot={true} name="Folha de Pagamento" />
                             </LineChart>
                         </ChartContainer>
                     </CardContent>
