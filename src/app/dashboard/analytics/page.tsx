@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell, AreaChart, Area, LineChart, Line } from 'recharts';
 import { Loader2, XCircle, Calendar as CalendarIcon, ShieldAlert, TrendingUp } from 'lucide-react';
-import { format, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, startOfDay, subDays, isBefore, endOfDay } from 'date-fns';
+import { format, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, eachMonthOfInterval, startOfDay, subDays, isBefore, endOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -115,39 +115,57 @@ export default function AnalyticsPage() {
         }
     };
 
-    const cumulativeMonthlyData = () => {
-        const data: { name: string; receitas: number; despesas: number; saldo: number }[] = [];
-        for (let i = 11; i >= 0; i--) {
-            const date = subMonths(new Date(), i);
-            const monthName = format(date, 'MMM/yy', { locale: ptBR });
-            const monthEnd = endOfMonth(date);
+    const cumulativeMonthlyData = useMemo(() => {
+        let start: Date;
+        let end: Date;
 
-            const cumulativeReceived = services
-                .filter(s => {
-                    const dateToUse = s.data_ultimo_pagamento || s.data_cadastro;
-                    const isBeforeOrInMonth = s.valor_pago > 0 && isBefore(dateToUse, endOfDay(monthEnd));
-                    if (!isBeforeOrInMonth) return false;
-                    if (selectedCityFilter) return s.endereco_obra?.city === selectedCityFilter;
-                    return true;
-                })
-                .reduce((acc, s) => acc + s.valor_pago, 0);
-            
-            const cumulativePaid = accountsPayable
-                .filter(a => {
-                    const dueDate = a.vencimento;
-                    return a.status === 'pago' && isBefore(dueDate, endOfDay(monthEnd));
-                })
-                .reduce((acc, a) => acc + a.valor, 0);
-
-            data.push({ 
-                name: monthName, 
-                receitas: cumulativeReceived, 
-                despesas: cumulativePaid,
-                saldo: cumulativeReceived - cumulativePaid
-            });
+        if (dateRange?.from) {
+            start = startOfMonth(dateRange.from);
+            end = dateRange.to ? endOfMonth(dateRange.to) : endOfMonth(start);
+        } else {
+            end = endOfMonth(new Date());
+            start = startOfMonth(subMonths(end, 11));
         }
-        return data;
-    };
+
+        try {
+            const intervalMonths = eachMonthOfInterval({ start, end });
+
+            return intervalMonths.map(month => {
+                const monthEnd = endOfMonth(month);
+
+                const cumulativeReceived = services
+                    .filter(s => {
+                        const dateToUse = s.data_ultimo_pagamento || s.data_cadastro;
+                        const isBeforeOrInMonth = s.valor_pago > 0 && isBefore(dateToUse, endOfDay(monthEnd));
+                        if (!isBeforeOrInMonth) return false;
+                        if (selectedCityFilter && s.endereco_obra?.city !== selectedCityFilter) return false;
+                        if (selectedClient && s.cliente_id !== selectedClient) return false;
+                        return true;
+                    })
+                    .reduce((acc, s) => acc + (s.valor_pago || 0), 0);
+                
+                const cumulativePaid = accountsPayable
+                    .filter(a => {
+                        const dueDate = a.vencimento;
+                        const isBeforeOrInMonth = a.status === 'pago' && isBefore(dueDate, endOfDay(monthEnd));
+                        if (!isBeforeOrInMonth) return false;
+                        if (selectedEmployee && a.referencia_id !== selectedEmployee) return false;
+                        if (selectedClient && a.cliente_id !== selectedClient) return false;
+                        return true;
+                    })
+                    .reduce((acc, a) => acc + (a.valor || 0), 0);
+
+                return { 
+                    name: format(month, 'MMM/yy', { locale: ptBR }), 
+                    receitas: cumulativeReceived, 
+                    despesas: cumulativePaid,
+                    saldo: cumulativeReceived - cumulativePaid
+                };
+            });
+        } catch (e) {
+            return [];
+        }
+    }, [services, accountsPayable, dateRange, selectedCityFilter, selectedClient, selectedEmployee]);
 
     const cumulativeDailyData = useMemo(() => {
         let start: Date;
@@ -172,17 +190,22 @@ export default function AnalyticsPage() {
                         const dateToUse = s.data_ultimo_pagamento || s.data_cadastro;
                         const isBeforeOrInDay = s.valor_pago > 0 && isBefore(dateToUse, dayEnd);
                         if (!isBeforeOrInDay) return false;
-                        if (selectedCityFilter) return s.endereco_obra?.city === selectedCityFilter;
+                        if (selectedCityFilter && s.endereco_obra?.city !== selectedCityFilter) return false;
+                        if (selectedClient && s.cliente_id !== selectedClient) return false;
                         return true;
                     })
-                    .reduce((acc, s) => acc + s.valor_pago, 0);
+                    .reduce((acc, s) => acc + (s.valor_pago || 0), 0);
                 
                 const cumulativePaid = accountsPayable
                     .filter(a => {
                         const dueDate = a.vencimento;
-                        return a.status === 'pago' && isBefore(dueDate, dayEnd);
+                        const isBeforeOrInDay = a.status === 'pago' && isBefore(dueDate, dayEnd);
+                        if (!isBeforeOrInDay) return false;
+                        if (selectedEmployee && a.referencia_id !== selectedEmployee) return false;
+                        if (selectedClient && a.cliente_id !== selectedClient) return false;
+                        return true;
                     })
-                    .reduce((acc, a) => acc + a.valor, 0);
+                    .reduce((acc, a) => acc + (a.valor || 0), 0);
 
                 return {
                     name: format(day, 'dd/MM'),
@@ -194,7 +217,7 @@ export default function AnalyticsPage() {
         } catch (e) {
             return [];
         }
-    }, [services, accountsPayable, dateRange, selectedCityFilter]);
+    }, [services, accountsPayable, dateRange, selectedCityFilter, selectedClient, selectedEmployee]);
     
     const dailyFinancialsData = useMemo(() => {
         let start: Date;
@@ -230,24 +253,32 @@ export default function AnalyticsPage() {
                     .filter(s => {
                         const dateToUse = s.data_ultimo_pagamento || s.data_cadastro;
                         const isSameDay = s.valor_pago > 0 && dateToUse >= dayStart && dateToUse <= dayEnd;
-                        if (selectedCityFilter) return isSameDay && s.endereco_obra?.city === selectedCityFilter;
+                        if (selectedCityFilter && s.endereco_obra?.city !== selectedCityFilter) return false;
+                        if (selectedClient && s.cliente_id !== selectedClient) return false;
                         return isSameDay;
                     })
-                    .reduce((sum, s) => sum + s.valor_pago, 0);
+                    .reduce((sum, s) => sum + (s.valor_pago || 0), 0);
 
                 const dailyExpensesFornecedores = accountsPayable
                     .filter(a => {
                         const dueDate = a.vencimento;
-                        return a.status === 'pago' && a.tipo_referencia === 'fornecedor' && dueDate >= dayStart && dueDate <= dayEnd;
+                        const isMatch = a.status === 'pago' && a.tipo_referencia === 'fornecedor' && dueDate >= dayStart && dueDate <= dayEnd;
+                        if (!isMatch) return false;
+                        if (selectedClient && a.cliente_id !== selectedClient) return false;
+                        return true;
                     })
-                    .reduce((sum, a) => sum + a.valor, 0);
+                    .reduce((sum, a) => sum + (a.valor || 0), 0);
 
                 const dailyExpensesFolha = accountsPayable
                     .filter(a => {
                         const dueDate = a.vencimento;
-                        return a.status === 'pago' && a.tipo_referencia === 'funcionario' && dueDate >= dayStart && dueDate <= dayEnd;
+                        const isMatch = a.status === 'pago' && a.tipo_referencia === 'funcionario' && dueDate >= dayStart && dueDate <= dayEnd;
+                        if (!isMatch) return false;
+                        if (selectedEmployee && a.referencia_id !== selectedEmployee) return false;
+                        if (selectedClient && a.cliente_id !== selectedClient) return false;
+                        return true;
                     })
-                    .reduce((sum, a) => sum + a.valor, 0);
+                    .reduce((sum, a) => sum + (a.valor || 0), 0);
 
                 return {
                     name: format(day, 'dd/MM'),
@@ -259,28 +290,42 @@ export default function AnalyticsPage() {
         } catch (e) {
             return [];
         }
-    }, [services, accountsPayable, dateRange, selectedCityFilter]);
+    }, [services, accountsPayable, dateRange, selectedCityFilter, selectedClient, selectedEmployee]);
 
     const revenueStatusData = useMemo(() => {
-        const totalPaid = services
-            .filter(s => selectedCityFilter ? s.endereco_obra?.city === selectedCityFilter : true)
-            .reduce((sum, s) => sum + (s.valor_pago || 0), 0);
-        
-        const totalPending = services
-            .filter(s => selectedCityFilter ? s.endereco_obra?.city === selectedCityFilter : true)
-            .reduce((sum, s) => sum + (s.saldo_devedor || 0), 0);
+        const baseServices = services.filter(s => {
+            if (selectedCityFilter && s.endereco_obra?.city !== selectedCityFilter) return false;
+            if (selectedClient && s.cliente_id !== selectedClient) return false;
+            if (dateRange?.from) {
+                const from = startOfDay(dateRange.from);
+                const to = dateRange.to ? endOfDay(dateRange.to) : endOfDay(from);
+                const date = s.data_cadastro;
+                return date >= from && date <= to;
+            }
+            return true;
+        });
+
+        const totalPaid = baseServices.reduce((sum, s) => sum + (s.valor_pago || 0), 0);
+        const totalPending = baseServices.reduce((sum, s) => sum + (s.saldo_devedor || 0), 0);
         
         return [
             { name: 'Recebido', value: totalPaid },
             { name: 'A Receber', value: totalPending },
         ].filter(item => item.value > 0);
-    }, [services, selectedCityFilter]);
+    }, [services, selectedCityFilter, selectedClient, dateRange]);
 
 
     const serviceStatusData = useMemo(() => {
         const base = services.filter(s => {
-            const cityMatch = selectedCityFilter ? s.endereco_obra?.city === selectedCityFilter : true;
-            return cityMatch && s.status_financeiro !== 'cancelado';
+            if (selectedCityFilter && s.endereco_obra?.city !== selectedCityFilter) return false;
+            if (selectedClient && s.cliente_id !== selectedClient) return false;
+            if (dateRange?.from) {
+                const from = startOfDay(dateRange.from);
+                const to = dateRange.to ? endOfDay(dateRange.to) : endOfDay(from);
+                const date = s.data_cadastro;
+                if (date < from || date > to) return false;
+            }
+            return s.status_financeiro !== 'cancelado';
         });
 
         const total = base.length;
@@ -292,25 +337,34 @@ export default function AnalyticsPage() {
             { name: 'Em Andamento', value: inProgress, fill: COLORS[2] },
             { name: 'Concluídos', value: completed, fill: COLORS[1] },
         ];
-    }, [services, selectedCityFilter]);
+    }, [services, selectedCityFilter, selectedClient, dateRange]);
 
-    const revenueByClientData = clients
-        .map(client => {
-            const clientServices = services.filter(s => {
-                const match = s.cliente_id === client.codigo_cliente;
-                const cityMatch = selectedCityFilter ? s.endereco_obra?.city === selectedCityFilter : true;
-                return match && cityMatch;
-            });
-            const totalRevenue = clientServices.reduce((sum, s) => sum + (s.valor_pago || 0), 0);
-            return { 
-                name: client.nome_completo, 
-                receita: totalRevenue,
-                contratos: clientServices.length
-            };
-        })
-        .filter(c => c.receita > 0)
-        .sort((a, b) => b.receita - a.receita)
-        .slice(0, 5);
+    const revenueByClientData = useMemo(() => {
+        return clients
+            .map(client => {
+                const clientServices = services.filter(s => {
+                    const match = s.cliente_id === client.codigo_cliente;
+                    if (!match) return false;
+                    if (selectedCityFilter && s.endereco_obra?.city !== selectedCityFilter) return false;
+                    if (dateRange?.from) {
+                        const from = startOfDay(dateRange.from);
+                        const to = dateRange.to ? endOfDay(dateRange.to) : endOfDay(from);
+                        const date = s.data_ultimo_pagamento || s.data_cadastro;
+                        if (date < from || date > to) return false;
+                    }
+                    return true;
+                });
+                const totalRevenue = clientServices.reduce((sum, s) => sum + (s.valor_pago || 0), 0);
+                return { 
+                    name: client.nome_completo, 
+                    receita: totalRevenue,
+                    contratos: clientServices.length
+                };
+            })
+            .filter(c => c.receita > 0)
+            .sort((a, b) => b.receita - a.receita)
+            .slice(0, 5);
+    }, [clients, services, selectedCityFilter, dateRange]);
         
     const handleClearFilters = () => {
         setDateRange(undefined);
@@ -381,11 +435,17 @@ export default function AnalyticsPage() {
                     </Popover>
                     <Select value={selectedClient} onValueChange={setSelectedClient}>
                         <SelectTrigger className="w-[250px]"><SelectValue placeholder="Filtrar por cliente..." /></SelectTrigger>
-                        <SelectContent>{clients.map(c => <SelectItem key={c.codigo_cliente} value={c.codigo_cliente}>{c.nome_completo}</SelectItem>)}</SelectContent>
+                        <SelectContent>
+                            <SelectItem value="none" onClick={() => setSelectedClient('')}>Todos os clientes</SelectItem>
+                            {clients.map(c => <SelectItem key={c.codigo_cliente} value={c.codigo_cliente}>{c.nome_completo}</SelectItem>)}
+                        </SelectContent>
                     </Select>
                     <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
                         <SelectTrigger className="w-[250px]"><SelectValue placeholder="Filtrar por funcionário..." /></SelectTrigger>
-                        <SelectContent>{employees.map(e => <SelectItem key={e.id} value={e.id}>{e.nome}</SelectItem>)}</SelectContent>
+                        <SelectContent>
+                            <SelectItem value="none" onClick={() => setSelectedEmployee('')}>Todos os funcionários</SelectItem>
+                            {employees.map(e => <SelectItem key={e.id} value={e.id}>{e.nome}</SelectItem>)}
+                        </SelectContent>
                     </Select>
                     <Select value={selectedCityFilter} onValueChange={setSelectedCityFilter}>
                         <SelectTrigger className="w-[200px]">
@@ -414,11 +474,11 @@ export default function AnalyticsPage() {
                             <TrendingUp className="h-5 w-5 text-green-500" />
                             Crescimento Histórico Mensal (Cumulativo)
                         </CardTitle>
-                        <CardDescription>Evolução da soma total de entradas e saídas ao longo dos últimos 12 meses.</CardDescription>
+                        <CardDescription>Evolução da soma total de entradas e saídas ao longo do período.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <ChartContainer config={{}} className="h-[400px] w-full">
-                            <LineChart data={cumulativeMonthlyData()}>
+                            <LineChart data={cumulativeMonthlyData}>
                                 <CartesianGrid vertical={false} strokeDasharray="3 3" />
                                 <XAxis dataKey="name" tickLine={false} axisLine={false} tickMargin={8} />
                                 <YAxis tickFormatter={(value) => `R$${Number(value).toLocaleString('pt-BR', { notation: 'compact' })}`}/>
