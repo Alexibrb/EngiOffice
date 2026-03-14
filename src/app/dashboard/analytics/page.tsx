@@ -164,28 +164,25 @@ export default function AnalyticsPage() {
         });
     }, [receivables, services, selectedCityFilter, isGlobalView]);
 
-    // Filtro de Despesas (Se cidade selecionada, não mostramos saídas)
+    // Filtro de Despesas
     const activeExpenses = useMemo(() => {
-        if (!isGlobalView) return [];
-        return accountsPayable.filter(a => a.status === 'pago');
-    }, [accountsPayable, isGlobalView]);
-
-    // Identifica o início absoluto para cálculos acumulados
-    const absoluteStartDate = useMemo(() => {
-        const allDates = [
-            ...receivables.map(r => r.data.getTime()),
-            ...accountsPayable.map(a => a.vencimento.getTime())
-        ];
-        if (allDates.length === 0) return startOfMonth(new Date());
-        return startOfMonth(new Date(Math.min(...allDates)));
-    }, [receivables, accountsPayable]);
+        return accountsPayable
+            .filter(a => a.status === 'pago')
+            .filter(a => {
+                if (isGlobalView) return true;
+                // Para filtro de cidade, precisamos ver se a conta está vinculada a um serviço daquela cidade
+                if (!a.servico_id) return false;
+                const service = services.find(s => s.id === a.servico_id);
+                return service?.endereco_obra?.city === selectedCityFilter;
+            });
+    }, [accountsPayable, services, selectedCityFilter, isGlobalView]);
 
     // Datas da Amostra (Eixo X)
     const sampleRange = useMemo(() => {
-        const start = dateRange?.from || absoluteStartDate;
+        const start = dateRange?.from || new Date();
         const end = dateRange?.to || new Date();
         return { start, end };
-    }, [dateRange, absoluteStartDate]);
+    }, [dateRange]);
 
     // 1. Evolução Diária (Patrimônio Acumulado)
     const dailyStepData = useMemo(() => {
@@ -211,7 +208,7 @@ export default function AnalyticsPage() {
         });
     }, [activeReceivables, activeExpenses, sampleRange]);
 
-    // 2. Fluxo Diário Pontual (O gráfico das 3 linhas)
+    // 2. Fluxo Diário Pontual (As 3 Linhas da Imagem - Receita, Despesa, Folha)
     const dailyFlowTransactions = useMemo(() => {
         const days = eachDayOfInterval({ start: sampleRange.start, end: sampleRange.end });
 
@@ -224,7 +221,7 @@ export default function AnalyticsPage() {
                 .reduce((acc, r) => acc + (r.valor || 0), 0);
             
             const despesaDia = activeExpenses
-                .filter(a => a.tipo_referencia !== 'funcionario' && a.vencimento >= dStart && a.vencimento <= dEnd)
+                .filter(a => a.tipo_referencia === 'fornecedor' && a.vencimento >= dStart && a.vencimento <= dEnd)
                 .reduce((acc, a) => acc + (a.valor || 0), 0);
 
             const folhaDia = activeExpenses
@@ -294,37 +291,10 @@ export default function AnalyticsPage() {
         }
     }, [activeReceivables, activeExpenses, sampleRange]);
 
-    // Rankings (No período filtrado)
-    const topClientsData = useMemo(() => {
-        const clientRevenue: Record<string, number> = {};
-        activeReceivables
-            .filter(r => r.data >= sampleRange.start && r.data <= sampleRange.end)
-            .forEach(r => {
-                const name = clients.find(c => c.codigo_cliente === r.cliente_id)?.nome_completo || 'Desconhecido';
-                clientRevenue[name] = (clientRevenue[name] || 0) + r.valor;
-            });
-        return Object.entries(clientRevenue)
-            .map(([name, value]) => ({ name, value }))
-            .sort((a, b) => b.value - a.value)
-            .slice(0, 10);
-    }, [activeReceivables, clients, sampleRange]);
-
-    const topSuppliersData = useMemo(() => {
-        const supplierExpenses: Record<string, number> = {};
-        activeExpenses
-            .filter(a => a.tipo_referencia === 'fornecedor' && a.vencimento >= sampleRange.start && a.vencimento <= sampleRange.end)
-            .forEach(a => {
-                const name = suppliers.find(s => s.id === a.referencia_id)?.razao_social || 'Desconhecido';
-                supplierExpenses[name] = (supplierExpenses[name] || 0) + a.valor;
-            });
-        return Object.entries(supplierExpenses)
-            .map(([name, value]) => ({ name, value }))
-            .sort((a, b) => b.value - a.value);
-    }, [activeExpenses, suppliers, sampleRange]);
-
     const handleClearFilters = () => {
         setSelectedCityFilter('none');
-        setDateRange({ from: absoluteStartDate, to: new Date() });
+        // Reset to full period if possible
+        fetchData();
     };
 
     if (isLoading) {
@@ -355,11 +325,11 @@ export default function AnalyticsPage() {
         <div className="flex flex-col gap-8">
             <PageHeader 
                 title="Analytics"
-                description="Visão detalhada da saúde financeira baseada no histórico selecionado."
+                description="Análise financeira profunda e detalhada do seu escritório."
             />
             
             <Card>
-                <CardHeader><CardTitle>Filtros de Amostragem</CardTitle></CardHeader>
+                <CardHeader><CardTitle>Intervalo da Amostra</CardTitle></CardHeader>
                 <CardContent className="flex flex-wrap items-center gap-4">
                     <div className="flex items-center gap-2">
                         <span className="text-sm font-medium">Período:</span>
@@ -413,38 +383,13 @@ export default function AnalyticsPage() {
                 </CardContent>
             </Card>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 gap-8">
                 
-                {/* 1. Evolução Diária (Patrimônio) */}
-                <Card className="lg:col-span-2">
+                {/* 1. Fluxo de Caixa Diário (As 3 Linhas da Imagem - COM AREA) */}
+                <Card>
                     <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <Activity className="h-5 w-5 text-blue-500" />
-                            Evolução do Patrimônio (Acumulado)
-                        </CardTitle>
-                        <CardDescription>Saldo histórico acumulado dia a dia.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <ChartContainer config={{}} className="h-[400px] w-full">
-                            <LineChart data={dailyStepData}>
-                                <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.3} />
-                                <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} minTickGap={60} />
-                                <YAxis tickFormatter={(v) => `R$${Number(v).toLocaleString('pt-BR', { notation: 'compact' })}`} axisLine={false} tickLine={false} />
-                                <ChartTooltip content={<ChartTooltipContent formatter={(v, n) => `${n}: R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />} />
-                                <ChartLegend content={<ChartLegendContent />} />
-                                <Line type="stepAfter" dataKey="receita" stroke={REVENUE_COLOR} strokeWidth={2} dot={false} name="Receita Acum." />
-                                {isGlobalView && <Line type="stepAfter" dataKey="despesa" stroke={EXPENSE_COLOR} strokeWidth={2} dot={false} name="Despesa Acum." />}
-                                <Line type="stepAfter" dataKey="saldo" stroke={BALANCE_COLOR} strokeWidth={4} dot={false} name="Patrimônio Líquido" />
-                            </LineChart>
-                        </ChartContainer>
-                    </CardContent>
-                </Card>
-
-                {/* 2. Fluxo de Caixa Diário (As 3 Linhas da Imagem) */}
-                <Card className="lg:col-span-2">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <Wallet className="h-5 w-5 text-purple-500" />
+                        <CardTitle className="flex items-center gap-2 text-purple-500">
+                            <Wallet className="h-5 w-5" />
                             Fluxo de Caixa (Diário)
                         </CardTitle>
                         <CardDescription>Entradas e saídas pontuais ocorridas em cada dia.</CardDescription>
@@ -454,19 +399,19 @@ export default function AnalyticsPage() {
                             <AreaChart data={dailyFlowTransactions}>
                                 <defs>
                                     <linearGradient id="colorReceita" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor={REVENUE_COLOR} stopOpacity={0.8}/>
+                                        <stop offset="5%" stopColor={REVENUE_COLOR} stopOpacity={0.3}/>
                                         <stop offset="95%" stopColor={REVENUE_COLOR} stopOpacity={0}/>
                                     </linearGradient>
                                     <linearGradient id="colorDespesa" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor={EXPENSE_COLOR} stopOpacity={0.8}/>
+                                        <stop offset="5%" stopColor={EXPENSE_COLOR} stopOpacity={0.3}/>
                                         <stop offset="95%" stopColor={EXPENSE_COLOR} stopOpacity={0}/>
                                     </linearGradient>
                                     <linearGradient id="colorFolha" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor={PAYROLL_COLOR} stopOpacity={0.8}/>
+                                        <stop offset="5%" stopColor={PAYROLL_COLOR} stopOpacity={0.3}/>
                                         <stop offset="95%" stopColor={PAYROLL_COLOR} stopOpacity={0}/>
                                     </linearGradient>
                                 </defs>
-                                <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.3} />
+                                <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.2} />
                                 <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} minTickGap={60} />
                                 <YAxis tickFormatter={(v) => `R$${Number(v).toLocaleString('pt-BR', { notation: 'compact' })}`} axisLine={false} tickLine={false} />
                                 <ChartTooltip content={<ChartTooltipContent formatter={(v, n) => `${n}: R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />} />
@@ -475,132 +420,140 @@ export default function AnalyticsPage() {
                                     type="monotone" 
                                     dataKey="receita" 
                                     stroke={REVENUE_COLOR} 
-                                    strokeWidth={3}
+                                    strokeWidth={2}
                                     fillOpacity={1} 
                                     fill="url(#colorReceita)" 
                                     name="Receitas" 
                                 />
-                                {isGlobalView && (
-                                    <>
-                                        <Area 
-                                            type="monotone" 
-                                            dataKey="despesa" 
-                                            stroke={EXPENSE_COLOR} 
-                                            strokeWidth={3}
-                                            fillOpacity={0.6} 
-                                            fill="url(#colorDespesa)" 
-                                            name="Fornecedores" 
-                                        />
-                                        <Area 
-                                            type="monotone" 
-                                            dataKey="folha" 
-                                            stroke={PAYROLL_COLOR} 
-                                            strokeWidth={3}
-                                            fillOpacity={0.6} 
-                                            fill="url(#colorFolha)" 
-                                            name="Folha Pagto" 
-                                        />
-                                    </>
-                                )}
+                                <Area 
+                                    type="monotone" 
+                                    dataKey="despesa" 
+                                    stroke={EXPENSE_COLOR} 
+                                    strokeWidth={2}
+                                    fillOpacity={1} 
+                                    fill="url(#colorDespesa)" 
+                                    name="Fornecedores" 
+                                />
+                                <Area 
+                                    type="monotone" 
+                                    dataKey="folha" 
+                                    stroke={PAYROLL_COLOR} 
+                                    strokeWidth={2}
+                                    fillOpacity={1} 
+                                    fill="url(#colorFolha)" 
+                                    name="Folha Pagto" 
+                                />
                             </AreaChart>
                         </ChartContainer>
                     </CardContent>
                 </Card>
 
-                {/* 3. Crescimento Mensal Cumulativo */}
-                <Card className="lg:col-span-2">
+                {/* 2. Evolução do Patrimônio (Acumulado) */}
+                <Card>
                     <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <TrendingUp className="h-5 w-5 text-green-500" />
-                            Crescimento Histórico Acumulado (Mensal)
+                        <CardTitle className="flex items-center gap-2 text-blue-500">
+                            <Activity className="h-5 w-5" />
+                            Evolução do Patrimônio (Acumulado)
                         </CardTitle>
-                        <CardDescription>Evolução patrimonial total agrupada por mês.</CardDescription>
+                        <CardDescription>Saldo histórico acumulado dia a dia refletindo o caixa real.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <ChartContainer config={{}} className="h-[400px] w-full">
-                            <LineChart data={cumulativeMonthlyData}>
-                                <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.5} />
-                                <XAxis dataKey="name" tickLine={false} axisLine={false} tickMargin={8} />
+                            <LineChart data={dailyStepData}>
+                                <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.2} />
+                                <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} minTickGap={60} />
                                 <YAxis tickFormatter={(v) => `R$${Number(v).toLocaleString('pt-BR', { notation: 'compact' })}`} axisLine={false} tickLine={false} />
-                                <ChartTooltip content={<ChartTooltipContent formatter={(v, n) => `${n}: R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}/>} />
+                                <ChartTooltip content={<ChartTooltipContent formatter={(v, n) => `${n}: R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />} />
                                 <ChartLegend content={<ChartLegendContent />} />
-                                <Line type="monotone" dataKey="receitas" stroke={REVENUE_COLOR} strokeWidth={3} dot={false} name="Receitas Acum." />
-                                {isGlobalView && <Line type="monotone" dataKey="despesas" stroke={EXPENSE_COLOR} strokeWidth={3} dot={false} name="Despesas Acum." />}
-                                <Line type="monotone" dataKey="saldo" stroke={BALANCE_COLOR} strokeWidth={4} strokeDasharray="5 5" dot={false} name="Patrimônio" />
+                                <Line type="stepAfter" dataKey="receita" stroke={REVENUE_COLOR} strokeWidth={1.5} dot={false} name="Receita Acum." />
+                                <Line type="stepAfter" dataKey="despesa" stroke={EXPENSE_COLOR} strokeWidth={1.5} dot={false} name="Despesa Acum." />
+                                <Line type="stepAfter" dataKey="saldo" stroke={BALANCE_COLOR} strokeWidth={3} dot={false} name="Patrimônio Líquido" />
                             </LineChart>
                         </ChartContainer>
                     </CardContent>
                 </Card>
 
-                {/* 4. Fluxo de Caixa Mensal (Barras) */}
+                {/* 3. Crescimento Mensal Cumulativo */}
                 <Card>
                     <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <Wallet className="h-5 w-5 text-blue-500" />
-                            Fluxo de Caixa Mensal (Entradas vs Saídas)
+                        <CardTitle className="flex items-center gap-2 text-green-500">
+                            <TrendingUp className="h-5 w-5" />
+                            Crescimento Histórico (Mensal)
                         </CardTitle>
-                        <CardDescription>Movimentação financeira real dentro de cada mês.</CardDescription>
+                        <CardDescription>Visão agrupada por mês da evolução patrimonial.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <ChartContainer config={{}} className="h-[300px] w-full">
-                            <BarChart data={monthlyFlowData}>
-                                <CartesianGrid vertical={false} opacity={0.3} />
-                                <XAxis dataKey="name" tickLine={false} axisLine={false} />
-                                <YAxis hide />
-                                <ChartTooltip content={<ChartTooltipContent formatter={(v) => `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />} />
+                        <ChartContainer config={{}} className="h-[400px] w-full">
+                            <LineChart data={cumulativeMonthlyData}>
+                                <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.3} />
+                                <XAxis dataKey="name" tickLine={false} axisLine={false} tickMargin={8} />
+                                <YAxis tickFormatter={(v) => `R$${Number(v).toLocaleString('pt-BR', { notation: 'compact' })}`} axisLine={false} tickLine={false} />
+                                <ChartTooltip content={<ChartTooltipContent formatter={(v, n) => `${n}: R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}/>} />
                                 <ChartLegend content={<ChartLegendContent />} />
-                                <Bar dataKey="entradas" fill={REVENUE_COLOR} radius={[4, 4, 0, 0]} name="Entradas" />
-                                {isGlobalView && <Bar dataKey="saidas" fill={EXPENSE_COLOR} radius={[4, 4, 0, 0]} name="Saídas" />}
-                            </BarChart>
+                                <Line type="monotone" dataKey="receitas" stroke={REVENUE_COLOR} strokeWidth={2} dot={true} name="Receitas Acum." />
+                                <Line type="monotone" dataKey="despesas" stroke={EXPENSE_COLOR} strokeWidth={2} dot={true} name="Despesas Acum." />
+                                <Line type="monotone" dataKey="saldo" stroke={BALANCE_COLOR} strokeWidth={4} strokeDasharray="5 5" dot={true} name="Saldo Acumulado" />
+                            </LineChart>
                         </ChartContainer>
                     </CardContent>
                 </Card>
 
-                {/* 5. Top Clientes */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <Users className="h-5 w-5 text-orange-500" />
-                            Top Clientes por Faturamento
-                        </CardTitle>
-                        <CardDescription>Clientes com maior volume de pagamentos no período.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <ChartContainer config={{}} className="h-[300px] w-full">
-                            <BarChart data={topClientsData} layout="vertical" margin={{ left: 40 }}>
-                                <CartesianGrid horizontal={false} opacity={0.3} />
-                                <XAxis type="number" hide />
-                                <YAxis dataKey="name" type="category" width={100} axisLine={false} tickLine={false} className="text-[10px]" />
-                                <ChartTooltip content={<ChartTooltipContent formatter={(v) => `R$ ${Number(v).toLocaleString('pt-BR')}`} />} />
-                                <Bar dataKey="value" fill="#8884d8" radius={[0, 4, 4, 0]} name="Receita Total" />
-                            </BarChart>
-                        </ChartContainer>
-                    </CardContent>
-                </Card>
-
-                {/* 6. Gastos com Fornecedores */}
-                {isGlobalView && (
-                    <Card className="lg:col-span-2">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    {/* 4. Fluxo de Caixa Mensal (Barras) */}
+                    <Card>
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
-                                <Truck className="h-5 w-5 text-red-500" />
-                                Gastos por Fornecedor
+                                <Wallet className="h-5 w-5" />
+                                Entradas vs Saídas Mensais
                             </CardTitle>
-                            <CardDescription>Ranking de pagamentos efetuados no período.</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <ChartContainer config={{}} className="h-[400px] w-full">
-                                <BarChart data={topSuppliersData} layout="vertical" margin={{ left: 60 }}>
-                                    <CartesianGrid horizontal={false} opacity={0.3} />
-                                    <XAxis type="number" hide />
-                                    <YAxis dataKey="name" type="category" width={150} axisLine={false} tickLine={false} className="text-[10px]" />
-                                    <ChartTooltip content={<ChartTooltipContent formatter={(v) => `R$ ${Number(v).toLocaleString('pt-BR')}`} />} />
-                                    <Bar dataKey="value" fill={EXPENSE_COLOR} radius={[0, 4, 4, 0]} name="Total Pago" />
+                            <ChartContainer config={{}} className="h-[300px] w-full">
+                                <BarChart data={monthlyFlowData}>
+                                    <CartesianGrid vertical={false} opacity={0.2} />
+                                    <XAxis dataKey="name" tickLine={false} axisLine={false} />
+                                    <YAxis hide />
+                                    <ChartTooltip content={<ChartTooltipContent formatter={(v) => `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />} />
+                                    <ChartLegend content={<ChartLegendContent />} />
+                                    <Bar dataKey="entradas" fill={REVENUE_COLOR} radius={[4, 4, 0, 0]} name="Entradas" />
+                                    <Bar dataKey="saidas" fill={EXPENSE_COLOR} radius={[4, 4, 0, 0]} name="Saídas" />
                                 </BarChart>
                             </ChartContainer>
                         </CardContent>
                     </Card>
-                )}
+
+                    {/* 5. Top Clientes */}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <Users className="h-5 w-5" />
+                                Maiores Faturamentos por Cliente
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <ChartContainer config={{}} className="h-[300px] w-full">
+                                <BarChart 
+                                    data={Object.entries(activeReceivables.reduce((acc, curr) => {
+                                        const name = clients.find(c => c.codigo_cliente === curr.cliente_id)?.nome_completo || 'Desconhecido';
+                                        acc[name] = (acc[name] || 0) + curr.valor;
+                                        return acc;
+                                    }, {} as Record<string, number>))
+                                    .map(([name, value]) => ({ name, value }))
+                                    .sort((a, b) => b.value - a.value)
+                                    .slice(0, 10)} 
+                                    layout="vertical" 
+                                    margin={{ left: 40 }}
+                                >
+                                    <CartesianGrid horizontal={false} opacity={0.2} />
+                                    <XAxis type="number" hide />
+                                    <YAxis dataKey="name" type="category" width={100} axisLine={false} tickLine={false} className="text-[10px]" />
+                                    <ChartTooltip content={<ChartTooltipContent formatter={(v) => `R$ ${Number(v).toLocaleString('pt-BR')}`} />} />
+                                    <Bar dataKey="value" fill="#8884d8" radius={[0, 4, 4, 0]} name="Receita Total" />
+                                </BarChart>
+                            </ChartContainer>
+                        </CardContent>
+                    </Card>
+                </div>
             </div>
         </div>
     );
