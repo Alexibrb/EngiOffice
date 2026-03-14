@@ -9,7 +9,7 @@ import type { Service, Client, Account, Employee, AuthorizedUser, City } from '@
 import { PageHeader } from '@/components/page-header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@/components/ui/chart';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell, AreaChart, Area, LineChart, Line } from 'recharts';
 import { Loader2, XCircle, Calendar as CalendarIcon, ShieldAlert } from 'lucide-react';
 import { format, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, startOfDay, subDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -153,6 +153,44 @@ export default function AnalyticsPage() {
                 .reduce((acc, a) => acc + a.valor, 0);
 
             data.push({ name: monthName, receitas: received, despesas: paid });
+        }
+        return data;
+    };
+
+    const monthlyPerformanceData = () => {
+        const data: { name: string; receitas: number; despesas: number; lucro: number }[] = [];
+        for (let i = 11; i >= 0; i--) {
+            const date = subMonths(new Date(), i);
+            const monthName = format(date, 'MMM/yy', { locale: ptBR });
+            const monthStart = startOfMonth(date);
+            const monthEnd = endOfMonth(date);
+
+            const received = services
+                .filter(s => {
+                    const serviceDate = new Date(s.data_cadastro);
+                    const isInMonth = s.valor_pago > 0 && !isNaN(serviceDate.getTime()) && serviceDate >= monthStart && serviceDate <= monthEnd;
+                    if (!isInMonth) return false;
+                    
+                    if (selectedCityFilter) {
+                        return s.endereco_obra?.city === selectedCityFilter;
+                    }
+                    return true;
+                })
+                .reduce((acc, s) => acc + s.valor_pago, 0);
+            
+            const paid = accountsPayable
+                .filter(a => {
+                    const dueDate = new Date(a.vencimento);
+                    return a.status === 'pago' && !isNaN(dueDate.getTime()) && dueDate >= monthStart && dueDate <= monthEnd;
+                })
+                .reduce((acc, a) => acc + a.valor, 0);
+
+            data.push({ 
+                name: monthName, 
+                receitas: received, 
+                despesas: paid,
+                lucro: received - paid
+            });
         }
         return data;
     };
@@ -354,6 +392,27 @@ export default function AnalyticsPage() {
             </Card>
 
             <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+                <Card className="lg:col-span-2">
+                    <CardHeader>
+                        <CardTitle>Desempenho Mensal (Resultados)</CardTitle>
+                        <CardDescription>Evolução de receitas, despesas e lucro líquido (dia 1 ao último dia do mês) nos últimos 12 meses.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <ChartContainer config={{}} className="h-[350px] w-full">
+                            <LineChart data={monthlyPerformanceData()}>
+                                <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                                <XAxis dataKey="name" tickLine={false} axisLine={false} tickMargin={8} />
+                                <YAxis tickFormatter={(value) => `R$${value/1000}k`}/>
+                                <ChartTooltip content={<ChartTooltipContent formatter={(value, name) => `${name}: R$ ${Number(value).toLocaleString('pt-BR')}`}/>} />
+                                <ChartLegend content={<ChartLegendContent />} />
+                                <Line type="monotone" dataKey="receitas" stroke={POSITIVE_COLOR} strokeWidth={2} dot={{ r: 4 }} name="Receitas" />
+                                <Line type="monotone" dataKey="despesas" stroke={NEGATIVE_COLOR} strokeWidth={2} dot={{ r: 4 }} name="Despesas" />
+                                <Line type="monotone" dataKey="lucro" stroke={COLORS[0]} strokeWidth={4} dot={{ r: 6 }} name="Lucro Líquido" />
+                            </LineChart>
+                        </ChartContainer>
+                    </CardContent>
+                </Card>
+
                 <Card>
                     <CardHeader>
                         <CardTitle>Visão Geral Financeira (Mensal)</CardTitle>
