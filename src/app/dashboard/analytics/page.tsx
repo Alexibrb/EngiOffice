@@ -6,13 +6,13 @@ import { collection, getDocs, query, where, Timestamp } from 'firebase/firestore
 import { db, auth } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
-import type { Service, Client, Account, Employee, AuthorizedUser, City, Supplier, ServicePayment } from '@/lib/types';
+import type { Service, Client, Account, Employee, AuthorizedUser, City, ServicePayment, Supplier } from '@/lib/types';
 import { PageHeader } from '@/components/page-header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@/components/ui/chart';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell, AreaChart, Area, LineChart, Line } from 'recharts';
-import { Loader2, XCircle, Calendar as CalendarIcon, ShieldAlert, TrendingUp, Truck, Banknote, User } from 'lucide-react';
-import { format, subMonths, startOfMonth, endOfMonth, eachMonthOfInterval, startOfDay, subDays, isBefore, endOfDay, isAfter } from 'date-fns';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { Loader2, XCircle, Calendar as CalendarIcon, ShieldAlert, TrendingUp } from 'lucide-react';
+import { format, subMonths, startOfMonth, endOfMonth, eachMonthOfInterval, isAfter } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -21,27 +21,22 @@ import { Calendar } from '@/components/ui/calendar';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
-const POSITIVE_COLOR = '#16a34a';
-const NEGATIVE_COLOR = '#dc2626';
-const BALANCE_COLOR = '#3b82f6';
+const POSITIVE_COLOR = '#16a34a'; // Verde
+const NEGATIVE_COLOR = '#dc2626'; // Vermelho
+const BALANCE_COLOR = '#3b82f6';  // Azul
 
 export default function AnalyticsPage() {
     const [services, setServices] = useState<Service[]>([]);
     const [clients, setClients] = useState<Client[]>([]);
     const [accountsPayable, setAccountsPayable] = useState<Account[]>([]);
-    const [employees, setEmployees] = useState<Employee[]>([]);
-    const [suppliers, setSuppliers] = useState<Supplier[]>([]);
     const [cities, setCities] = useState<City[]>([]);
     const [receivables, setReceivables] = useState<ServicePayment[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isAdmin, setIsAdmin] = useState(false);
     const router = useRouter();
 
-    // Filtros
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
     const [selectedClient, setSelectedClient] = useState('');
-    const [selectedEmployee, setSelectedEmployee] = useState('');
     const [selectedCityFilter, setSelectedCityFilter] = useState('');
 
     useEffect(() => {
@@ -72,45 +67,56 @@ export default function AnalyticsPage() {
     const fetchData = async () => {
         setIsLoading(true);
         try {
-            const [servicesSnap, clientsSnap, accountsPayableSnap, employeesSnap, citiesSnap, suppliersSnap, receivablesSnap] = await Promise.all([
+            const [servicesSnap, clientsSnap, accountsPayableSnap, citiesSnap, receivablesSnap] = await Promise.all([
                 getDocs(collection(db, "servicos")),
                 getDocs(collection(db, "clientes")),
                 getDocs(collection(db, "contas_a_pagar")),
-                getDocs(collection(db, "funcionarios")),
                 getDocs(collection(db, "cidades")),
-                getDocs(collection(db, "fornecedores")),
                 getDocs(collection(db, "recebimentos")),
             ]);
 
-            const servicesData = servicesSnap.docs.map(doc => ({
-                ...doc.data(),
-                id: doc.id,
-                data_cadastro: doc.data().data_cadastro instanceof Timestamp ? doc.data().data_cadastro.toDate() : new Date(doc.data().data_cadastro),
-            } as Service));
+            const servicesData = servicesSnap.docs.map(doc => {
+                const data = doc.data();
+                return {
+                    ...data,
+                    id: doc.id,
+                    data_cadastro: data.data_cadastro instanceof Timestamp ? data.data_cadastro.toDate() : new Date(data.data_cadastro),
+                } as Service;
+            });
 
             const clientsData = clientsSnap.docs.map(doc => ({ ...doc.data(), codigo_cliente: doc.id } as Client));
             
-            const accountsData = accountsPayableSnap.docs.map(doc => ({
-                ...doc.data(),
-                id: doc.id,
-                vencimento: doc.data().vencimento instanceof Timestamp ? doc.data().vencimento.toDate() : new Date(doc.data().vencimento)
-            } as Account));
+            const accountsData = accountsPayableSnap.docs.map(doc => {
+                const data = doc.data();
+                return {
+                    ...data,
+                    id: doc.id,
+                    vencimento: data.vencimento instanceof Timestamp ? data.vencimento.toDate() : new Date(data.vencimento)
+                } as Account;
+            });
 
-            const employeesData = employeesSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Employee));
             const citiesData = citiesSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as City));
-            const suppliersData = suppliersSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Supplier));
             
-            const receivablesData = receivablesSnap.docs.map(doc => ({
-                ...doc.data(),
-                id: doc.id,
-                data: doc.data().data instanceof Timestamp ? doc.data().data.toDate() : new Date(doc.data().data),
-            })) as ServicePayment[];
+            const receivablesData = receivablesSnap.docs.map(doc => {
+                const data = doc.data();
+                let paymentDate: Date;
+                if (data.data instanceof Timestamp) {
+                    paymentDate = data.data.toDate();
+                } else if (data.data) {
+                    paymentDate = new Date(data.data);
+                } else {
+                    paymentDate = new Date();
+                }
+                return {
+                    ...data,
+                    id: doc.id,
+                    data: paymentDate,
+                } as ServicePayment;
+            });
 
             setServices(servicesData);
             setClients(clientsData);
             setAccountsPayable(accountsData);
-            setEmployees(employeesData);
-            setSuppliers(suppliersData);
             setCities(citiesData.sort((a, b) => a.nome_cidade.localeCompare(b.nome_cidade)));
             setReceivables(receivablesData);
 
@@ -121,11 +127,10 @@ export default function AnalyticsPage() {
         }
     };
 
-    // 1. Filtragem Base: Receitas e Despesas vinculadas a serviços existentes e filtros de topo
     const filteredReceivables = useMemo(() => {
         return receivables.filter(r => {
             const service = services.find(s => s.id === r.servico_id);
-            if (!service) return false; // Ignora se o serviço foi excluído
+            if (!service) return false;
 
             const matchesCity = !selectedCityFilter || selectedCityFilter === 'none' || service.endereco_obra?.city === selectedCityFilter;
             const matchesClient = !selectedClient || selectedClient === 'none' || r.cliente_id === selectedClient;
@@ -138,37 +143,31 @@ export default function AnalyticsPage() {
         return accountsPayable.filter(a => {
             if (a.status !== 'pago') return false;
 
-            // Se a despesa for vinculada a um serviço, esse serviço deve existir
             if (a.servico_id) {
                 const service = services.find(s => s.id === a.servico_id);
                 if (!service) return false;
-                
-                // Se estiver filtrando por cidade, a cidade da obra deve bater
                 if (selectedCityFilter && selectedCityFilter !== 'none' && service.endereco_obra?.city !== selectedCityFilter) return false;
             } else {
-                // Se não tiver serviço e estivermos filtrando por cidade, ocultamos (pois não há cidade vinculada à despesa geral)
                 if (selectedCityFilter && selectedCityFilter !== 'none') return false;
             }
 
             const matchesClient = !selectedClient || selectedClient === 'none' || a.cliente_id === selectedClient;
-            const matchesEmployee = !selectedEmployee || selectedEmployee === 'none' || a.referencia_id === selectedEmployee;
-
-            return matchesClient && matchesEmployee;
+            return matchesClient;
         });
-    }, [accountsPayable, services, selectedClient, selectedEmployee, selectedCityFilter]);
+    }, [accountsPayable, services, selectedClient, selectedCityFilter]);
 
-    // 2. Gráfico Cumulativo: Soma tudo desde o início até o final de cada mês do intervalo
     const cumulativeMonthlyData = useMemo(() => {
+        if (services.length === 0 && accountsPayable.length === 0 && receivables.length === 0) return [];
+
         let start: Date;
         let end: Date;
 
-        // Definimos o período de visualização (X-Axis)
         if (dateRange?.from) {
             start = startOfMonth(dateRange.from);
             end = dateRange.to ? endOfMonth(dateRange.to) : endOfMonth(start);
         } else {
             end = endOfMonth(new Date());
-            start = startOfMonth(subMonths(end, 11)); // Últimos 12 meses por padrão
+            start = startOfMonth(subMonths(end, 11)); 
         }
 
         try {
@@ -177,7 +176,6 @@ export default function AnalyticsPage() {
             return months.map(month => {
                 const monthEnd = endOfMonth(month);
 
-                // IMPORTANTE: Soma TUDO desde o início dos tempos até o final deste mês específico
                 const totalReceivedUntilNow = filteredReceivables
                     .filter(r => !isAfter(r.data, monthEnd))
                     .reduce((acc, r) => acc + (r.valor || 0), 0);
@@ -196,12 +194,11 @@ export default function AnalyticsPage() {
         } catch (e) {
             return [];
         }
-    }, [filteredReceivables, filteredAccountsPaid, dateRange]);
+    }, [filteredReceivables, filteredAccountsPaid, dateRange, services, accountsPayable, receivables]);
 
     const handleClearFilters = () => {
         setDateRange(undefined);
         setSelectedClient('');
-        setSelectedEmployee('');
         setSelectedCityFilter('');
     }
 
@@ -276,7 +273,6 @@ export default function AnalyticsPage() {
                 </CardContent>
             </Card>
 
-            {/* 1. Crescimento Histórico Mensal (Cumulativo) */}
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -328,16 +324,6 @@ export default function AnalyticsPage() {
                     </ChartContainer>
                 </CardContent>
             </Card>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {/* Aqui entraremos com os outros gráficos nas próximas etapas */}
-                <Card className="opacity-50 grayscale">
-                    <CardHeader><CardTitle>Mais Gráficos em Breve...</CardTitle></CardHeader>
-                    <CardContent className="h-40 flex items-center justify-center">
-                        <p className="text-muted-foreground">Estamos recriando os gráficos um a um para garantir precisão.</p>
-                    </CardContent>
-                </Card>
-            </div>
         </div>
     );
 }
