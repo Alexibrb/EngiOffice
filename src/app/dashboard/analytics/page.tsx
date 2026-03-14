@@ -115,36 +115,6 @@ export default function AnalyticsPage() {
         }
     };
 
-    const financialOverviewData = () => {
-        const data: { name: string; receitas: number; despesas: number }[] = [];
-        for (let i = 5; i >= 0; i--) {
-            const date = subMonths(new Date(), i);
-            const monthName = format(date, 'MMM/yy', { locale: ptBR });
-            const monthStart = startOfMonth(date);
-            const monthEnd = endOfMonth(date);
-
-            const received = services
-                .filter(s => {
-                    const dateToUse = s.data_ultimo_pagamento || s.data_cadastro;
-                    const isInMonth = s.valor_pago > 0 && dateToUse >= monthStart && dateToUse <= monthEnd;
-                    if (!isInMonth) return false;
-                    if (selectedCityFilter) return s.endereco_obra?.city === selectedCityFilter;
-                    return true;
-                })
-                .reduce((acc, s) => acc + s.valor_pago, 0);
-            
-            const paid = accountsPayable
-                .filter(a => {
-                    const dueDate = a.vencimento;
-                    return a.status === 'pago' && dueDate >= monthStart && dueDate <= monthEnd;
-                })
-                .reduce((acc, a) => acc + a.valor, 0);
-
-            data.push({ name: monthName, receitas: received, despesas: paid });
-        }
-        return data;
-    };
-
     const cumulativeMonthlyData = () => {
         const data: { name: string; receitas: number; despesas: number; saldo: number }[] = [];
         for (let i = 11; i >= 0; i--) {
@@ -187,7 +157,6 @@ export default function AnalyticsPage() {
             start = startOfDay(dateRange.from);
             end = dateRange.to ? endOfDay(dateRange.to) : endOfDay(start);
         } else {
-            // Padrão: últimos 90 dias para manter a legibilidade
             end = endOfDay(new Date());
             start = startOfDay(subDays(end, 90));
         }
@@ -482,36 +451,6 @@ export default function AnalyticsPage() {
                                 <Line type="stepAfter" dataKey="despesas" stroke={NEGATIVE_COLOR} strokeWidth={2} dot={false} name="Despesas Acumuladas" />
                                 <Line type="stepAfter" dataKey="saldo" stroke={BALANCE_COLOR} strokeWidth={3} dot={false} name="Saldo em Caixa" />
                             </LineChart>
-                        </ChartContainer>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Visão Geral Financeira (Mensal)</CardTitle>
-                        <CardDescription>Receitas vs. Despesas nos últimos 6 meses.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <ChartContainer config={{}} className="h-[300px] w-full">
-                            <AreaChart data={financialOverviewData()}>
-                                 <defs>
-                                    <linearGradient id="colorReceitas" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor={POSITIVE_COLOR} stopOpacity={0.8}/>
-                                    <stop offset="95%" stopColor={POSITIVE_COLOR} stopOpacity={0}/>
-                                    </linearGradient>
-                                    <linearGradient id="colorDespesas" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor={NEGATIVE_COLOR} stopOpacity={0.8}/>
-                                    <stop offset="95%" stopColor={NEGATIVE_COLOR} stopOpacity={0}/>
-                                    </linearGradient>
-                                </defs>
-                                <CartesianGrid vertical={false} />
-                                <XAxis dataKey="name" tickLine={false} axisLine={false} tickMargin={8} />
-                                <YAxis tickFormatter={(value) => `R$${value/1000}k`}/>
-                                <ChartTooltip content={<ChartTooltipContent formatter={(value, name) => `${name}: R$ ${Number(value).toLocaleString('pt-BR')}`}/>} />
-                                <ChartLegend content={<ChartLegendContent />} />
-                                <Area type="monotone" dataKey="receitas" stroke={POSITIVE_COLOR} fillOpacity={1} fill="url(#colorReceitas)" name="Receitas" />
-                                <Area type="monotone" dataKey="despesas" stroke={NEGATIVE_COLOR} fillOpacity={1} fill="url(#colorDespesas)" name="Despesas" />
-                            </AreaChart>
                         </ChartContainer>
                     </CardContent>
                 </Card>
