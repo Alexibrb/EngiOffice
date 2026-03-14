@@ -9,8 +9,8 @@ import { useRouter } from 'next/navigation';
 import type { Service, Client, Account, AuthorizedUser, City, ServicePayment, Supplier } from '@/lib/types';
 import { PageHeader } from '@/components/page-header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@/components/ui/chart';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, BarChart, Bar } from 'recharts';
+import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent, type ChartConfig } from '@/components/ui/chart';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, BarChart, Bar, AreaChart, Area } from 'recharts';
 import { Loader2, XCircle, ShieldAlert, TrendingUp, Wallet, Users, Truck, Activity, Calendar as CalendarIcon } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachMonthOfInterval, isAfter, eachDayOfInterval, startOfDay, endOfDay, subMonths, isBefore } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -25,6 +25,12 @@ const REVENUE_COLOR = '#16a34a'; // Verde
 const EXPENSE_COLOR = '#dc2626'; // Vermelho
 const BALANCE_COLOR = '#3b82f6';  // Azul
 const PAYROLL_COLOR = '#9333ea'; // Roxo
+
+const flowChartConfig = {
+    receita: { label: "Receitas", color: REVENUE_COLOR },
+    despesa: { label: "Fornecedores", color: EXPENSE_COLOR },
+    folha: { label: "Folha Pagto", color: PAYROLL_COLOR },
+} satisfies ChartConfig;
 
 export default function AnalyticsPage() {
     const [services, setServices] = useState<Service[]>([]);
@@ -434,31 +440,69 @@ export default function AnalyticsPage() {
                     </CardContent>
                 </Card>
 
-                {/* Fluxo Diário de Movimentações (Entradas e Saídas no Dia) */}
+                {/* Fluxo de Caixa (Diário) - Reconstruído como na imagem */}
                 <Card className="lg:col-span-2">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <Wallet className="h-5 w-5 text-purple-500" />
-                            Fluxo Diário de Movimentações
+                            Fluxo de Caixa (Diário)
                         </CardTitle>
-                        <CardDescription>Dinheiro que entrou ou saiu especificamente em cada data.</CardDescription>
+                        <CardDescription>Entradas e saídas diárias detalhadas.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <ChartContainer config={{}} className="h-[400px] w-full">
-                            <LineChart data={dailyFlowTransactions}>
+                        <ChartContainer config={flowChartConfig} className="h-[400px] w-full">
+                            <AreaChart data={dailyFlowTransactions}>
+                                <defs>
+                                    <linearGradient id="colorReceita" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor={REVENUE_COLOR} stopOpacity={0.8}/>
+                                        <stop offset="95%" stopColor={REVENUE_COLOR} stopOpacity={0}/>
+                                    </linearGradient>
+                                    <linearGradient id="colorDespesa" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor={EXPENSE_COLOR} stopOpacity={0.8}/>
+                                        <stop offset="95%" stopColor={EXPENSE_COLOR} stopOpacity={0}/>
+                                    </linearGradient>
+                                    <linearGradient id="colorFolha" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor={PAYROLL_COLOR} stopOpacity={0.8}/>
+                                        <stop offset="95%" stopColor={PAYROLL_COLOR} stopOpacity={0}/>
+                                    </linearGradient>
+                                </defs>
                                 <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.3} />
                                 <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} minTickGap={60} />
                                 <YAxis tickFormatter={(v) => `R$${Number(v).toLocaleString('pt-BR', { notation: 'compact' })}`} axisLine={false} tickLine={false} />
                                 <ChartTooltip content={<ChartTooltipContent formatter={(v, n) => `${n}: R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />} />
                                 <ChartLegend content={<ChartLegendContent />} />
-                                <Line type="monotone" dataKey="receita" stroke={REVENUE_COLOR} strokeWidth={3} dot={false} name="Entradas (Receita)" />
+                                <Area 
+                                    type="monotone" 
+                                    dataKey="receita" 
+                                    stroke={REVENUE_COLOR} 
+                                    strokeWidth={2}
+                                    fillOpacity={1} 
+                                    fill="url(#colorReceita)" 
+                                    name="Receitas" 
+                                />
                                 {selectedCityFilter === 'none' && (
                                     <>
-                                        <Line type="monotone" dataKey="despesa" stroke={EXPENSE_COLOR} strokeWidth={2} dot={false} name="Saídas (Fornecedores)" />
-                                        <Line type="monotone" dataKey="folha" stroke={PAYROLL_COLOR} strokeWidth={2} dot={false} name="Folha de Pagamento" />
+                                        <Area 
+                                            type="monotone" 
+                                            dataKey="despesa" 
+                                            stroke={EXPENSE_COLOR} 
+                                            strokeWidth={2}
+                                            fillOpacity={1} 
+                                            fill="url(#colorDespesa)" 
+                                            name="Fornecedores" 
+                                        />
+                                        <Area 
+                                            type="monotone" 
+                                            dataKey="folha" 
+                                            stroke={PAYROLL_COLOR} 
+                                            strokeWidth={2}
+                                            fillOpacity={1} 
+                                            fill="url(#colorFolha)" 
+                                            name="Folha Pagto" 
+                                        />
                                     </>
                                 )}
-                            </LineChart>
+                            </AreaChart>
                         </ChartContainer>
                     </CardContent>
                 </Card>
