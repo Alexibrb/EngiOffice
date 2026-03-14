@@ -95,8 +95,6 @@ export default function AnalyticsPage() {
         }
     };
 
-    const getClient = (clientId: string) => clients.find(c => c.codigo_cliente === clientId);
-
     const filteredServices = useMemo(() => {
         return services.filter(service => {
             const serviceDate = new Date(service.data_cadastro);
@@ -218,7 +216,11 @@ export default function AnalyticsPage() {
         .map(client => {
             const clientServices = filteredServices.filter(s => s.cliente_id === client.codigo_cliente);
             const totalRevenue = clientServices.reduce((sum, s) => sum + (s.valor_pago || 0), 0);
-            return { name: client.nome_completo, receita: totalRevenue };
+            return { 
+                name: client.nome_completo, 
+                receita: totalRevenue,
+                contratos: clientServices.length
+            };
         })
         .filter(c => c.receita > 0)
         .sort((a, b) => b.receita - a.receita)
@@ -382,7 +384,24 @@ export default function AnalyticsPage() {
                                 <CartesianGrid horizontal={false} />
                                 <XAxis type="number" hide />
                                 <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} tickMargin={8} width={150} />
-                                <ChartTooltip content={<ChartTooltipContent formatter={(value) => `R$ ${Number(value).toLocaleString('pt-BR')}`}/>} />
+                                <ChartTooltip 
+                                    content={
+                                        <ChartTooltipContent 
+                                            formatter={(value, name, item) => (
+                                                <div className="flex flex-col gap-1">
+                                                    <div className="flex items-center justify-between gap-4">
+                                                        <span className="text-muted-foreground">Receita:</span>
+                                                        <span className="font-bold">R$ {Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                                                    </div>
+                                                    <div className="flex items-center justify-between gap-4">
+                                                        <span className="text-muted-foreground">Contratos:</span>
+                                                        <span className="font-bold">{item.payload.contratos}</span>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        />
+                                    } 
+                                />
                                 <Bar dataKey="receita" fill={POSITIVE_COLOR} radius={4} name="Receita" />
                             </BarChart>
                         </ChartContainer>
