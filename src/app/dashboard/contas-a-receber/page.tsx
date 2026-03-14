@@ -411,8 +411,8 @@ export default function ContasAReceberPage() {
             })
             .filter(service => {
                 if (!selectedCityFilter) return true;
-                const client = getClient(service.cliente_id);
-                return client?.endereco_residencial?.city === selectedCityFilter;
+                // CORREÇÃO: Utiliza a cidade da obra
+                return service.endereco_obra?.city === selectedCityFilter;
             })
             .filter(service => {
                 if (!dateRange?.from) return true;

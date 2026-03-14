@@ -246,8 +246,9 @@ export default function ComissoesPage() {
         })
         .filter(commission => {
             if (!selectedCityFilter) return true;
-            const client = getClient(commission.cliente_id);
-            return client?.endereco_residencial?.city === selectedCityFilter;
+            // CORREÇÃO: Utiliza a cidade da obra vinculada à comissão
+            const service = getService(commission.servico_id);
+            return service?.endereco_obra?.city === selectedCityFilter;
         });
     
     const filteredTotal = filteredCommissions.reduce((acc, curr) => acc + curr.valor, 0);

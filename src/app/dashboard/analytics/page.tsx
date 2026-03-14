@@ -112,13 +112,13 @@ export default function AnalyticsPage() {
             
             let cityMatch = true;
             if (selectedCityFilter) {
-                const client = getClient(service.cliente_id);
-                cityMatch = client?.endereco_residencial?.city === selectedCityFilter;
+                // CORREÇÃO: Utiliza a cidade da obra
+                cityMatch = service.endereco_obra?.city === selectedCityFilter;
             }
 
             return inDateRange && clientMatch && cityMatch;
         });
-    }, [services, dateRange, selectedClient, selectedCityFilter, clients]);
+    }, [services, dateRange, selectedClient, selectedCityFilter]);
     
     const filteredAccountsPayable = useMemo(() => {
          return accountsPayable.filter(account => {
@@ -146,8 +146,8 @@ export default function AnalyticsPage() {
                     if (!isInMonth) return false;
                     
                     if (selectedCityFilter) {
-                        const client = getClient(s.cliente_id);
-                        return client?.endereco_residencial?.city === selectedCityFilter;
+                        // CORREÇÃO: Utiliza a cidade da obra
+                        return s.endereco_obra?.city === selectedCityFilter;
                     }
                     return true;
                 })

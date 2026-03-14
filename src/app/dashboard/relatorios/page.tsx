@@ -250,8 +250,8 @@ export default function RelatoriosPage() {
                 .filter(s => s.descricao.toLowerCase().includes(searchLower) || (getClient(s.cliente_id)?.nome_completo.toLowerCase() || '').includes(searchLower))
                 .filter(s => {
                     if (!selectedCityFilter) return true;
-                    const client = getClient(s.cliente_id);
-                    return client?.endereco_residencial?.city === selectedCityFilter;
+                    // CORREÇÃO: Utiliza a cidade da obra
+                    return s.endereco_obra?.city === selectedCityFilter;
                 })
                 .filter(s => {
                     if (!dateRange?.from) return true;
