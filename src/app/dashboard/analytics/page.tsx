@@ -9,9 +9,9 @@ import type { Service, Client, Account, AuthorizedUser, City, ServicePayment, Su
 import { PageHeader } from '@/components/page-header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@/components/ui/chart';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, BarChart, Bar, ResponsiveContainer } from 'recharts';
-import { Loader2, XCircle, ShieldAlert, TrendingUp, Wallet, Users, Truck, Activity, Calculator } from 'lucide-react';
-import { format, subMonths, startOfMonth, endOfMonth, eachMonthOfInterval, isAfter, subDays, eachDayOfInterval, startOfDay, endOfDay, isSameDay } from 'date-fns';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, BarChart, Bar } from 'recharts';
+import { Loader2, XCircle, ShieldAlert, TrendingUp, Wallet, Users, Truck, Activity } from 'lucide-react';
+import { format, startOfMonth, endOfMonth, eachMonthOfInterval, isAfter, eachDayOfInterval, startOfDay, endOfDay, subMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
@@ -136,6 +136,7 @@ export default function AnalyticsPage() {
         }
     };
 
+    // Filtro de Receitas (Afetado por Cidade e Cliente)
     const filteredReceivables = useMemo(() => {
         return receivables.filter(r => {
             const service = services.find(s => s.id === r.servico_id);
@@ -146,26 +147,32 @@ export default function AnalyticsPage() {
         });
     }, [receivables, services, selectedCityFilter, selectedClient]);
 
+    // Filtro de Despesas (Afetado apenas por Cliente - conforme pedido: "por cidade mostre apenas as entradas")
     const filteredExpenses = useMemo(() => {
         return accountsPayable.filter(a => {
             if (a.status !== 'pago') return false;
-            if (a.servico_id) {
-                const service = services.find(s => s.id === a.servico_id);
-                if (!service) return false;
-                if (selectedCityFilter !== 'none' && service.endereco_obra?.city !== selectedCityFilter) return false;
-            } else if (selectedCityFilter !== 'none') {
-                return false;
-            }
             const matchesClient = selectedClient === 'none' || a.cliente_id === selectedClient;
             return matchesClient;
         });
-    }, [accountsPayable, services, selectedClient, selectedCityFilter]);
+    }, [accountsPayable, selectedClient]);
 
-    // 1. Evolução Diária (Step Line - Últimos 90 dias)
+    // Identifica a data da primeira transação para definir o início do período padrão
+    const firstTransactionDate = useMemo(() => {
+        const allDates = [
+            ...receivables.map(r => r.data.getTime()),
+            ...accountsPayable.map(a => a.vencimento.getTime())
+        ];
+        if (allDates.length === 0) return startOfMonth(subMonths(new Date(), 11));
+        return startOfMonth(new Date(Math.min(...allDates)));
+    }, [receivables, accountsPayable]);
+
+    const today = useMemo(() => new Date(), []);
+
+    // 1. Evolução Diária (Step Line - Todo o Período)
     const dailyStepData = useMemo(() => {
         if (receivables.length === 0 && accountsPayable.length === 0) return [];
-        const end = new Date();
-        const start = subDays(end, 89);
+        const start = firstTransactionDate;
+        const end = today;
         const days = eachDayOfInterval({ start, end });
 
         return days.map(day => {
@@ -179,18 +186,18 @@ export default function AnalyticsPage() {
                 .reduce((acc, a) => acc + (a.valor || 0), 0);
 
             return {
-                date: format(day, 'dd/MM'),
+                date: format(day, 'dd/MM/yy'),
                 saldo: totalReceivedUntilNow - totalPaidUntilNow,
                 receita: totalReceivedUntilNow,
                 despesa: totalPaidUntilNow
             };
         });
-    }, [filteredReceivables, filteredExpenses, receivables, accountsPayable]);
+    }, [filteredReceivables, filteredExpenses, firstTransactionDate, today, receivables, accountsPayable]);
 
-    // 2. NOVO: Fluxo Diário (Últimos 90 dias) - Três linhas separadas por dia
+    // 2. Fluxo Diário (Todo o Período)
     const dailyFlowTransactions = useMemo(() => {
-        const end = new Date();
-        const start = subDays(end, 89);
+        const start = firstTransactionDate;
+        const end = today;
         const days = eachDayOfInterval({ start, end });
 
         return days.map(day => {
@@ -210,19 +217,19 @@ export default function AnalyticsPage() {
                 .reduce((acc, a) => acc + (a.valor || 0), 0);
 
             return {
-                date: format(day, 'dd/MM'),
+                date: format(day, 'dd/MM/yy'),
                 receita: receitaDia,
                 despesa: despesaDia,
                 folha: folhaDia
             };
         });
-    }, [filteredReceivables, filteredExpenses]);
+    }, [filteredReceivables, filteredExpenses, firstTransactionDate, today]);
 
-    // 3. Crescimento Histórico Mensal (Cumulativo)
+    // 3. Crescimento Histórico Mensal (Cumulativo - Todo o Período)
     const cumulativeMonthlyData = useMemo(() => {
         if (receivables.length === 0 && accountsPayable.length === 0) return [];
-        const end = endOfMonth(new Date());
-        const start = startOfMonth(subMonths(end, 11)); 
+        const start = firstTransactionDate;
+        const end = endOfMonth(today);
 
         try {
             const months = eachMonthOfInterval({ start, end });
@@ -246,12 +253,12 @@ export default function AnalyticsPage() {
         } catch (e) {
             return [];
         }
-    }, [filteredReceivables, filteredExpenses, receivables, accountsPayable]);
+    }, [filteredReceivables, filteredExpenses, firstTransactionDate, today, receivables, accountsPayable]);
 
-    // 4. Fluxo de Caixa Mensal
+    // 4. Fluxo de Caixa Mensal (Todo o Período)
     const monthlyFlowData = useMemo(() => {
-        const end = endOfMonth(new Date());
-        const start = startOfMonth(subMonths(end, 11)); 
+        const start = firstTransactionDate;
+        const end = endOfMonth(today);
         const months = eachMonthOfInterval({ start, end });
 
         return months.map(month => {
@@ -270,7 +277,7 @@ export default function AnalyticsPage() {
                 saidas: paidInMonth,
             };
         });
-    }, [filteredReceivables, filteredExpenses]);
+    }, [filteredReceivables, filteredExpenses, firstTransactionDate, today]);
 
     // 5. Ranking de Clientes
     const topClientsData = useMemo(() => {
@@ -332,11 +339,11 @@ export default function AnalyticsPage() {
         <div className="flex flex-col gap-8">
             <PageHeader 
                 title="Analytics"
-                description="Visão detalhada da saúde financeira baseada em entradas e saídas reais."
+                description="Visão detalhada da saúde financeira baseada em todo o seu histórico."
             />
             
             <Card>
-                <CardHeader><CardTitle>Filtros</CardTitle></CardHeader>
+                <CardHeader><CardTitle>Filtros de Visão</CardTitle></CardHeader>
                 <CardContent className="flex flex-wrap items-center gap-4">
                     <Select value={selectedClient} onValueChange={setSelectedClient}>
                         <SelectTrigger className="w-[250px]"><SelectValue placeholder="Cliente" /></SelectTrigger>
@@ -366,15 +373,15 @@ export default function AnalyticsPage() {
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <Activity className="h-5 w-5 text-blue-500" />
-                            Evolução Diária do Patrimônio (Últimos 90 Dias)
+                            Evolução do Patrimônio (Histórico Completo)
                         </CardTitle>
-                        <CardDescription>Acompanhamento diário do saldo, receitas e despesas acumuladas.</CardDescription>
+                        <CardDescription>Saldo, receitas e despesas acumuladas desde o primeiro lançamento.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <ChartContainer config={{}} className="h-[400px] w-full">
                             <LineChart data={dailyStepData}>
                                 <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.3} />
-                                <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} minTickGap={30} />
+                                <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} minTickGap={60} />
                                 <YAxis tickFormatter={(v) => `R$${Number(v).toLocaleString('pt-BR', { notation: 'compact' })}`} axisLine={false} tickLine={false} />
                                 <ChartTooltip content={<ChartTooltipContent formatter={(v, n) => `${n}: R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />} />
                                 <ChartLegend content={<ChartLegendContent />} />
@@ -386,26 +393,26 @@ export default function AnalyticsPage() {
                     </CardContent>
                 </Card>
 
-                {/* NOVO: Fluxo Diário Detalhado (Receita, Despesa e Folha) */}
+                {/* Fluxo Diário Detalhado (Receita, Despesa e Folha) */}
                 <Card className="lg:col-span-2">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <Wallet className="h-5 w-5 text-purple-500" />
-                            Fluxo Diário de Movimentações (90 Dias)
+                            Fluxo Diário de Movimentações
                         </CardTitle>
-                        <CardDescription>Entradas vs Saídas diárias, com destaque para a Folha de Pagamento.</CardDescription>
+                        <CardDescription>Entradas vs Saídas pontuais ocorridas em cada dia.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <ChartContainer config={{}} className="h-[400px] w-full">
                             <LineChart data={dailyFlowTransactions}>
                                 <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.3} />
-                                <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} minTickGap={30} />
+                                <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} minTickGap={60} />
                                 <YAxis tickFormatter={(v) => `R$${Number(v).toLocaleString('pt-BR', { notation: 'compact' })}`} axisLine={false} tickLine={false} />
                                 <ChartTooltip content={<ChartTooltipContent formatter={(v, n) => `${n}: R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />} />
                                 <ChartLegend content={<ChartLegendContent />} />
-                                <Line type="monotone" dataKey="receita" stroke={REVENUE_COLOR} strokeWidth={3} dot={true} name="Entradas (Receita)" />
-                                <Line type="monotone" dataKey="despesa" stroke={EXPENSE_COLOR} strokeWidth={2} dot={true} name="Saídas (Fornecedores)" />
-                                <Line type="monotone" dataKey="folha" stroke={PAYROLL_COLOR} strokeWidth={2} dot={true} name="Folha de Pagamento" />
+                                <Line type="monotone" dataKey="receita" stroke={REVENUE_COLOR} strokeWidth={3} dot={false} name="Entradas (Receita)" />
+                                <Line type="monotone" dataKey="despesa" stroke={EXPENSE_COLOR} strokeWidth={2} dot={false} name="Saídas (Fornecedores)" />
+                                <Line type="monotone" dataKey="folha" stroke={PAYROLL_COLOR} strokeWidth={2} dot={false} name="Folha de Pagamento" />
                             </LineChart>
                         </ChartContainer>
                     </CardContent>
@@ -416,9 +423,9 @@ export default function AnalyticsPage() {
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <TrendingUp className="h-5 w-5 text-green-500" />
-                            Crescimento Histórico Acumulado (12 Meses)
+                            Crescimento Histórico Acumulado (Mensal)
                         </CardTitle>
-                        <CardDescription>Evolução patrimonial total de receitas vs despesas ao longo do tempo.</CardDescription>
+                        <CardDescription>Evolução patrimonial total agrupada por mês.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <ChartContainer config={{}} className="h-[400px] w-full">
