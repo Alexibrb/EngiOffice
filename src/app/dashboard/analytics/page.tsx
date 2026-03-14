@@ -203,6 +203,7 @@ export default function AnalyticsPage() {
                     .reduce((acc, a) => acc + (a.valor || 0), 0);
 
                 return {
+                    timestamp: day.getTime(),
                     date: format(day, 'dd/MM'),
                     receita: receitaDia,
                     despesa: despesaDia,
@@ -228,6 +229,7 @@ export default function AnalyticsPage() {
                     .reduce((acc, a) => acc + (a.valor || 0), 0);
 
                 return {
+                    timestamp: day.getTime(),
                     date: format(day, 'dd/MM/yy'),
                     saldo: totalReceivedUntilNow - totalPaidUntilNow,
                     receita: totalReceivedUntilNow,
@@ -252,6 +254,7 @@ export default function AnalyticsPage() {
                     .reduce((acc, a) => acc + (a.valor || 0), 0);
 
                 return { 
+                    timestamp: month.getTime(),
                     name: format(month, 'MMM/yy', { locale: ptBR }), 
                     receitas: totalReceivedUntilNow, 
                     despesas: totalPaidUntilNow,
@@ -404,7 +407,14 @@ export default function AnalyticsPage() {
                         <ChartContainer config={{}} className="h-[400px] w-full">
                             <LineChart data={dailyStepData}>
                                 <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.2} />
-                                <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} minTickGap={60} />
+                                <XAxis 
+                                    dataKey="timestamp" 
+                                    tickLine={false} 
+                                    axisLine={false} 
+                                    tickMargin={8} 
+                                    minTickGap={60}
+                                    tickFormatter={(ts) => format(new Date(ts), 'dd/MM')}
+                                />
                                 <YAxis tickFormatter={(v) => `R$${Number(v).toLocaleString('pt-BR', { notation: 'compact' })}`} axisLine={false} tickLine={false} />
                                 <ChartTooltip content={<ChartTooltipContent formatter={(v, n) => `${n}: R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />} />
                                 <ChartLegend content={<ChartLegendContent />} />
@@ -428,7 +438,13 @@ export default function AnalyticsPage() {
                         <ChartContainer config={{}} className="h-[400px] w-full">
                             <LineChart data={cumulativeMonthlyData}>
                                 <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.3} />
-                                <XAxis dataKey="name" tickLine={false} axisLine={false} tickMargin={8} />
+                                <XAxis 
+                                    dataKey="timestamp" 
+                                    tickLine={false} 
+                                    axisLine={false} 
+                                    tickMargin={8}
+                                    tickFormatter={(ts) => format(new Date(ts), 'MMM/yy', { locale: ptBR })}
+                                />
                                 <YAxis tickFormatter={(v) => `R$${Number(v).toLocaleString('pt-BR', { notation: 'compact' })}`} axisLine={false} tickLine={false} />
                                 <ChartTooltip content={<ChartTooltipContent formatter={(v, n) => `${n}: R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />} />
                                 <ChartLegend content={<ChartLegendContent />} />
@@ -450,11 +466,12 @@ export default function AnalyticsPage() {
                             <BarChart data={dailyFlowTransactions} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                                 <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.3} />
                                 <XAxis 
-                                    dataKey="date" 
+                                    dataKey="timestamp" 
                                     tickLine={false} 
                                     axisLine={false} 
                                     tickMargin={15} 
                                     minTickGap={30}
+                                    tickFormatter={(ts) => format(new Date(ts), 'dd/MM')}
                                     className="text-[10px] text-muted-foreground"
                                 />
                                 <YAxis 
@@ -493,7 +510,6 @@ export default function AnalyticsPage() {
                 </Card>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    {/* Gráfico de Pizza - Status de Recebíveis */}
                     <Card>
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
@@ -527,7 +543,6 @@ export default function AnalyticsPage() {
                         </CardContent>
                     </Card>
 
-                    {/* Top Clientes */}
                     <Card>
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
@@ -560,7 +575,6 @@ export default function AnalyticsPage() {
                         </CardContent>
                     </Card>
 
-                    {/* Top Fornecedores */}
                     <Card>
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
