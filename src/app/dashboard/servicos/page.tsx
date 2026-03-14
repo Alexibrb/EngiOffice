@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -283,7 +282,6 @@ export default function ServicosPage() {
           data_ultimo_pagamento: data.data_ultimo_pagamento?.toDate(),
         } as Service
       });
-      // Ordenação por data de cadastro decrescente (mais recente primeiro)
       servicesData.sort((a, b) => b.data_cadastro.getTime() - a.data_cadastro.getTime());
       setServices(servicesData);
 
@@ -623,7 +621,6 @@ export default function ServicosPage() {
         })
         .filter(service => {
             if (!selectedCityFilter) return true;
-            // CORREÇÃO: Utiliza a cidade da obra em vez da residencial do cliente
             return service.endereco_obra?.city === selectedCityFilter;
         })
         .filter(service => {
@@ -734,7 +731,7 @@ export default function ServicosPage() {
                     <PopoverTrigger asChild>
                         <Button variant="outline" className={cn("w-[250px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
                             <CalendarIcon className="mr-2 h-4 w-4" />
-                            {dateRange?.from ? (dateRange.to ? <>{format(dateRange.from, "dd/MM/yy")} - {format(dateRange.to, "dd/MM/yy")}</> : format(dateRange.from, "dd/MM/yy")) : "Filtrar por data"}
+                            {dateRange?.from ? (dateRange.to ? <>{format(dateRange.from, "dd/MM/yy")} - {format(dateRange.to, "dd/MM/yy")}</> : format(dateRange.from, "dd/MM/yy")) : "Todo o período"}
                         </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start"><Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={setDateRange} numberOfMonths={2} locale={ptBR}/></PopoverContent>
@@ -765,7 +762,6 @@ export default function ServicosPage() {
             </div>
         </CardHeader>
         <CardContent>
-            {/* Barra de Totais Filtrados */}
             <div className="bg-slate-900 text-white p-4 rounded-t-lg flex flex-row justify-between items-center border-x border-t">
                 <div className="font-bold text-lg pl-2">Totais Filtrados</div>
                 <div className="flex flex-row gap-12 pr-4">

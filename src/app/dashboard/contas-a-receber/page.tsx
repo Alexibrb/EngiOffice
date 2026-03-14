@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -115,7 +114,6 @@ export default function ContasAReceberPage() {
                   data_ultimo_pagamento: data.data_ultimo_pagamento?.toDate(),
                 } as Service
             });
-            // Ordenação por data de cadastro decrescente
             servicesData.sort((a, b) => b.data_cadastro.getTime() - a.data_cadastro.getTime());
             setServices(servicesData);
 
@@ -159,13 +157,10 @@ export default function ContasAReceberPage() {
         const valueToDisplay = isPartialPayment ? paymentValue : service.valor_pago;
         const title = isPartialPayment ? 'RECIBO DE PAGAMENTO PARCIAL' : 'RECIBO DE PAGAMENTO';
 
-
-        // Cabeçalho
         doc.setFontSize(20);
         doc.setFont('helvetica', 'bold');
         doc.text(title, pageWidth / 2, 20, { align: 'center' });
 
-        // Informações da Empresa
         doc.setFontSize(12);
         doc.setFont('helvetica', 'normal');
         doc.text(companyData?.companyName || 'Empresa/Profissional', 20, 40);
@@ -180,7 +175,6 @@ export default function ContasAReceberPage() {
         doc.setLineWidth(0.5);
         doc.line(20, 60, pageWidth - 20, 60);
 
-        // Valor
         doc.setFontSize(14);
         doc.text('Valor Recebido:', 20, 70);
         doc.setFont('helvetica', 'bold');
@@ -190,7 +184,6 @@ export default function ContasAReceberPage() {
         doc.setLineWidth(0.2);
         doc.line(20, 75, pageWidth - 20, 75);
 
-        // Corpo do Recibo
         doc.setFontSize(12);
         const areaText = service.quantidade_m2 ? ` (Área: ${service.quantidade_m2} m²)` : '';
         const obraAddress = (service.endereco_obra && service.endereco_obra.street) ? `${service.endereco_obra.street}, ${service.endereco_obra.number} - ${service.endereco_obra.neighborhood}, ${service.endereco_obra.city} - ${service.endereco_obra.state}` : 'Endereço da obra não informado';
@@ -200,7 +193,6 @@ export default function ContasAReceberPage() {
 
         let currentY = 120;
         
-        // Resumo Financeiro
         autoTable(doc, {
             startY: currentY,
             head: [['Resumo Financeiro do Serviço']],
@@ -215,8 +207,6 @@ export default function ContasAReceberPage() {
         });
         currentY = (doc as any).lastAutoTable.finalY + 15;
 
-
-        // Data e Assinatura
         const today = format(new Date(), "d 'de' MMMM 'de' yyyy", { locale: ptBR });
         doc.text(`${(client.endereco_residencial && client.endereco_residencial.city) ? client.endereco_residencial.city : 'Localidade não informada'}, ${today}.`, 20, currentY);
         
@@ -239,7 +229,6 @@ export default function ContasAReceberPage() {
         const pageWidth = doc.internal.pageSize.getWidth();
         let currentY = 15;
 
-        // Cabeçalho da Empresa
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(16);
         doc.text(companyData?.companyName || 'Empresa/Profissional', pageWidth / 2, currentY, { align: 'center' });
@@ -262,13 +251,11 @@ export default function ContasAReceberPage() {
         doc.line(14, currentY, pageWidth - 14, currentY);
         currentY += 10;
         
-        // Título do Documento
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(14);
         doc.text('COMPROVANTE DE PRESTAÇÃO DE SERVIÇO', pageWidth / 2, currentY, { align: 'center' });
         currentY += 10;
 
-        // Data e Valor
         doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
         doc.text(`Data de Cadastro: ${format(service.data_cadastro, 'dd/MM/yyyy')}`, 14, currentY);
@@ -279,7 +266,6 @@ export default function ContasAReceberPage() {
         doc.text(`R$ ${service.valor_total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, pageWidth - 38, currentY);
         currentY += 8;
 
-        // Seção Cliente
         doc.setFont('helvetica', 'bold');
         autoTable(doc, {
             startY: currentY,
@@ -302,7 +288,6 @@ export default function ContasAReceberPage() {
         });
         currentY = (doc as any).lastAutoTable.finalY + 5;
         
-        // Seção Serviço
         doc.setFont('helvetica', 'bold');
         autoTable(doc, {
             startY: currentY,
@@ -332,8 +317,6 @@ export default function ContasAReceberPage() {
         });
         currentY = (doc as any).lastAutoTable.finalY + 25;
 
-
-        // Assinatura e Data
         const today = format(new Date(), "d 'de' MMMM 'de' yyyy", { locale: ptBR });
         doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
@@ -344,7 +327,6 @@ export default function ContasAReceberPage() {
         doc.line(pageWidth / 2 - 40, currentY, pageWidth / 2 + 40, currentY);
         doc.text(companyData?.companyName || 'Empresa/Profissional', pageWidth / 2, currentY + 5, { align: 'center' });
         
-        // Rodapé
         if (companyData?.address && companyData?.phone) {
             const footerText = `${companyData.address} | ${companyData.phone}`;
             doc.setFontSize(8);
@@ -411,7 +393,6 @@ export default function ContasAReceberPage() {
             })
             .filter(service => {
                 if (!selectedCityFilter) return true;
-                // CORREÇÃO: Utiliza a cidade da obra
                 return service.endereco_obra?.city === selectedCityFilter;
             })
             .filter(service => {
@@ -445,7 +426,6 @@ export default function ContasAReceberPage() {
         doc.setFontSize(10);
         doc.text(`Data de Emissão: ${new Date().toLocaleDateString('pt-BR')}`, 14, 28);
 
-        // Quadro de Resumo no Topo
         autoTable(doc, {
             startY: 35,
             head: [['Resumo Financeiro do Filtro', '']],
@@ -552,7 +532,7 @@ export default function ContasAReceberPage() {
                                         format(dateRange.from, "LLL dd, y")
                                       )
                                     ) : (
-                                      <span>Filtrar por data...</span>
+                                      <span>Todo o período</span>
                                     )}
                                   </Button>
                                 </PopoverTrigger>
@@ -615,7 +595,6 @@ export default function ContasAReceberPage() {
                     </div>
                 </CardHeader>
                 <CardContent>
-                    {/* Barra de Totais Filtrados */}
                     <div className="bg-slate-900 text-white p-4 rounded-t-lg flex flex-row justify-between items-center border-x border-t">
                         <div className="font-bold text-lg pl-2">Totais Filtrados</div>
                         <div className="flex flex-row gap-12 pr-4">
@@ -733,7 +712,6 @@ function ReceivableTableComponent({ services, getClient, totalValor, totalSaldo,
                         const formattedObra = (obra && obra.street) ? `Obra: ${obra.street}, ${obra.number} - ${obra.neighborhood}, ${obra.city}` : '';
                         const coordenadas = (service.coordenadas?.lat && service.coordenadas?.lng) ? `Coords: ${service.coordenadas.lat}, ${service.coordenadas.lng}` : '';
 
-                        // Lógica derivada para garantir que o status exibido corresponda ao saldo real
                         const isFullyPaid = (service.saldo_devedor || 0) <= 0.01;
                         const financialStatus = service.status_financeiro === 'cancelado' 
                             ? { text: 'Cancelado', variant: 'outline' as const }

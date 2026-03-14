@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -202,7 +201,6 @@ export default function DespesasPage() {
                 const data = doc.data();
                 return { ...data, id: doc.id, vencimento: data.vencimento.toDate() } as Account;
             });
-            // Ordenação por vencimento decrescente (mais recente primeiro)
             payableData.sort((a, b) => b.vencimento.getTime() - a.vencimento.getTime());
             setAccountsPayable(payableData);
             
@@ -381,7 +379,6 @@ export default function DespesasPage() {
         doc.setFontSize(16);
         doc.text(`Relatório de Despesas - ${companyData?.companyName || 'EngiOffice'}`, 14, 22);
 
-        // Quadro de Resumo no Topo
         autoTable(doc, {
             startY: 35,
             head: [['Resumo de Despesas do Filtro', '']],
@@ -469,7 +466,7 @@ export default function DespesasPage() {
                             <PopoverTrigger asChild>
                                 <Button variant="outline" className={cn("w-[250px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
                                     <CalendarIcon className="mr-2 h-4 w-4" />
-                                    {dateRange?.from ? format(dateRange.from, "dd/MM/yy") : "Período"}
+                                    {dateRange?.from ? (dateRange.to ? <>{format(dateRange.from, "dd/MM/yy")} - {format(dateRange.to, "dd/MM/yy")}</> : format(dateRange.from, "dd/MM/yy")) : "Todo o período"}
                                 </Button>
                             </PopoverTrigger>
                             <PopoverContent className="w-auto p-0" align="start"><Calendar initialFocus mode="range" selected={dateRange} onSelect={setDateRange} numberOfMonths={2} /></PopoverContent>
@@ -486,7 +483,6 @@ export default function DespesasPage() {
                     </div>
                 </CardHeader>
                 <CardContent>
-                    {/* Barra de Totais Filtrados */}
                     <div className="bg-slate-900 text-white p-4 rounded-t-lg flex flex-row justify-between items-center border-x border-t">
                         <div className="font-bold text-lg pl-2">Totais Filtrados</div>
                         <div className="flex flex-row gap-12 pr-4">

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -36,11 +35,7 @@ export default function AnalyticsPage() {
     const router = useRouter();
 
 
-    const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
-        const end = new Date();
-        const start = subMonths(end, 1);
-        return { from: start, to: end };
-    });
+    const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
     const [selectedClient, setSelectedClient] = useState('');
     const [selectedEmployee, setSelectedEmployee] = useState('');
     const [selectedCityFilter, setSelectedCityFilter] = useState('');
@@ -112,7 +107,6 @@ export default function AnalyticsPage() {
             
             let cityMatch = true;
             if (selectedCityFilter) {
-                // CORREÇÃO: Utiliza a cidade da obra
                 cityMatch = service.endereco_obra?.city === selectedCityFilter;
             }
 
@@ -146,7 +140,6 @@ export default function AnalyticsPage() {
                     if (!isInMonth) return false;
                     
                     if (selectedCityFilter) {
-                        // CORREÇÃO: Utiliza a cidade da obra
                         return s.endereco_obra?.city === selectedCityFilter;
                     }
                     return true;
@@ -291,7 +284,7 @@ export default function AnalyticsPage() {
                         <PopoverTrigger asChild>
                             <Button id="date" variant={"outline"} className={cn("w-[300px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
                                 <CalendarIcon className="mr-2 h-4 w-4" />
-                                {dateRange?.from ? (dateRange.to ? (<>{format(dateRange.from, "LLL dd, y", { locale: ptBR })} - {format(dateRange.to, "LLL dd, y", { locale: ptBR })}</>) : (format(dateRange.from, "LLL dd, y", { locale: ptBR }))) : (<span>Filtrar por período</span>)}
+                                {dateRange?.from ? (dateRange.to ? (<>{format(dateRange.from, "LLL dd, y", { locale: ptBR })} - {format(dateRange.to, "LLL dd, y", { locale: ptBR })}</>) : (format(dateRange.from, "LLL dd, y", { locale: ptBR }))) : (<span>Todo o período</span>)}
                             </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0" align="start">

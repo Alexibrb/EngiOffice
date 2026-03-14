@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -521,7 +520,7 @@ export default function PagamentosPage() {
                                                 format(dateRange.from, "PPP", { locale: ptBR })
                                             )
                                         ) : (
-                                            <span>Filtrar por período</span>
+                                            <span>Todo o período</span>
                                         )}
                                     </Button>
                                 </PopoverTrigger>

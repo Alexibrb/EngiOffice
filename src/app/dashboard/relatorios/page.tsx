@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -250,7 +249,6 @@ export default function RelatoriosPage() {
                 .filter(s => s.descricao.toLowerCase().includes(searchLower) || (getClient(s.cliente_id)?.nome_completo.toLowerCase() || '').includes(searchLower))
                 .filter(s => {
                     if (!selectedCityFilter) return true;
-                    // CORREÇÃO: Utiliza a cidade da obra
                     return s.endereco_obra?.city === selectedCityFilter;
                 })
                 .filter(s => {
@@ -389,7 +387,6 @@ export default function RelatoriosPage() {
     const pageWidth = doc.internal.pageSize.getWidth();
     let currentY = 15;
 
-    // Cabeçalho da Empresa
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(14);
     if (companyData?.companyName) {
@@ -418,13 +415,11 @@ export default function RelatoriosPage() {
         currentY += 8;
     }
     
-    // Título do Relatório
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(12);
     doc.text(reportTitle, pageWidth / 2, currentY, { align: 'center' });
     currentY += 8;
 
-    // BLOCO DE RESUMO NO TOPO (Apenas para Serviços e Contas a Pagar)
     if (selectedReport === 'services') {
         const contractsTotal = data.reduce((sum, item) => sum + (item.valor_total || 0), 0);
         const paidTotal = data.reduce((sum, item) => sum + (item.valor_pago || 0), 0);
@@ -525,7 +520,7 @@ export default function RelatoriosPage() {
                     <PopoverTrigger asChild>
                     <Button id="date" variant={"outline"} className={cn( "w-full sm:w-[300px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
                         <CalendarIcon className="mr-2 h-4 w-4" />
-                        {dateRange?.from ? (dateRange.to ? (<>{format(dateRange.from, "LLL dd, y")} - {format(dateRange.to, "LLL dd, y")}</>) : (format(dateRange.from, "LLL dd, y"))) : (<span>Filtrar por data...</span>)}
+                        {dateRange?.from ? (dateRange.to ? (<>{format(dateRange.from, "LLL dd, y")} - {format(dateRange.to, "LLL dd, y")}</>) : (format(dateRange.from, "LLL dd, y"))) : (<span>Todo o período</span>)}
                     </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">

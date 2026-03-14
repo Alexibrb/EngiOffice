@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -246,7 +245,6 @@ export default function ComissoesPage() {
         })
         .filter(commission => {
             if (!selectedCityFilter) return true;
-            // CORREÇÃO: Utiliza a cidade da obra vinculada à comissão
             const service = getService(commission.servico_id);
             return service?.endereco_obra?.city === selectedCityFilter;
         });
@@ -269,12 +267,12 @@ export default function ComissoesPage() {
     });
     
     const servicesWithPendingDistribution = services.filter(s => {
-      const isEligible = (s.valor_pago || 0) > 0 && s.status !== 'cancelado' && !s.lucro_distribuido;
+      const isEligible = (s.valor_pago || 0) > 0 && s.status_financeiro !== 'cancelado' && !s.lucro_distribuido;
       return isEligible;
     });
     
     const getDistributionStatus = (service: Service) => {
-        const isDistributable = service.status !== 'cancelado' && (service.valor_pago || 0) > 0;
+        const isDistributable = service.status_financeiro !== 'cancelado' && (service.valor_pago || 0) > 0;
         
         if (!isDistributable) {
             return <Badge variant="outline">Aguardando</Badge>
@@ -383,7 +381,7 @@ export default function ComissoesPage() {
                                 format(dateRange.from, "LLL dd, y", { locale: ptBR })
                                 )
                             ) : (
-                                <span>Filtrar por período</span>
+                                <span>Todo o período</span>
                             )}
                             </Button>
                         </PopoverTrigger>
@@ -542,11 +540,11 @@ export default function ComissoesPage() {
                                             <TableCell className="font-medium text-green-500">R$ {(service.valor_pago || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
                                             <TableCell>
                                                 <Badge variant={
-                                                    service.status === 'concluído' ? 'secondary' :
-                                                    service.status === 'cancelado' ? 'destructive' :
+                                                    service.status_execucao === 'finalizado' ? 'accent' :
+                                                    service.status_financeiro === 'cancelado' ? 'destructive' :
                                                     'default'
                                                 }>
-                                                    {service.status}
+                                                    {service.status_execucao}
                                                 </Badge>
                                             </TableCell>
                                             <TableCell>{getDistributionStatus(service)}</TableCell>
@@ -603,7 +601,6 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, financials, toas
             
             setIsLoading(true);
             try {
-                // This is a simplified cost calculation. A real scenario might be more complex.
                 const accountsPayableSnap = await getDocs(collection(db, 'contas_a_pagar'));
                 const accountsPayable = accountsPayableSnap.docs.map(doc => doc.data() as Account);
                 const relatedExpenses = accountsPayable
@@ -665,7 +662,7 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, financials, toas
                         cliente_id: service.cliente_id,
                         valor: individualCommission,
                         data: Timestamp.now(),
-                        status: 'pago', // Assuming direct payment
+                        status: 'pago',
                     };
                     const commissionDocRef = doc(collection(db, 'comissoes'));
                     batch.set(commissionDocRef, commissionData);
