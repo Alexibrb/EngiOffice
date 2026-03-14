@@ -23,6 +23,7 @@ import { cn } from '@/lib/utils';
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 const POSITIVE_COLOR = '#16a34a';
 const NEGATIVE_COLOR = '#dc2626';
+const PAYROLL_COLOR = '#9333ea';
 
 export default function AnalyticsPage() {
     const [services, setServices] = useState<Service[]>([]);
@@ -164,7 +165,6 @@ export default function AnalyticsPage() {
             start = startOfDay(dateRange.from);
             end = dateRange.to ? startOfDay(dateRange.to) : start;
         } else {
-            // Se for "Todo o período", pegamos o intervalo dos dados ou os últimos 30 dias se vazio
             const allDates = [
                 ...filteredServices.map(s => new Date(s.data_cadastro).getTime()),
                 ...filteredAccountsPayable.map(a => new Date(a.vencimento).getTime())
@@ -174,12 +174,10 @@ export default function AnalyticsPage() {
                 const minD = Math.min(...allDates);
                 const maxD = Math.max(...allDates);
                 
-                // Para manter a legibilidade, mostramos no máximo os últimos 90 dias de histórico quando "Todo o período"
                 const limitDate = subDays(new Date(maxD), 90);
                 start = startOfDay(new Date(Math.max(minD, limitDate.getTime())));
                 end = startOfDay(new Date(maxD));
             } else {
-                // Fallback se não houver dados
                 start = startOfDay(subDays(new Date(), 30));
                 end = startOfDay(new Date());
             }
@@ -198,19 +196,27 @@ export default function AnalyticsPage() {
                     })
                     .reduce((sum, s) => sum + s.valor_pago, 0);
 
-                const dailyExpenses = filteredAccountsPayable
+                const dailyExpensesFornecedores = filteredAccountsPayable
                     .filter(a => {
                         const dueDate = startOfDay(new Date(a.vencimento));
-                        return a.status === 'pago' && dueDate.getTime() === dayStart.getTime();
+                        return a.status === 'pago' && a.tipo_referencia === 'fornecedor' && dueDate.getTime() === dayStart.getTime();
+                    })
+                    .reduce((sum, a) => sum + a.valor, 0);
+
+                const dailyExpensesFolha = filteredAccountsPayable
+                    .filter(a => {
+                        const dueDate = startOfDay(new Date(a.vencimento));
+                        return a.status === 'pago' && a.tipo_referencia === 'funcionario' && dueDate.getTime() === dayStart.getTime();
                     })
                     .reduce((sum, a) => sum + a.valor, 0);
 
                 return {
                     name: format(day, 'dd/MM'),
                     receitas: dailyRevenue,
-                    despesas: dailyExpenses,
+                    despesasFornecedores: dailyExpensesFornecedores,
+                    despesasFolha: dailyExpensesFolha,
                 };
-            }).filter(d => d.receitas > 0 || d.despesas > 0); 
+            }).filter(d => d.receitas > 0 || d.despesasFornecedores > 0 || d.despesasFolha > 0); 
         } catch (e) {
             return [];
         }
@@ -438,7 +444,7 @@ export default function AnalyticsPage() {
                 <Card>
                     <CardHeader>
                         <CardTitle>Fluxo de Caixa (Diário)</CardTitle>
-                        <CardDescription>Entradas e saídas diárias (baseado nos filtros de data ou últimos 90 dias de histórico).</CardDescription>
+                        <CardDescription>Entradas e saídas diárias detalhadas (baseado nos filtros de data ou últimos 90 dias).</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <ChartContainer config={{}} className="h-[300px] w-full">
@@ -448,9 +454,13 @@ export default function AnalyticsPage() {
                                     <stop offset="5%" stopColor={POSITIVE_COLOR} stopOpacity={0.8}/>
                                     <stop offset="95%" stopColor={POSITIVE_COLOR} stopOpacity={0}/>
                                     </linearGradient>
-                                    <linearGradient id="colorDespesasDiario" x1="0" y1="0" x2="0" y2="1">
+                                    <linearGradient id="colorFornecedoresDiario" x1="0" y1="0" x2="0" y2="1">
                                     <stop offset="5%" stopColor={NEGATIVE_COLOR} stopOpacity={0.8}/>
                                     <stop offset="95%" stopColor={NEGATIVE_COLOR} stopOpacity={0}/>
+                                    </linearGradient>
+                                    <linearGradient id="colorFolhaDiario" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor={PAYROLL_COLOR} stopOpacity={0.8}/>
+                                    <stop offset="95%" stopColor={PAYROLL_COLOR} stopOpacity={0}/>
                                     </linearGradient>
                                 </defs>
                                 <CartesianGrid vertical={false} />
@@ -459,7 +469,8 @@ export default function AnalyticsPage() {
                                 <ChartTooltip content={<ChartTooltipContent formatter={(value, name) => `${name}: R$ ${Number(value).toLocaleString('pt-BR')}`}/>} />
                                 <ChartLegend content={<ChartLegendContent />} />
                                 <Area type="monotone" dataKey="receitas" stroke={POSITIVE_COLOR} fillOpacity={1} fill="url(#colorReceitasDiario)" name="Receitas" />
-                                <Area type="monotone" dataKey="despesas" stroke={NEGATIVE_COLOR} fillOpacity={1} fill="url(#colorDespesasDiario)" name="Despesas" />
+                                <Area type="monotone" dataKey="despesasFornecedores" stroke={NEGATIVE_COLOR} fillOpacity={1} fill="url(#colorFornecedoresDiario)" name="Fornecedores" />
+                                <Area type="monotone" dataKey="despesasFolha" stroke={PAYROLL_COLOR} fillOpacity={1} fill="url(#colorFolhaDiario)" name="Folha Pagto" />
                             </AreaChart>
                         </ChartContainer>
                     </CardContent>
