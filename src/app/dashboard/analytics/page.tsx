@@ -10,7 +10,7 @@ import { PageHeader } from '@/components/page-header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell, AreaChart, Area, LineChart, Line } from 'recharts';
-import { Loader2, XCircle, Calendar as CalendarIcon, ShieldAlert, TrendingUp, Truck } from 'lucide-react';
+import { Loader2, XCircle, Calendar as CalendarIcon, ShieldAlert, TrendingUp, Truck, Banknote } from 'lucide-react';
 import { format, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, eachMonthOfInterval, startOfDay, subDays, isBefore, endOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
@@ -350,7 +350,7 @@ export default function AnalyticsPage() {
         try {
             const intervalDays = eachDayOfInterval({ start, end });
 
-            return intervalMonths.map(day => {
+            return intervalDays.map(day => {
                 const dayStart = startOfDay(day);
                 const dayEnd = endOfDay(day);
 
