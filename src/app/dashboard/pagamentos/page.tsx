@@ -590,13 +590,13 @@ export default function PagamentosPage() {
                                         <TableHead>Data</TableHead>
                                         <TableHead>Status</TableHead>
                                         <TableHead className="text-right">Valor</TableHead>
-                                        {isAdmin && <TableHead className="w-[120px] text-right">Ações</TableHead>}
+                                        <TableHead className="w-[120px] text-right">Ações</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {isLoading ? (
                                         <TableRow>
-                                            <TableCell colSpan={isAdmin ? 6 : 5} className="h-24 text-center">
+                                            <TableCell colSpan={6} className="h-24 text-center">
                                                 <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
                                             </TableCell>
                                         </TableRow>
@@ -616,53 +616,55 @@ export default function PagamentosPage() {
                                             <TableCell className="text-right font-medium text-green-500">
                                                 {payment.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                             </TableCell>
-                                            {isAdmin && (
-                                                <TableCell className="text-right">
-                                                    <div className="flex items-center justify-end gap-2">
-                                                        {payment.status === 'pendente' && (
-                                                            <Button variant="ghost" size="icon" onClick={() => handleEditClick(payment)} title="Editar lançamento">
-                                                                <Pencil className="h-4 w-4 text-primary" />
-                                                            </Button>
-                                                        )}
-                                                        <Button variant="outline" size="icon" onClick={() => handleMarkAsPaid(payment.id)} disabled={payment.status === 'pago'} title="Marcar como pago">
-                                                            <CheckCircle className="h-4 w-4 text-green-500" />
+                                            <TableCell className="text-right">
+                                                <div className="flex items-center justify-end gap-2">
+                                                    {(isAdmin || payment.status === 'pendente') && (
+                                                        <Button variant="ghost" size="icon" onClick={() => handleEditClick(payment)} title="Editar lançamento">
+                                                            <Pencil className="h-4 w-4 text-primary" />
                                                         </Button>
-                                                        <AlertDialog>
-                                                            <AlertDialogTrigger asChild>
-                                                                <Button variant="ghost" size="icon" title="Excluir lançamento">
-                                                                    <Trash className="h-4 w-4 text-destructive" />
-                                                                </Button>
-                                                            </AlertDialogTrigger>
-                                                            <AlertDialogContent>
-                                                                <AlertDialogHeader>
-                                                                    <AlertDialogTitle>Excluir este lançamento?</AlertDialogTitle>
-                                                                    <AlertDialogDescription>
-                                                                        Esta ação não pode ser desfeita. Isso excluirá permanentemente o registro de pagamento.
-                                                                    </AlertDialogDescription>
-                                                                </AlertDialogHeader>
-                                                                <AlertDialogFooter>
-                                                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                                                    <AlertDialogAction onClick={() => handleDeletePayment(payment.id)}>Excluir</AlertDialogAction>
-                                                                </AlertDialogFooter>
-                                                            </AlertDialogContent>
-                                                        </AlertDialog>
-                                                    </div>
-                                                </TableCell>
-                                            )}
+                                                    )}
+                                                    {isAdmin && (
+                                                        <>
+                                                            <Button variant="outline" size="icon" onClick={() => handleMarkAsPaid(payment.id)} disabled={payment.status === 'pago'} title="Marcar como pago">
+                                                                <CheckCircle className="h-4 w-4 text-green-500" />
+                                                            </Button>
+                                                            <AlertDialog>
+                                                                <AlertDialogTrigger asChild>
+                                                                    <Button variant="ghost" size="icon" title="Excluir lançamento">
+                                                                        <Trash className="h-4 w-4 text-destructive" />
+                                                                    </Button>
+                                                                </AlertDialogTrigger>
+                                                                <AlertDialogContent>
+                                                                    <AlertDialogHeader>
+                                                                        <AlertDialogTitle>Excluir este lançamento?</AlertDialogTitle>
+                                                                        <AlertDialogDescription>
+                                                                            Esta ação não pode ser desfeita. Isso excluirá permanentemente o registro de pagamento.
+                                                                        </AlertDialogDescription>
+                                                                    </AlertDialogHeader>
+                                                                    <AlertDialogFooter>
+                                                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                                        <AlertDialogAction onClick={() => handleDeletePayment(payment.id)}>Excluir</AlertDialogAction>
+                                                                    </AlertDialogFooter>
+                                                                </AlertDialogContent>
+                                                            </AlertDialog>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            </TableCell>
                                         </TableRow>
                                     )) : (
                                         <TableRow>
-                                            <TableCell colSpan={isAdmin ? 6 : 5} className="h-24 text-center">Nenhum pagamento encontrado.</TableCell>
+                                            <TableCell colSpan={6} className="h-24 text-center">Nenhum pagamento encontrado.</TableCell>
                                         </TableRow>
                                     )}
                                 </TableBody>
                                 <TableFooter>
                                     <TableRow>
-                                        <TableCell colSpan={isAdmin ? 4 : 4} className="font-bold text-right">Total Pago (Filtrado)</TableCell>
+                                        <TableCell colSpan={4} className="font-bold text-right">Total Pago (Filtrado)</TableCell>
                                         <TableCell className="text-right font-bold text-green-500">
                                             {totalPaid.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                         </TableCell>
-                                        {isAdmin && <TableCell></TableCell>}
+                                        <TableCell></TableCell>
                                     </TableRow>
                                 </TableFooter>
                             </Table>
