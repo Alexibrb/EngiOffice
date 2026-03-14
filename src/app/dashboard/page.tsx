@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -574,6 +575,14 @@ export default function DashboardPage() {
             data_ultimo_pagamento: Timestamp.now(),
         });
 
+        // Registrar na coleção de recebimentos para histórico por data
+        await addDoc(collection(db, 'recebimentos'), {
+            servico_id: editingService.id,
+            cliente_id: editingService.cliente_id,
+            valor: values.valor_pago,
+            data: Timestamp.now(),
+        });
+
         toast({ title: 'Sucesso!', description: 'Pagamento lançado com sucesso.' });
         
         const updatedServiceForReceipt = {
@@ -874,7 +883,7 @@ export default function DashboardPage() {
                                                 <div className="font-medium">{service.descricao}</div>
                                                 <div className="text-xs text-muted-foreground">{formattedAddress}</div>
                                             </TableCell>
-                                            <TableCell className="text-red-500">R$ {(service.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2})}</TableCell>
+                                            <TableCell className="text-red-500">R$ {(service.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
                                             <TableCell>
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild><Button aria-haspopup="true" size="icon" variant="ghost"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -17,7 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import type { Client, Supplier, Service, Account, Employee, AuthorizedUser, City } from '@/lib/types';
+import type { Client, Supplier, Service, Account, Employee, AuthorizedUser, City, ServicePayment } from '@/lib/types';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Download, Search, XCircle, Calendar as CalendarIcon, ChevronDown, ChevronRight, Link as LinkIcon, ExternalLink, ClipboardCopy } from 'lucide-react';
@@ -38,7 +39,7 @@ import { PageHeader } from '@/components/page-header';
 import { useCompanyData } from '../layout';
 import { onAuthStateChanged } from 'firebase/auth';
 
-type ReportType = 'clients' | 'suppliers' | 'services' | 'accountsPayable';
+type ReportType = 'clients' | 'suppliers' | 'services' | 'accountsPayable' | 'receivables_history';
 
 function ClientReportRow({ client }: { client: Client }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -130,6 +131,7 @@ export default function RelatoriosPage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [accountsPayable, setAccountsPayable] = useState<Account[]>([]);
+  const [receivablesHistory, setReceivablesHistory] = useState<ServicePayment[]>([]);
   const [cities, setCities] = useState<City[]>([]);
   const companyData = useCompanyData();
   const [isLoading, setIsLoading] = useState(true);
@@ -165,13 +167,14 @@ export default function RelatoriosPage() {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const [clientsSnapshot, suppliersSnapshot, servicesSnapshot, accountsPayableSnapshot, employeesSnapshot, citiesSnapshot] = await Promise.all([
+      const [clientsSnapshot, suppliersSnapshot, servicesSnapshot, accountsPayableSnapshot, employeesSnapshot, citiesSnapshot, receivablesSnapshot] = await Promise.all([
         getDocs(collection(db, "clientes")),
         getDocs(collection(db, "fornecedores")),
         getDocs(collection(db, "servicos")),
         getDocs(collection(db, "contas_a_pagar")),
         getDocs(collection(db, "funcionarios")),
         getDocs(collection(db, "cidades")),
+        getDocs(collection(db, "recebimentos")),
       ]);
 
       setClients(clientsSnapshot.docs.map(doc => ({ ...doc.data(), codigo_cliente: doc.id })) as Client[]);
@@ -180,6 +183,7 @@ export default function RelatoriosPage() {
       setAccountsPayable(accountsPayableSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, vencimento: doc.data().vencimento.toDate() })) as Account[]);
       setEmployees(employeesSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Employee[]);
       setCities(citiesSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as City[]);
+      setReceivablesHistory(receivablesSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, data: doc.data().data.toDate() })) as ServicePayment[]);
 
     } catch (error) {
       console.error("Erro ao buscar dados: ", error);
@@ -198,6 +202,7 @@ export default function RelatoriosPage() {
   }, []);
   
   const getClient = (clientId: string) => clients.find(c => c.codigo_cliente === clientId);
+  const getService = (serviceId: string) => services.find(s => s.id === serviceId);
 
   const getPayeeName = (account: Account) => {
       if (account.tipo_referencia === 'funcionario') return employees.find(e => e.id === account.referencia_id)?.nome || 'Funcionário não encontrado';
@@ -271,9 +276,30 @@ export default function RelatoriosPage() {
                 })
                 .sort((a, b) => b.vencimento.getTime() - a.vencimento.getTime());
             break;
+        case 'receivables_history':
+            data = receivablesHistory
+                .filter(p => {
+                    const client = getClient(p.cliente_id);
+                    const service = getService(p.servico_id);
+                    const searchStr = `${client?.nome_completo || ''} ${service?.descricao || ''}`.toLowerCase();
+                    return searchStr.includes(searchLower);
+                })
+                .filter(p => {
+                    if (!selectedCityFilter) return true;
+                    const service = getService(p.servico_id);
+                    return service?.endereco_obra?.city === selectedCityFilter;
+                })
+                .filter(p => {
+                    if (!dateRange?.from) return true;
+                    const from = startOfDay(dateRange.from);
+                    const to = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from);
+                    return p.data >= from && p.data <= to;
+                })
+                .sort((a, b) => b.data.getTime() - a.data.getTime());
+            break;
     }
     return data;
-  }, [selectedReport, clients, suppliers, services, accountsPayable, searchFilter, statusFilter, selectedCityFilter, dateRange]);
+  }, [selectedReport, clients, suppliers, services, accountsPayable, receivablesHistory, searchFilter, statusFilter, selectedCityFilter, dateRange]);
 
  const totals = useMemo(() => {
     if (!filteredData) return {};
@@ -293,6 +319,11 @@ export default function RelatoriosPage() {
                 pago,
                 pendente,
                 valor: pago + pendente
+            };
+        case 'receivables_history':
+            return {
+                count: filteredData.length,
+                valor: filteredData.reduce((sum, item) => sum + (item.valor || 0), 0)
             };
         default:
             return { count: filteredData.length };
@@ -381,6 +412,22 @@ export default function RelatoriosPage() {
         body = data.map((item: Account) => [item.descricao, getPayeeName(item), item.vencimento ? format(item.vencimento, "dd/MM/yyyy") : '-', `R$ ${item.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, item.status]);
         fileName = 'relatorio_contas_a_pagar.pdf';
         break;
+      case 'receivables_history':
+        doc = new jsPDF();
+        reportTitle = 'Extrato de Recebimentos (Entradas)';
+        head = [['Data', 'Cliente', 'Serviço', 'Valor']];
+        body = data.map((item: ServicePayment) => {
+            const client = getClient(item.cliente_id);
+            const service = getService(item.servico_id);
+            return [
+                format(item.data, "dd/MM/yyyy HH:mm"),
+                client?.nome_completo || 'Desconhecido',
+                service?.descricao || 'Desconhecido',
+                `R$ ${item.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+            ];
+        });
+        fileName = 'extrato_recebimentos.pdf';
+        break;
       default: return;
     }
 
@@ -459,6 +506,21 @@ export default function RelatoriosPage() {
             tableWidth: 100,
         });
         currentY = (doc as any).lastAutoTable.finalY + 10;
+    } else if (selectedReport === 'receivables_history') {
+        const val = data.reduce((sum, item) => sum + (item.valor || 0), 0);
+        autoTable(doc, {
+            startY: currentY,
+            head: [['Resumo do Extrato', '']],
+            body: [
+                ['Total das Entradas no Período:', `R$ ${val.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
+            ],
+            theme: 'grid',
+            headStyles: { fillColor: [34, 139, 34] },
+            styles: { fontSize: 9 },
+            margin: { left: 14 },
+            tableWidth: 100,
+        });
+        currentY = (doc as any).lastAutoTable.finalY + 10;
     }
 
 
@@ -476,13 +538,15 @@ export default function RelatoriosPage() {
   const renderFilterControls = () => {
     const isClients = selectedReport === 'clients';
     const isServices = selectedReport === 'services';
+    const isReceivablesHistory = selectedReport === 'receivables_history';
     const hasStatus = ['services', 'accountsPayable'].includes(selectedReport);
-    const hasDate = ['services', 'accountsPayable'].includes(selectedReport);
+    const hasDate = ['services', 'accountsPayable', 'receivables_history'].includes(selectedReport);
     const searchPlaceholder = {
         clients: "Buscar por nome ou CPF/CNPJ...",
         suppliers: "Buscar por razão social ou CNPJ...",
         services: "Buscar por descrição ou cliente...",
         accountsPayable: "Buscar por descrição ou favorecido...",
+        receivables_history: "Buscar por cliente ou descrição...",
     }[selectedReport];
 
     const statusOptions = {
@@ -501,7 +565,7 @@ export default function RelatoriosPage() {
                     onChange={(e) => setSearchFilter(e.target.value)}
                 />
             </div>
-            {(isClients || isServices) && (
+            {(isClients || isServices || isReceivablesHistory) && (
                 <Select value={selectedCityFilter} onValueChange={setSelectedCityFilter}>
                     <SelectTrigger className="w-full sm:w-[200px]">
                         <SelectValue placeholder="Filtrar por cidade..." />
@@ -588,6 +652,18 @@ export default function RelatoriosPage() {
                         </div>
                         <div className="text-right">
                             <div className="text-sm font-bold text-blue-400">Total Geral: R$</div>
+                            <div className="text-lg font-bold text-blue-300">{totals.valor?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                        </div>
+                    </div>
+                </div>
+            );
+        case 'receivables_history':
+            return (
+                <div className="bg-slate-900 text-white p-4 rounded-t-lg flex flex-row justify-between items-center border-x border-t">
+                    <div className="font-bold text-lg pl-2">Extrato de Entradas</div>
+                    <div className="flex flex-row gap-12 pr-4">
+                        <div className="text-right">
+                            <div className="text-sm font-bold text-blue-400">Soma das Parcelas: R$</div>
                             <div className="text-lg font-bold text-blue-300">{totals.valor?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
                         </div>
                     </div>
@@ -779,6 +855,50 @@ export default function RelatoriosPage() {
             </CardContent>
           </Card>
         );
+      case 'receivables_history':
+        return (
+          <Card>
+            <CardHeader>
+              <div className="flex flex-row items-center justify-between">
+                <div>
+                    <CardTitle>Extrato de Recebimentos (Entradas)</CardTitle>
+                    <CardDescription>Histórico detalhado de cada parcela ou pagamento recebido por data.</CardDescription>
+                </div>
+                <Button onClick={generatePdf} variant="accent"><Download className="mr-2 h-4 w-4" />Exportar PDF</Button>
+              </div>
+                {renderFilterControls()}
+            </CardHeader>
+            <CardContent>
+              {renderTotalsBar()}
+              <div className="border border-t-0 rounded-b-lg overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                        <TableHead>Data de Entrada</TableHead>
+                        <TableHead>Cliente</TableHead>
+                        <TableHead>Serviço Referente</TableHead>
+                        <TableHead className="text-right">Valor da Parcela</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredData.length > 0 ? filteredData.slice(0, 100).map((item: ServicePayment) => {
+                        const client = getClient(item.cliente_id);
+                        const service = getService(item.servico_id);
+                        return (
+                            <TableRow key={item.id}>
+                                <TableCell className="font-medium">{format(item.data, "dd/MM/yyyy HH:mm")}</TableCell>
+                                <TableCell>{client?.nome_completo || 'Desconhecido'}</TableCell>
+                                <TableCell>{service?.descricao || 'Desconhecido'}</TableCell>
+                                <TableCell className="text-right text-green-600 font-bold">R$ {item.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
+                            </TableRow>
+                        );
+                    }) : (<TableRow><TableCell colSpan={4} className="h-24 text-center">Nenhum registro de recebimento encontrado no período.</TableCell></TableRow>)}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        );
       default:
         return null;
     }
@@ -810,6 +930,7 @@ export default function RelatoriosPage() {
                 <SelectItem value="suppliers">Fornecedores</SelectItem>
                 <SelectItem value="services">Serviços</SelectItem>
                 <SelectItem value="accountsPayable">Contas a Pagar</SelectItem>
+                <SelectItem value="receivables_history">Extrato de Recebimentos (Entradas)</SelectItem>
             </SelectContent>
         </Select>
       </div>

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -20,7 +21,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { useToast } from "@/hooks/use-toast"
-import { collection, getDocs, doc, updateDoc, Timestamp, query, where } from 'firebase/firestore';
+import { collection, getDocs, doc, updateDoc, Timestamp, query, where, addDoc } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import { Calendar as CalendarIcon, Download, ExternalLink, XCircle, ArrowUp, TrendingUp, MoreHorizontal, HandCoins, FileText, Loader2, Link as LinkIcon, ClipboardCopy } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -28,7 +29,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { format, endOfDay, startOfDay } from 'date-fns';
-import type { Client, Service, AuthorizedUser, City } from '@/lib/types';
+import type { Client, Service, AuthorizedUser, City, ServicePayment } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -61,6 +62,7 @@ export default function ContasAReceberPage() {
     const [services, setServices] = useState<Service[]>([]);
     const [clients, setClients] = useState<Client[]>([]);
     const [cities, setCities] = useState<City[]>([]);
+    const [paymentsHistory, setPaymentsHistory] = useState<ServicePayment[]>([]);
     const { toast } = useToast();
     const [isAdmin, setIsAdmin] = useState(false);
     const companyData = useCompanyData();
@@ -71,6 +73,8 @@ export default function ContasAReceberPage() {
     const [selectedCityFilter, setSelectedCityFilter] = useState<string>('');
 
     const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
+    const [isHistoryDialogOpen, setIsHistoryDialogOpen] = useState(false);
+    const [viewingService, setViewingService] = useState<Service | null>(null);
     const [editingService, setEditingService] = useState<Service | null>(null);
     const [isPaymentLoading, setIsPaymentLoading] = useState(false);
 
@@ -99,10 +103,11 @@ export default function ContasAReceberPage() {
 
     const fetchData = async () => {
         try {
-            const [servicesSnapshot, clientsSnapshot, citiesSnapshot] = await Promise.all([
+            const [servicesSnapshot, clientsSnapshot, citiesSnapshot, paymentsSnapshot] = await Promise.all([
                 getDocs(collection(db, "servicos")),
                 getDocs(collection(db, "clientes")),
                 getDocs(collection(db, "cidades")),
+                getDocs(collection(db, "recebimentos")),
             ]);
             
             const servicesData = servicesSnapshot.docs.map(doc => {
@@ -123,6 +128,13 @@ export default function ContasAReceberPage() {
             const citiesData = citiesSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as City));
             setCities(citiesData.sort((a, b) => a.nome_cidade.localeCompare(b.nome_cidade)));
 
+            const paymentsData = paymentsSnapshot.docs.map(doc => ({
+                ...doc.data(),
+                id: doc.id,
+                data: doc.data().data.toDate(),
+            })) as ServicePayment[];
+            setPaymentsHistory(paymentsData);
+
         } catch (error) {
             console.error("Erro ao buscar dados: ", error);
             toast({ variant: "destructive", title: "Erro ao buscar dados", description: "Não foi possível carregar os dados." });
@@ -141,6 +153,11 @@ export default function ContasAReceberPage() {
         setEditingService(service);
         paymentForm.reset({ valor_pago: 0 });
         setIsPaymentDialogOpen(true);
+    };
+
+    const handleViewHistory = (service: Service) => {
+        setViewingService(service);
+        setIsHistoryDialogOpen(true);
     };
 
     const generateReceipt = (service: Service, paymentValue?: number) => {
@@ -361,6 +378,14 @@ export default function ContasAReceberPage() {
                 data_ultimo_pagamento: Timestamp.now(),
             });
 
+            // Registrar na nova coleção de recebimentos (entradas financeiras individuais)
+            await addDoc(collection(db, 'recebimentos'), {
+                servico_id: editingService.id,
+                cliente_id: editingService.cliente_id,
+                valor: values.valor_pago,
+                data: Timestamp.now(),
+            });
+
             toast({ title: 'Sucesso!', description: 'Pagamento lançado com sucesso.' });
             
             const updatedServiceForReceipt = {
@@ -466,6 +491,13 @@ export default function ContasAReceberPage() {
         setSelectedClient('');
         setSelectedCityFilter('');
     }
+
+    const viewingServiceHistory = useMemo(() => {
+        if (!viewingService) return [];
+        return paymentsHistory
+            .filter(p => p.servico_id === viewingService.id)
+            .sort((a, b) => b.data.getTime() - a.data.getTime());
+    }, [viewingService, paymentsHistory]);
 
     return (
         <div className="flex flex-col gap-8">
@@ -617,6 +649,7 @@ export default function ContasAReceberPage() {
                         onPayment={handlePaymentClick}
                         onReceipt={generateReceipt}
                         onProofOfService={generateProofOfService}
+                        onViewHistory={handleViewHistory}
                     />
                 </CardContent>
             </Card>
@@ -654,12 +687,56 @@ export default function ContasAReceberPage() {
                     </Form>
                 </DialogContent>
             </Dialog>
+
+            <Dialog open={isHistoryDialogOpen} onOpenChange={setIsHistoryDialogOpen}>
+                <DialogContent className="sm:max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle>Histórico de Entradas</DialogTitle>
+                        <DialogDescription>
+                            Serviço: {viewingService?.descricao}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="border rounded-md mt-4">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Data</TableHead>
+                                    <TableHead className="text-right">Valor</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {viewingServiceHistory.length > 0 ? viewingServiceHistory.map((p) => (
+                                    <TableRow key={p.id}>
+                                        <TableCell>{format(p.data, "dd/MM/yyyy 'às' HH:mm")}</TableCell>
+                                        <TableCell className="text-right text-green-600 font-medium">R$ {p.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
+                                    </TableRow>
+                                )) : (
+                                    <TableRow>
+                                        <TableCell colSpan={2} className="h-24 text-center">Nenhum registro de parcela encontrado.</TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                            {viewingService && (
+                                <TableFooter>
+                                    <TableRow>
+                                        <TableCell className="font-bold">Total Recebido</TableCell>
+                                        <TableCell className="text-right font-bold text-green-600">R$ {viewingService.valor_pago.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
+                                    </TableRow>
+                                </TableFooter>
+                            )}
+                        </Table>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="ghost" onClick={() => setIsHistoryDialogOpen(false)}>Fechar</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
 
 
-function ReceivableTableComponent({ services, getClient, totalValor, totalSaldo, onPayment, onReceipt, onProofOfService }: { 
+function ReceivableTableComponent({ services, getClient, totalValor, totalSaldo, onPayment, onReceipt, onProofOfService, onViewHistory }: { 
     services: Service[], 
     getClient: (id: string) => Client | undefined,
     totalValor: number,
@@ -667,6 +744,7 @@ function ReceivableTableComponent({ services, getClient, totalValor, totalSaldo,
     onPayment: (service: Service) => void,
     onReceipt: (service: Service) => void,
     onProofOfService: (service: Service) => void,
+    onViewHistory: (service: Service) => void,
 }) {
     const router = useRouter();
     const [isAdmin, setIsAdmin] = useState(false);
@@ -774,6 +852,10 @@ function ReceivableTableComponent({ services, getClient, totalValor, totalSaldo,
                                             <DropdownMenuItem onClick={() => onPayment(service)} disabled={isFullyPaid || service.status_financeiro === 'cancelado'}>
                                                 <HandCoins className="mr-2 h-4 w-4" />
                                                 Lançar Pagamento
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => onViewHistory(service)}>
+                                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                                Ver Histórico de Entradas
                                             </DropdownMenuItem>
                                             <DropdownMenuSeparator />
                                             <DropdownMenuItem onClick={() => onReceipt(service)}>

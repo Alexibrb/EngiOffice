@@ -6,7 +6,7 @@ import { collection, getDocs, query, where, Timestamp } from 'firebase/firestore
 import { db, auth } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
-import type { Service, Client, Account, Employee, AuthorizedUser, City, Supplier } from '@/lib/types';
+import type { Service, Client, Account, Employee, AuthorizedUser, City, Supplier, ServicePayment } from '@/lib/types';
 import { PageHeader } from '@/components/page-header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@/components/ui/chart';
@@ -34,6 +34,7 @@ export default function AnalyticsPage() {
     const [employees, setEmployees] = useState<Employee[]>([]);
     const [suppliers, setSuppliers] = useState<Supplier[]>([]);
     const [cities, setCities] = useState<City[]>([]);
+    const [receivables, setReceivables] = useState<ServicePayment[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isAdmin, setIsAdmin] = useState(false);
     const router = useRouter();
@@ -72,13 +73,14 @@ export default function AnalyticsPage() {
     const fetchData = async () => {
         setIsLoading(true);
         try {
-            const [servicesSnap, clientsSnap, accountsPayableSnap, employeesSnap, citiesSnap, suppliersSnap] = await Promise.all([
+            const [servicesSnap, clientsSnap, accountsPayableSnap, employeesSnap, citiesSnap, suppliersSnap, receivablesSnap] = await Promise.all([
                 getDocs(collection(db, "servicos")),
                 getDocs(collection(db, "clientes")),
                 getDocs(collection(db, "contas_a_pagar")),
                 getDocs(collection(db, "funcionarios")),
                 getDocs(collection(db, "cidades")),
                 getDocs(collection(db, "fornecedores")),
+                getDocs(collection(db, "recebimentos")),
             ]);
 
             const servicesData = servicesSnap.docs.map(doc => {
@@ -105,6 +107,12 @@ export default function AnalyticsPage() {
             const employeesData = employeesSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Employee));
             const citiesData = citiesSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as City));
             const suppliersData = suppliersSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Supplier));
+            
+            const receivablesData = receivablesSnap.docs.map(doc => ({
+                ...doc.data(),
+                id: doc.id,
+                data: doc.data().data instanceof Timestamp ? doc.data().data.toDate() : new Date(doc.data().data),
+            })) as ServicePayment[];
 
             setServices(servicesData);
             setClients(clientsData);
@@ -112,6 +120,7 @@ export default function AnalyticsPage() {
             setEmployees(employeesData);
             setSuppliers(suppliersData);
             setCities(citiesData.sort((a, b) => a.nome_cidade.localeCompare(b.nome_cidade)));
+            setReceivables(receivablesData);
 
         } catch (error) {
             console.error("Erro ao buscar dados para analytics:", error);
@@ -119,6 +128,17 @@ export default function AnalyticsPage() {
             setIsLoading(false);
         }
     };
+
+    // Helper para obter dados de receita por data correta (recebimentos individuais)
+    const filteredReceivables = useMemo(() => {
+        return receivables.filter(r => {
+            const service = services.find(s => s.id === r.servico_id);
+            if (!service) return false;
+            if (selectedCityFilter && service.endereco_obra?.city !== selectedCityFilter) return false;
+            if (selectedClient && r.cliente_id !== selectedClient) return false;
+            return true;
+        });
+    }, [receivables, services, selectedCityFilter, selectedClient]);
 
     const cumulativeMonthlyData = useMemo(() => {
         let start: Date;
@@ -138,16 +158,9 @@ export default function AnalyticsPage() {
             return intervalMonths.map(month => {
                 const monthEnd = endOfMonth(month);
 
-                const cumulativeReceived = services
-                    .filter(s => {
-                        const dateToUse = s.data_ultimo_pagamento || s.data_cadastro;
-                        const isBeforeOrInMonth = s.valor_pago > 0 && isBefore(dateToUse, endOfDay(monthEnd));
-                        if (!isBeforeOrInMonth) return false;
-                        if (selectedCityFilter && s.endereco_obra?.city !== selectedCityFilter) return false;
-                        if (selectedClient && s.cliente_id !== selectedClient) return false;
-                        return true;
-                    })
-                    .reduce((acc, s) => acc + (s.valor_pago || 0), 0);
+                const cumulativeReceived = filteredReceivables
+                    .filter(r => isBefore(r.data, endOfDay(monthEnd)))
+                    .reduce((acc, r) => acc + (r.valor || 0), 0);
                 
                 const cumulativePaid = accountsPayable
                     .filter(a => {
@@ -170,7 +183,7 @@ export default function AnalyticsPage() {
         } catch (e) {
             return [];
         }
-    }, [services, accountsPayable, dateRange, selectedCityFilter, selectedClient, selectedEmployee]);
+    }, [filteredReceivables, accountsPayable, dateRange, selectedClient, selectedEmployee]);
 
     const cumulativeMonthlySuppliersData = useMemo(() => {
         let start: Date;
@@ -190,16 +203,9 @@ export default function AnalyticsPage() {
             return intervalMonths.map(month => {
                 const monthEnd = endOfMonth(month);
 
-                const cumulativeReceived = services
-                    .filter(s => {
-                        const dateToUse = s.data_ultimo_pagamento || s.data_cadastro;
-                        const isBeforeOrInMonth = s.valor_pago > 0 && isBefore(dateToUse, endOfDay(monthEnd));
-                        if (!isBeforeOrInMonth) return false;
-                        if (selectedCityFilter && s.endereco_obra?.city !== selectedCityFilter) return false;
-                        if (selectedClient && s.cliente_id !== selectedClient) return false;
-                        return true;
-                    })
-                    .reduce((acc, s) => acc + (s.valor_pago || 0), 0);
+                const cumulativeReceived = filteredReceivables
+                    .filter(r => isBefore(r.data, endOfDay(monthEnd)))
+                    .reduce((acc, r) => acc + (r.valor || 0), 0);
                 
                 const cumulativePaidSuppliers = accountsPayable
                     .filter(a => {
@@ -222,7 +228,7 @@ export default function AnalyticsPage() {
         } catch (e) {
             return [];
         }
-    }, [services, accountsPayable, dateRange, selectedCityFilter, selectedClient]);
+    }, [filteredReceivables, accountsPayable, dateRange, selectedClient]);
 
     const cumulativeDailyData = useMemo(() => {
         let start: Date;
@@ -242,16 +248,9 @@ export default function AnalyticsPage() {
             return intervalDays.map(day => {
                 const dayEnd = endOfDay(day);
 
-                const cumulativeReceived = services
-                    .filter(s => {
-                        const dateToUse = s.data_ultimo_pagamento || s.data_cadastro;
-                        const isBeforeOrInDay = s.valor_pago > 0 && isBefore(dateToUse, dayEnd);
-                        if (!isBeforeOrInDay) return false;
-                        if (selectedCityFilter && s.endereco_obra?.city !== selectedCityFilter) return false;
-                        if (selectedClient && s.cliente_id !== selectedClient) return false;
-                        return true;
-                    })
-                    .reduce((acc, s) => acc + (s.valor_pago || 0), 0);
+                const cumulativeReceived = filteredReceivables
+                    .filter(r => isBefore(r.data, dayEnd))
+                    .reduce((acc, r) => acc + (r.valor || 0), 0);
                 
                 const cumulativePaid = accountsPayable
                     .filter(a => {
@@ -274,7 +273,7 @@ export default function AnalyticsPage() {
         } catch (e) {
             return [];
         }
-    }, [services, accountsPayable, dateRange, selectedCityFilter, selectedClient, selectedEmployee]);
+    }, [filteredReceivables, accountsPayable, dateRange, selectedClient, selectedEmployee]);
 
     const monthlyCashFlowSuppliersData = useMemo(() => {
         let start: Date;
@@ -295,16 +294,9 @@ export default function AnalyticsPage() {
                 const monthStart = startOfMonth(month);
                 const monthEnd = endOfMonth(month);
 
-                const received = services
-                    .filter(s => {
-                        const dateToUse = s.data_ultimo_pagamento || s.data_cadastro;
-                        const isInMonth = s.valor_pago > 0 && dateToUse >= monthStart && dateToUse <= monthEnd;
-                        if (!isInMonth) return false;
-                        if (selectedCityFilter && s.endereco_obra?.city !== selectedCityFilter) return false;
-                        if (selectedClient && s.cliente_id !== selectedClient) return false;
-                        return true;
-                    })
-                    .reduce((acc, s) => acc + (s.valor_pago || 0), 0);
+                const received = filteredReceivables
+                    .filter(r => r.data >= monthStart && r.data <= monthEnd)
+                    .reduce((acc, r) => acc + (r.valor || 0), 0);
                 
                 const paidSuppliers = accountsPayable
                     .filter(a => {
@@ -327,7 +319,7 @@ export default function AnalyticsPage() {
         } catch (e) {
             return [];
         }
-    }, [services, accountsPayable, dateRange, selectedCityFilter, selectedClient]);
+    }, [filteredReceivables, accountsPayable, dateRange, selectedClient]);
 
     const monthlyCashFlowTotalData = useMemo(() => {
         let start: Date;
@@ -348,16 +340,9 @@ export default function AnalyticsPage() {
                 const monthStart = startOfMonth(month);
                 const monthEnd = endOfMonth(month);
 
-                const received = services
-                    .filter(s => {
-                        const dateToUse = s.data_ultimo_pagamento || s.data_cadastro;
-                        const isInMonth = s.valor_pago > 0 && dateToUse >= monthStart && dateToUse <= monthEnd;
-                        if (!isInMonth) return false;
-                        if (selectedCityFilter && s.endereco_obra?.city !== selectedCityFilter) return false;
-                        if (selectedClient && s.cliente_id !== selectedClient) return false;
-                        return true;
-                    })
-                    .reduce((acc, s) => acc + (s.valor_pago || 0), 0);
+                const received = filteredReceivables
+                    .filter(r => r.data >= monthStart && r.data <= monthEnd)
+                    .reduce((acc, r) => acc + (r.valor || 0), 0);
                 
                 const paidTotal = accountsPayable
                     .filter(a => {
@@ -380,7 +365,7 @@ export default function AnalyticsPage() {
         } catch (e) {
             return [];
         }
-    }, [services, accountsPayable, dateRange, selectedCityFilter, selectedClient, selectedEmployee]);
+    }, [filteredReceivables, accountsPayable, dateRange, selectedClient, selectedEmployee]);
     
     const dailyFinancialsData = useMemo(() => {
         let start: Date;
@@ -391,7 +376,7 @@ export default function AnalyticsPage() {
             end = dateRange.to ? endOfDay(dateRange.to) : endOfDay(start);
         } else {
             const allDates = [
-                ...services.filter(s => s.valor_pago > 0).map(s => (s.data_ultimo_pagamento || s.data_cadastro).getTime()),
+                ...filteredReceivables.map(r => r.data.getTime()),
                 ...accountsPayable.filter(a => a.status === 'pago').map(a => a.vencimento.getTime())
             ].filter(t => !isNaN(t));
 
@@ -412,15 +397,9 @@ export default function AnalyticsPage() {
                 const dayStart = startOfDay(day);
                 const dayEnd = endOfDay(day);
 
-                const dailyRevenue = services
-                    .filter(s => {
-                        const dateToUse = s.data_ultimo_pagamento || s.data_cadastro;
-                        const isSameDay = s.valor_pago > 0 && dateToUse >= dayStart && dateToUse <= dayEnd;
-                        if (selectedCityFilter && s.endereco_obra?.city !== selectedCityFilter) return false;
-                        if (selectedClient && s.cliente_id !== selectedClient) return false;
-                        return isSameDay;
-                    })
-                    .reduce((sum, s) => sum + (s.valor_pago || 0), 0);
+                const dailyRevenue = filteredReceivables
+                    .filter(r => r.data >= dayStart && r.data <= dayEnd)
+                    .reduce((sum, r) => sum + (r.valor || 0), 0);
 
                 const dailyExpensesFornecedores = accountsPayable
                     .filter(a => {
@@ -453,7 +432,7 @@ export default function AnalyticsPage() {
         } catch (e) {
             return [];
         }
-    }, [services, accountsPayable, dateRange, selectedCityFilter, selectedClient, selectedEmployee]);
+    }, [filteredReceivables, accountsPayable, dateRange, selectedClient, selectedEmployee]);
 
     const revenueStatusData = useMemo(() => {
         const baseServices = services.filter(s => {
@@ -505,29 +484,19 @@ export default function AnalyticsPage() {
     const revenueByClientData = useMemo(() => {
         return clients
             .map(client => {
-                const clientServices = services.filter(s => {
-                    const match = s.cliente_id === client.codigo_cliente;
-                    if (!match) return false;
-                    if (selectedCityFilter && s.endereco_obra?.city !== selectedCityFilter) return false;
-                    if (dateRange?.from) {
-                        const from = startOfDay(dateRange.from);
-                        const to = dateRange.to ? endOfDay(dateRange.to) : endOfDay(from);
-                        const date = s.data_ultimo_pagamento || s.data_cadastro;
-                        if (date < from || date > to) return false;
-                    }
-                    return true;
-                });
-                const totalRevenue = clientServices.reduce((sum, s) => sum + (s.valor_pago || 0), 0);
+                const clientPayments = filteredReceivables.filter(r => r.cliente_id === client.codigo_cliente);
+                const totalRevenue = clientPayments.reduce((sum, r) => sum + (r.valor || 0), 0);
+                const contractsCount = services.filter(s => s.cliente_id === client.codigo_cliente).length;
                 return { 
                     name: client.nome_completo, 
                     receita: totalRevenue,
-                    contratos: clientServices.length
+                    contratos: contractsCount
                 };
             })
             .filter(c => c.receita > 0)
             .sort((a, b) => b.receita - a.receita)
             .slice(0, 5);
-    }, [clients, services, selectedCityFilter, dateRange]);
+    }, [clients, filteredReceivables, services]);
 
     const expensesByPayeeData = useMemo(() => {
         const payeeMap: Record<string, { name: string, total: number }> = {};

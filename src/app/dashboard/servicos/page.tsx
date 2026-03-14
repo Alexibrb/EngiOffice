@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -364,8 +365,16 @@ export default function ServicosPage() {
         await setDoc(serviceDocRef, updatedServiceData, { merge: true });
         toast({ title: "Sucesso!", description: "Serviço atualizado com sucesso." });
       } else {
-        await addDoc(collection(db, 'servicos'), serviceData);
-         toast({ title: "Sucesso!", description: "Serviço adicionado com sucesso." });
+        const docRef = await addDoc(collection(db, 'servicos'), serviceData);
+        if (values.forma_pagamento === 'a_vista') {
+            await addDoc(collection(db, 'recebimentos'), {
+                servico_id: docRef.id,
+                cliente_id: values.cliente_id,
+                valor: values.valor_total,
+                data: Timestamp.now(),
+            });
+        }
+        toast({ title: "Sucesso!", description: "Serviço adicionado com sucesso." });
       }
       
       form.reset();
@@ -404,6 +413,14 @@ export default function ServicosPage() {
             saldo_devedor: Math.max(0, novoSaldoDevedor),
             status_financeiro: newStatus,
             data_ultimo_pagamento: Timestamp.now(),
+        });
+
+        // Registrar o histórico individual de recebimento
+        await addDoc(collection(db, 'recebimentos'), {
+            servico_id: editingService.id,
+            cliente_id: editingService.cliente_id,
+            valor: values.valor_pago,
+            data: Timestamp.now(),
         });
 
         toast({ title: 'Sucesso!', description: 'Pagamento lançado com sucesso.' });

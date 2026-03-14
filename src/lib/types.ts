@@ -71,6 +71,14 @@ export type Service = {
   coordenadas: Geo;
 };
 
+export type ServicePayment = {
+  id: string;
+  servico_id: string;
+  cliente_id: string;
+  valor: number;
+  data: Date;
+};
+
 export type ServiceType = {
   id: string;
   descricao: string;
