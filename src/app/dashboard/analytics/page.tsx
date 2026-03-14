@@ -11,8 +11,8 @@ import { PageHeader } from '@/components/page-header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent, type ChartConfig } from '@/components/ui/chart';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, BarChart, Bar, AreaChart, Area } from 'recharts';
-import { Loader2, XCircle, ShieldAlert, TrendingUp, Wallet, Users, Truck, Activity, Calendar as CalendarIcon } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, eachMonthOfInterval, isAfter, eachDayOfInterval, startOfDay, endOfDay, subMonths, isBefore } from 'date-fns';
+import { Loader2, XCircle, ShieldAlert, TrendingUp, Users, Truck, Activity, Calendar as CalendarIcon, History } from 'lucide-react';
+import { format, startOfMonth, endOfMonth, eachMonthOfInterval, isAfter, eachDayOfInterval, startOfDay, endOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
@@ -41,10 +41,16 @@ export default function AnalyticsPage() {
     const [receivables, setReceivables] = useState<ServicePayment[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isAdmin, setIsAdmin] = useState(false);
+    const [oldestDate, setOldestDate] = useState<Date | null>(null);
     const router = useRouter();
 
     const [selectedCityFilter, setSelectedCityFilter] = useState('none');
-    const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+    
+    // Padrão: Mês vigente
+    const [dateRange, setDateRange] = useState<DateRange | undefined>({
+        from: startOfMonth(new Date()),
+        to: endOfDay(new Date())
+    });
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -111,7 +117,7 @@ export default function AnalyticsPage() {
                 } as ServicePayment;
             });
 
-            // Reconstrução de receitas de serviços antigos
+            // Reconstrução de receitas de serviços antigos (sem histórico de parcelas)
             const reconstructedReceivables: ServicePayment[] = [...receivablesHistory];
             servicesData.forEach(service => {
                 const historyForThisService = receivablesHistory.filter(r => r.servico_id === service.id);
@@ -129,15 +135,14 @@ export default function AnalyticsPage() {
                 }
             });
 
-            // Identificar o início do período (primeira transação)
+            // Identificar o início absoluto do período para a função "Todo o Período"
             const allDates = [
                 ...reconstructedReceivables.map(r => r.data.getTime()),
                 ...accountsData.map(a => a.vencimento.getTime())
             ];
             
-            if (allDates.length > 0 && !dateRange) {
-                const firstDate = new Date(Math.min(...allDates));
-                setDateRange({ from: startOfDay(firstDate), to: endOfDay(new Date()) });
+            if (allDates.length > 0) {
+                setOldestDate(new Date(Math.min(...allDates)));
             }
 
             setServices(servicesData);
@@ -156,7 +161,7 @@ export default function AnalyticsPage() {
 
     const isGlobalView = !selectedCityFilter || selectedCityFilter === 'none';
 
-    // Filtro de Receitas
+    // Filtro de Receitas (Sensível a cidade se aplicada)
     const activeReceivables = useMemo(() => {
         return receivables.filter(r => {
             const service = services.find(s => s.id === r.servico_id);
@@ -165,71 +170,75 @@ export default function AnalyticsPage() {
         });
     }, [receivables, services, selectedCityFilter, isGlobalView]);
 
-    // Filtro de Despesas
+    // Filtro de Despesas (Ocultadas se filtro de cidade estiver ativo para focar no faturamento regional)
     const activeExpenses = useMemo(() => {
-        if (!isGlobalView) return []; // Se não for visão global (filtro por cidade), não mostra saídas conforme solicitado
-        return accountsPayable
-            .filter(a => a.status === 'pago');
+        if (!isGlobalView) return [];
+        return accountsPayable.filter(a => a.status === 'pago');
     }, [accountsPayable, isGlobalView]);
 
-    // Datas da Amostra (Eixo X)
+    // Intervalo de Datas da Amostra (Eixo X)
     const sampleRange = useMemo(() => {
-        const start = dateRange?.from || subMonths(new Date(), 3);
+        const start = dateRange?.from || startOfMonth(new Date());
         const end = dateRange?.to || new Date();
         return { start, end };
     }, [dateRange]);
 
-    // 1. Fluxo Diário Pontual (Suavizado - Estilo Imagem)
+    // 1. Fluxo Diário Pontual (Suavizado)
     const dailyFlowTransactions = useMemo(() => {
-        const days = eachDayOfInterval({ start: sampleRange.start, end: sampleRange.end });
+        try {
+            const days = eachDayOfInterval({ start: sampleRange.start, end: sampleRange.end });
 
-        return days.map(day => {
-            const dStart = startOfDay(day);
-            const dEnd = endOfDay(day);
+            return days.map(day => {
+                const dStart = startOfDay(day);
+                const dEnd = endOfDay(day);
 
-            const receitaDia = activeReceivables
-                .filter(r => r.data >= dStart && r.data <= dEnd)
-                .reduce((acc, r) => acc + (r.valor || 0), 0);
-            
-            const despesaDia = activeExpenses
-                .filter(a => a.tipo_referencia === 'fornecedor' && a.vencimento >= dStart && a.vencimento <= dEnd)
-                .reduce((acc, a) => acc + (a.valor || 0), 0);
+                const receitaDia = activeReceivables
+                    .filter(r => r.data >= dStart && r.data <= dEnd)
+                    .reduce((acc, r) => acc + (r.valor || 0), 0);
+                
+                const despesaDia = activeExpenses
+                    .filter(a => a.tipo_referencia === 'fornecedor' && a.vencimento >= dStart && a.vencimento <= dEnd)
+                    .reduce((acc, a) => acc + (a.valor || 0), 0);
 
-            const folhaDia = activeExpenses
-                .filter(a => a.tipo_referencia === 'funcionario' && a.vencimento >= dStart && a.vencimento <= dEnd)
-                .reduce((acc, a) => acc + (a.valor || 0), 0);
+                const folhaDia = activeExpenses
+                    .filter(a => a.tipo_referencia === 'funcionario' && a.vencimento >= dStart && a.vencimento <= dEnd)
+                    .reduce((acc, a) => acc + (a.valor || 0), 0);
 
-            return {
-                date: format(day, 'dd/MM'),
-                receita: receitaDia,
-                despesa: despesaDia,
-                folha: folhaDia
-            };
-        });
+                return {
+                    date: format(day, 'dd/MM'),
+                    receita: receitaDia,
+                    despesa: despesaDia,
+                    folha: folhaDia
+                };
+            });
+        } catch (e) { return []; }
     }, [activeReceivables, activeExpenses, sampleRange]);
 
-    // 2. Evolução do Patrimônio (Acumulado)
+    // 2. Evolução do Patrimônio (Acumulado Diário)
     const dailyStepData = useMemo(() => {
-        const days = eachDayOfInterval({ start: sampleRange.start, end: sampleRange.end });
+        try {
+            const days = eachDayOfInterval({ start: sampleRange.start, end: sampleRange.end });
 
-        return days.map(day => {
-            const dEnd = endOfDay(day);
-            
-            const totalReceivedUntilNow = activeReceivables
-                .filter(r => !isAfter(r.data, dEnd))
-                .reduce((acc, r) => acc + (r.valor || 0), 0);
-            
-            const totalPaidUntilNow = activeExpenses
-                .filter(a => !isAfter(a.vencimento, dEnd))
-                .reduce((acc, a) => acc + (a.valor || 0), 0);
+            return days.map(day => {
+                const dEnd = endOfDay(day);
+                
+                // Nota: O acumulado sempre considera TUDO antes do ponto atual, independente do início do filtro de data
+                const totalReceivedUntilNow = activeReceivables
+                    .filter(r => !isAfter(r.data, dEnd))
+                    .reduce((acc, r) => acc + (r.valor || 0), 0);
+                
+                const totalPaidUntilNow = activeExpenses
+                    .filter(a => !isAfter(a.vencimento, dEnd))
+                    .reduce((acc, a) => acc + (a.valor || 0), 0);
 
-            return {
-                date: format(day, 'dd/MM/yy'),
-                saldo: totalReceivedUntilNow - totalPaidUntilNow,
-                receita: totalReceivedUntilNow,
-                despesa: totalPaidUntilNow
-            };
-        });
+                return {
+                    date: format(day, 'dd/MM/yy'),
+                    saldo: totalReceivedUntilNow - totalPaidUntilNow,
+                    receita: totalReceivedUntilNow,
+                    despesa: totalPaidUntilNow
+                };
+            });
+        } catch (e) { return []; }
     }, [activeReceivables, activeExpenses, sampleRange]);
 
     // 3. Crescimento Mensal (Cumulativo)
@@ -254,14 +263,18 @@ export default function AnalyticsPage() {
                     saldo: totalReceivedUntilNow - totalPaidUntilNow
                 };
             });
-        } catch (e) {
-            return [];
-        }
+        } catch (e) { return []; }
     }, [activeReceivables, activeExpenses, sampleRange]);
 
     const handleClearFilters = () => {
         setSelectedCityFilter('none');
-        fetchData();
+        setDateRange({ from: startOfMonth(new Date()), to: endOfDay(new Date()) });
+    };
+
+    const handleSelectAllHistory = () => {
+        if (oldestDate) {
+            setDateRange({ from: startOfDay(oldestDate), to: endOfDay(new Date()) });
+        }
     };
 
     if (isLoading) {
@@ -292,44 +305,50 @@ export default function AnalyticsPage() {
         <div className="flex flex-col gap-8">
             <PageHeader 
                 title="Analytics"
-                description="Análise financeira profunda e detalhada do seu escritório."
+                description="Análise financeira profunda do seu escritório."
             />
             
             <Card>
-                <CardHeader><CardTitle>Configuração da Amostra</CardTitle></CardHeader>
-                <CardContent className="flex flex-wrap items-center gap-4">
-                    <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium">Período:</span>
-                        <Popover>
-                            <PopoverTrigger asChild>
-                                <Button
-                                    variant={"outline"}
-                                    className={cn("w-[280px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}
-                                >
-                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                    {dateRange?.from ? (
-                                        dateRange.to ? (
-                                            <>{format(dateRange.from, "dd/MM/yy")} - {format(dateRange.to, "dd/MM/yy")}</>
+                <CardHeader><CardTitle>Filtros de Amostra</CardTitle></CardHeader>
+                <CardContent className="flex flex-wrap items-center gap-6">
+                    <div className="flex flex-wrap items-center gap-3">
+                        <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium">Período:</span>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button
+                                        variant={"outline"}
+                                        className={cn("w-[280px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}
+                                    >
+                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        {dateRange?.from ? (
+                                            dateRange.to ? (
+                                                <>{format(dateRange.from, "dd/MM/yy")} - {format(dateRange.to, "dd/MM/yy")}</>
+                                            ) : (
+                                                format(dateRange.from, "dd/MM/yy")
+                                            )
                                         ) : (
-                                            format(dateRange.from, "dd/MM/yy")
-                                        )
-                                    ) : (
-                                        <span>Escolha o período</span>
-                                    )}
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                                <Calendar
-                                    initialFocus
-                                    mode="range"
-                                    defaultMonth={dateRange?.from}
-                                    selected={dateRange}
-                                    onSelect={setDateRange}
-                                    numberOfMonths={2}
-                                    locale={ptBR}
-                                />
-                            </PopoverContent>
-                        </Popover>
+                                            <span>Escolha o período</span>
+                                        )}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                    <Calendar
+                                        initialFocus
+                                        mode="range"
+                                        defaultMonth={dateRange?.from}
+                                        selected={dateRange}
+                                        onSelect={setDateRange}
+                                        numberOfMonths={2}
+                                        locale={ptBR}
+                                    />
+                                </PopoverContent>
+                            </Popover>
+                        </div>
+                        <Button variant="secondary" onClick={handleSelectAllHistory} className="text-xs" disabled={!oldestDate}>
+                            <History className="mr-2 h-3 w-3" />
+                            Todo o Período
+                        </Button>
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -343,20 +362,20 @@ export default function AnalyticsPage() {
                         </Select>
                     </div>
 
-                    <Button variant="ghost" onClick={handleClearFilters} className="text-muted-foreground">
+                    <Button variant="ghost" onClick={handleClearFilters} className="text-muted-foreground ml-auto">
                         <XCircle className="mr-2 h-4 w-4"/>
-                        Limpar Filtros
+                        Limpar
                     </Button>
                 </CardContent>
             </Card>
 
             <div className="grid grid-cols-1 gap-8">
                 
-                {/* 1. Fluxo de Caixa Diário (ESTILO SUAVIZADO COM AREA) */}
+                {/* 1. Fluxo de Caixa Diário (Interpolado Monotone) */}
                 <Card>
                     <CardHeader>
                         <CardTitle className="text-xl font-bold">Fluxo de Caixa (Diário)</CardTitle>
-                        <CardDescription>Entradas e saídas diárias detalhadas.</CardDescription>
+                        <CardDescription>Entradas e saídas diárias pontuais no período selecionado.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <ChartContainer config={flowChartConfig} className="h-[400px] w-full">
@@ -375,7 +394,7 @@ export default function AnalyticsPage() {
                                         <stop offset="95%" stopColor={PAYROLL_COLOR} stopOpacity={0.1}/>
                                     </linearGradient>
                                 </defs>
-                                <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#e5e7eb" />
+                                <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.3} />
                                 <XAxis 
                                     dataKey="date" 
                                     tickLine={false} 
@@ -400,7 +419,7 @@ export default function AnalyticsPage() {
                                     type="monotone" 
                                     dataKey="receita" 
                                     stroke={REVENUE_COLOR} 
-                                    strokeWidth={2}
+                                    strokeWidth={3}
                                     fillOpacity={1} 
                                     fill="url(#colorReceita)" 
                                     name="Receitas" 
@@ -428,14 +447,14 @@ export default function AnalyticsPage() {
                     </CardContent>
                 </Card>
 
-                {/* 2. Evolução do Patrimônio (Acumulado) */}
+                {/* 2. Evolução do Patrimônio (Acumulado em Degraus) */}
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2 text-blue-500">
                             <Activity className="h-5 w-5" />
-                            Evolução do Patrimônio (Acumulado)
+                            Patrimônio Acumulado (Diário)
                         </CardTitle>
-                        <CardDescription>Saldo histórico acumulado dia a dia refletindo o caixa real.</CardDescription>
+                        <CardDescription>Saldo líquido acumulado dia a dia, mostrando o impacto direto das transações.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <ChartContainer config={{}} className="h-[400px] w-full">
@@ -447,7 +466,7 @@ export default function AnalyticsPage() {
                                 <ChartLegend content={<ChartLegendContent />} />
                                 <Line type="stepAfter" dataKey="receita" stroke={REVENUE_COLOR} strokeWidth={1.5} dot={false} name="Receita Acum." />
                                 <Line type="stepAfter" dataKey="despesa" stroke={EXPENSE_COLOR} strokeWidth={1.5} dot={false} name="Despesa Acum." />
-                                <Line type="stepAfter" dataKey="saldo" stroke={BALANCE_COLOR} strokeWidth={3} dot={false} name="Patrimônio Líquido" />
+                                <Line type="stepAfter" dataKey="saldo" stroke={BALANCE_COLOR} strokeWidth={4} dot={false} name="Patrimônio Líquido" />
                             </LineChart>
                         </ChartContainer>
                     </CardContent>
@@ -460,7 +479,7 @@ export default function AnalyticsPage() {
                             <TrendingUp className="h-5 w-5" />
                             Crescimento Histórico (Mensal)
                         </CardTitle>
-                        <CardDescription>Visão agrupada por mês da evolução patrimonial.</CardDescription>
+                        <CardDescription>Visão agrupada por mês da evolução patrimonial total.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <ChartContainer config={{}} className="h-[400px] w-full">
