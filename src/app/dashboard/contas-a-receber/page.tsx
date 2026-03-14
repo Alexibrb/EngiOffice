@@ -21,9 +21,9 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { useToast } from "@/hooks/use-toast"
-import { collection, getDocs, doc, updateDoc, Timestamp, query, where, addDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, updateDoc, Timestamp, query, where, addDoc, deleteDoc, getDoc } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
-import { Calendar as CalendarIcon, Download, ExternalLink, XCircle, ArrowUp, TrendingUp, MoreHorizontal, HandCoins, FileText, Loader2, Link as LinkIcon, ClipboardCopy } from 'lucide-react';
+import { Calendar as CalendarIcon, Download, ExternalLink, XCircle, ArrowUp, TrendingUp, MoreHorizontal, HandCoins, FileText, Loader2, Link as LinkIcon, ClipboardCopy, Pencil, Trash2 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -53,6 +53,7 @@ import { ptBR } from 'date-fns/locale';
 import { PageHeader } from '@/components/page-header';
 import { useCompanyData } from '../layout';
 import { onAuthStateChanged } from 'firebase/auth';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
 const paymentSchema = z.object({
   valor_pago: z.coerce.number().min(0.01, "O valor deve ser maior que zero.")
@@ -74,11 +75,21 @@ export default function ContasAReceberPage() {
 
     const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
     const [isHistoryDialogOpen, setIsHistoryDialogOpen] = useState(false);
+    const [isEditEntryDialogOpen, setIsEditEntryDialogOpen] = useState(false);
+    
     const [viewingService, setViewingService] = useState<Service | null>(null);
     const [editingService, setEditingService] = useState<Service | null>(null);
+    const [editingEntry, setEditingEntry] = useState<ServicePayment | null>(null);
+    
     const [isPaymentLoading, setIsPaymentLoading] = useState(false);
+    const [isSyncing, setIsSyncing] = useState(false);
 
     const paymentForm = useForm<z.infer<typeof paymentSchema>>({
+        resolver: zodResolver(paymentSchema),
+        defaultValues: { valor_pago: 0 },
+    });
+
+    const editEntryForm = useForm<z.infer<typeof paymentSchema>>({
         resolver: zodResolver(paymentSchema),
         defaultValues: { valor_pago: 0 },
     });
@@ -158,6 +169,74 @@ export default function ContasAReceberPage() {
     const handleViewHistory = (service: Service) => {
         setViewingService(service);
         setIsHistoryDialogOpen(true);
+    };
+
+    const syncServiceTotal = async (serviceId: string) => {
+        setIsSyncing(true);
+        try {
+            // Buscar todos os recebimentos deste serviço
+            const q = query(collection(db, 'recebimentos'), where('servico_id', '==', serviceId));
+            const snap = await getDocs(q);
+            const allPayments = snap.docs.map(doc => doc.data() as ServicePayment);
+            
+            const totalPago = allPayments.reduce((acc, curr) => acc + curr.valor, 0);
+            
+            // Buscar dados atuais do serviço
+            const serviceRef = doc(db, 'servicos', serviceId);
+            const serviceSnap = await getDoc(serviceRef);
+            
+            if (serviceSnap.exists()) {
+                const serviceData = serviceSnap.data() as Service;
+                const novoSaldo = serviceData.valor_total - totalPago;
+                const statusFin = novoSaldo <= 0.01 ? 'pago' : 'pendente';
+                
+                await updateDoc(serviceRef, {
+                    valor_pago: totalPago,
+                    saldo_devedor: Math.max(0, novoSaldo),
+                    status_financeiro: statusFin
+                });
+            }
+            await fetchData();
+        } catch (error) {
+            console.error("Erro ao sincronizar totais:", error);
+        } finally {
+            setIsSyncing(false);
+        }
+    };
+
+    const handleEditEntry = (entry: ServicePayment) => {
+        setEditingEntry(entry);
+        editEntryForm.reset({ valor_pago: entry.valor });
+        setIsEditEntryDialogOpen(true);
+    };
+
+    const handleSaveEditedEntry = async (values: z.infer<typeof paymentSchema>) => {
+        if (!editingEntry) return;
+        setIsPaymentLoading(true);
+        try {
+            await updateDoc(doc(db, 'recebimentos', editingEntry.id), {
+                valor: values.valor_pago
+            });
+            toast({ title: "Sucesso!", description: "Lançamento atualizado." });
+            setIsEditEntryDialogOpen(false);
+            await syncServiceTotal(editingEntry.servico_id);
+        } catch (error) {
+            console.error("Erro ao editar lançamento:", error);
+            toast({ variant: 'destructive', title: 'Erro', description: 'Falha ao atualizar.' });
+        } finally {
+            setIsPaymentLoading(false);
+        }
+    };
+
+    const handleDeleteEntry = async (entry: ServicePayment) => {
+        try {
+            await deleteDoc(doc(db, 'recebimentos', entry.id));
+            toast({ title: "Sucesso!", description: "Lançamento excluído." });
+            await syncServiceTotal(entry.servico_id);
+        } catch (error) {
+            console.error("Erro ao excluir lançamento:", error);
+            toast({ variant: 'destructive', title: 'Erro', description: 'Falha ao excluir.' });
+        }
     };
 
     const generateReceipt = (service: Service, paymentValue?: number) => {
@@ -714,7 +793,7 @@ export default function ContasAReceberPage() {
             </Dialog>
 
             <Dialog open={isHistoryDialogOpen} onOpenChange={setIsHistoryDialogOpen}>
-                <DialogContent className="sm:max-w-lg">
+                <DialogContent className="sm:max-w-2xl">
                     <DialogHeader>
                         <DialogTitle>Histórico de Entradas</DialogTitle>
                         <DialogDescription>
@@ -727,6 +806,7 @@ export default function ContasAReceberPage() {
                                 <TableRow>
                                     <TableHead>Data</TableHead>
                                     <TableHead className="text-right">Valor</TableHead>
+                                    {isAdmin && <TableHead className="w-[100px] text-right">Ações</TableHead>}
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -734,10 +814,38 @@ export default function ContasAReceberPage() {
                                     <TableRow key={p.id}>
                                         <TableCell>{format(p.data, "dd/MM/yyyy 'às' HH:mm")}</TableCell>
                                         <TableCell className="text-right text-green-600 font-medium">R$ {p.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
+                                        {isAdmin && (
+                                            <TableCell className="text-right">
+                                                <div className="flex justify-end gap-2">
+                                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditEntry(p)}>
+                                                        <Pencil className="h-4 w-4 text-primary" />
+                                                    </Button>
+                                                    <AlertDialog>
+                                                        <AlertDialogTrigger asChild>
+                                                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                                                                <Trash2 className="h-4 w-4 text-destructive" />
+                                                            </Button>
+                                                        </AlertDialogTrigger>
+                                                        <AlertDialogContent>
+                                                            <AlertDialogHeader>
+                                                                <AlertDialogTitle>Excluir entrada?</AlertDialogTitle>
+                                                                <AlertDialogDescription>
+                                                                    Esta ação removerá este pagamento do histórico e atualizará o saldo devedor do serviço.
+                                                                </AlertDialogDescription>
+                                                            </AlertDialogHeader>
+                                                            <AlertDialogFooter>
+                                                                <AlertDialogCancel>Voltar</AlertDialogCancel>
+                                                                <AlertDialogAction onClick={() => handleDeleteEntry(p)} variant="destructive">Excluir</AlertDialogAction>
+                                                            </AlertDialogFooter>
+                                                        </AlertDialogContent>
+                                                    </AlertDialog>
+                                                </div>
+                                            </TableCell>
+                                        )}
                                     </TableRow>
                                 )) : (
                                     <TableRow>
-                                        <TableCell colSpan={2} className="h-24 text-center">Nenhum registro de parcela encontrado.</TableCell>
+                                        <TableCell colSpan={isAdmin ? 3 : 2} className="h-24 text-center">Nenhum registro de parcela encontrado.</TableCell>
                                     </TableRow>
                                 )}
                             </TableBody>
@@ -746,14 +854,53 @@ export default function ContasAReceberPage() {
                                     <TableRow>
                                         <TableCell className="font-bold">Total Recebido</TableCell>
                                         <TableCell className="text-right font-bold text-green-600">R$ {viewingService.valor_pago.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
+                                        {isAdmin && <TableCell></TableCell>}
                                     </TableRow>
                                 </TableFooter>
                             )}
                         </Table>
                     </div>
+                    {isSyncing && (
+                        <div className="flex items-center justify-center gap-2 mt-2 text-xs text-muted-foreground animate-pulse">
+                            <Loader2 className="h-3 w-3 animate-spin" /> Atualizando saldos...
+                        </div>
+                    )}
                     <DialogFooter>
                         <Button variant="ghost" onClick={() => setIsHistoryDialogOpen(false)}>Fechar</Button>
                     </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={isEditEntryDialogOpen} onOpenChange={setIsEditEntryDialogOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Corrigir Lançamento</DialogTitle>
+                        <DialogDescription>
+                            Ajuste o valor registrado nesta entrada.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <Form {...editEntryForm}>
+                        <form onSubmit={editEntryForm.handleSubmit(handleSaveEditedEntry)} className="space-y-4">
+                            <FormField
+                                control={editEntryForm.control}
+                                name="valor_pago"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Novo Valor (R$)</FormLabel>
+                                        <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <DialogFooter>
+                                <Button type="button" variant="ghost" onClick={() => setIsEditEntryDialogOpen(false)}>Cancelar</Button>
+                                <Button type="submit" variant="accent" disabled={isPaymentLoading}>
+                                    {isPaymentLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                    Salvar Alteração
+                                </Button>
+                            </DialogFooter>
+                        </form>
+                    </Form>
                 </DialogContent>
             </Dialog>
         </div>
