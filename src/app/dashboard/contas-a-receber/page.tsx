@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -111,6 +112,8 @@ export default function ContasAReceberPage() {
                   data_ultimo_pagamento: data.data_ultimo_pagamento?.toDate(),
                 } as Service
             });
+            // Ordenação por data de cadastro decrescente
+            servicesData.sort((a, b) => b.data_cadastro.getTime() - a.data_cadastro.getTime());
             setServices(servicesData);
 
             const clientsData = clientsSnapshot.docs.map(doc => ({ ...doc.data(), codigo_cliente: doc.id } as Client));
@@ -421,6 +424,7 @@ export default function ContasAReceberPage() {
     const generatePdf = () => {
         const doc = new jsPDF();
         const title = 'Relatório de Contas a Receber (Serviços)';
+        const pageWidth = doc.internal.pageSize.getWidth();
         
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(16);
@@ -429,9 +433,25 @@ export default function ContasAReceberPage() {
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(10);
         doc.text(`Data de Emissão: ${new Date().toLocaleDateString('pt-BR')}`, 14, 28);
-    
+
+        // Quadro de Resumo no Topo
         autoTable(doc, {
             startY: 35,
+            head: [['Resumo Financeiro do Filtro', '']],
+            body: [
+                ['Total dos Contratos:', `R$ ${filteredTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
+                ['Total Recebido:', `R$ ${filteredRecebido.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
+                ['Total Saldo Devedor:', `R$ ${filteredSaldoDevedor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
+            ],
+            theme: 'grid',
+            headStyles: { fillColor: [34, 139, 34] },
+            styles: { fontSize: 9 },
+            margin: { left: 14 },
+            tableWidth: 100,
+        });
+    
+        autoTable(doc, {
+            startY: (doc as any).lastAutoTable.finalY + 10,
             head: [['Descrição', 'Cliente', 'Data de Cadastro', 'Valor Total', 'Saldo Devedor', 'Status']],
             body: filteredReceivable.map((service) => [
             service.descricao,
@@ -441,15 +461,9 @@ export default function ContasAReceberPage() {
             `R$ ${(service.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
             service.status_financeiro,
             ]),
-            foot: [
-                ['Total', '', '', 
-                `R$ ${filteredTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
-                `R$ ${filteredSaldoDevedor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
-                 '']
-            ],
             theme: 'striped',
             headStyles: { fillColor: [34, 139, 34] },
-            footStyles: { fillColor: [220, 220, 220], textColor: [0,0,0], fontStyle: 'bold' }
+            rowPageBreak: 'avoid',
         });
     
         doc.save(`relatorio_financeiro_receber.pdf`);

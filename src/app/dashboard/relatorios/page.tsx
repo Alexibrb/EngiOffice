@@ -253,7 +253,8 @@ export default function RelatoriosPage() {
                     const from = startOfDay(dateRange.from);
                     const to = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from);
                     return s.data_cadastro >= from && s.data_cadastro <= to;
-                });
+                })
+                .sort((a, b) => b.data_cadastro.getTime() - a.data_cadastro.getTime());
             break;
         case 'accountsPayable':
              data = accountsPayable
@@ -264,7 +265,8 @@ export default function RelatoriosPage() {
                     const from = startOfDay(dateRange.from);
                     const to = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from);
                     return a.vencimento >= from && a.vencimento <= to;
-                });
+                })
+                .sort((a, b) => b.vencimento.getTime() - a.vencimento.getTime());
             break;
     }
     return data;
@@ -466,7 +468,7 @@ export default function RelatoriosPage() {
       body: body,
       theme: 'striped',
       headStyles: { fillColor: [34, 139, 34] },
-      rowPageBreak: 'avoid', // Impede que uma linha seja dividida entre páginas
+      rowPageBreak: 'avoid',
     });
     doc.save(fileName);
   };

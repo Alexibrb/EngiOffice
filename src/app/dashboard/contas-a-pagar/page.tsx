@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -201,6 +202,8 @@ export default function DespesasPage() {
                 const data = doc.data();
                 return { ...data, id: doc.id, vencimento: data.vencimento.toDate() } as Account;
             });
+            // Ordenação por vencimento decrescente (mais recente primeiro)
+            payableData.sort((a, b) => b.vencimento.getTime() - a.vencimento.getTime());
             setAccountsPayable(payableData);
             
             const editPayableId = searchParams.get('editPayable');
@@ -262,7 +265,7 @@ export default function DespesasPage() {
             await fetchData();
         } catch (error) {
             console.error("Erro ao salvar conta: ", error);
-            toast({ variant: "destructive", title: "Erro", description: "Ocorreu um erro ao salvar a conta." });
+            toast({ variant: "destructive", title: "Erro", description: "Ocorreu um erro ao salvar the conta." });
         } finally {
             setIsLoading(false);
         }
@@ -374,10 +377,28 @@ export default function DespesasPage() {
 
     const generatePdf = () => {
         const doc = new jsPDF();
+        doc.setFont('helvetica', 'bold');
         doc.setFontSize(16);
         doc.text(`Relatório de Despesas - ${companyData?.companyName || 'EngiOffice'}`, 14, 22);
+
+        // Quadro de Resumo no Topo
         autoTable(doc, {
-          startY: 35,
+            startY: 35,
+            head: [['Resumo de Despesas do Filtro', '']],
+            body: [
+                ['Total Pago:', `R$ ${filteredPago.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
+                ['Total Pendente:', `R$ ${filteredPendente.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
+                ['Total Geral:', `R$ ${filteredTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
+            ],
+            theme: 'grid',
+            headStyles: { fillColor: [34, 139, 34] },
+            styles: { fontSize: 9 },
+            margin: { left: 14 },
+            tableWidth: 100,
+        });
+
+        autoTable(doc, {
+          startY: (doc as any).lastAutoTable.finalY + 10,
           head: [['Descrição', 'Fornecedor', 'Vencimento', 'Valor', 'Status']],
           body: filteredPayable.map((acc) => [
             acc.descricao,
@@ -388,6 +409,7 @@ export default function DespesasPage() {
           ]),
           theme: 'striped',
           headStyles: { fillColor: [34, 139, 34] },
+          rowPageBreak: 'avoid',
         });
         doc.save(`relatorio_despesas.pdf`);
     };
@@ -506,7 +528,12 @@ export default function DespesasPage() {
                                 <FormField control={supplierForm.control} name="razao_social" render={({ field }) => (<FormItem><FormLabel>Razão Social *</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
                                 <FormField control={supplierForm.control} name="cnpj" render={({ field }) => (<FormItem><FormLabel>CNPJ</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
                                 <FormField control={supplierForm.control} name="email" render={({ field }) => (<FormItem><FormLabel>Email</FormLabel><FormControl><Input type="email" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                                <FormField control={supplierForm.control} name="produtos_servicos" render={({ field }) => (<FormItem className="md:col-span-2"><FormLabel>Produtos (um por linha)</FormLabel><FormControl><Textarea {...field} /></FormControl></FormItem>)} />
+                                <FormField control={supplierForm.control} name="produtos_servicos" render={({ field }) => (
+                                    <FormItem className="md:col-span-2">
+                                        <FormLabel>Produtos (um por linha)</FormLabel>
+                                        <FormControl><Textarea {...field} /></FormControl>
+                                    </FormItem>
+                                )} />
                             </div>
                             <DialogFooter>
                                 <Button type="button" variant="ghost" onClick={() => setIsSupplierDialogOpen(false)}>Cancelar</Button>
@@ -580,7 +607,7 @@ function PayableFormComponent({ form, suppliers, clients, services, onAddSupplie
                 <FormItem>
                     <FormLabel>Vincular Obra / Projeto</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value || 'none'} disabled={!clientId || clientId === 'none'}>
-                        <FormControl><SelectTrigger><SelectValue placeholder={!clientId || clientId === 'none' ? "Selecione um cliente" : "Nenhum"} /></SelectTrigger></FormControl>
+                        <FormControl><SelectTrigger><SelectValue placeholder={!clientId || clientId === 'none' ? "Selecione um cliente primeiro" : "Nenhum"} /></SelectTrigger></FormControl>
                         <SelectContent><SelectItem value="none">Nenhum</SelectItem>{filteredServices.map(s => <SelectItem key={s.id} value={s.id}>{s.descricao}</SelectItem>)}</SelectContent>
                     </Select>
                 </FormItem>
@@ -593,7 +620,7 @@ function PayableFormComponent({ form, suppliers, clients, services, onAddSupplie
                     <FormLabel>Vencimento</FormLabel>
                     <Popover>
                         <PopoverTrigger asChild><FormControl><Button variant="outline" className={cn("w-full text-left", !field.value && "text-muted-foreground")}>{field.value ? format(field.value, "dd/MM/yyyy") : "Escolha"}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger>
-                        <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent>
+                        <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent>
                     </Popover>
                 </FormItem>
             )}/>

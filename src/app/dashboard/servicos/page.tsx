@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -281,6 +282,7 @@ export default function ServicosPage() {
           data_ultimo_pagamento: data.data_ultimo_pagamento?.toDate(),
         } as Service
       });
+      // Ordenação por data de cadastro decrescente (mais recente primeiro)
       servicesData.sort((a, b) => b.data_cadastro.getTime() - a.data_cadastro.getTime());
       setServices(servicesData);
 
