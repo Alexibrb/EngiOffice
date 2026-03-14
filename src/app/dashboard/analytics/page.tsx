@@ -10,7 +10,7 @@ import { PageHeader } from '@/components/page-header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell, AreaChart, Area, LineChart, Line } from 'recharts';
-import { Loader2, XCircle, Calendar as CalendarIcon, ShieldAlert, Wallet } from 'lucide-react';
+import { Loader2, XCircle, Calendar as CalendarIcon, ShieldAlert, Wallet, TrendingUp } from 'lucide-react';
 import { format, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, startOfDay, subDays, isWithinInterval, isBefore, endOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
@@ -128,10 +128,7 @@ export default function AnalyticsPage() {
                     const dateToUse = s.data_ultimo_pagamento || s.data_cadastro;
                     const isInMonth = s.valor_pago > 0 && dateToUse >= monthStart && dateToUse <= monthEnd;
                     if (!isInMonth) return false;
-                    
-                    if (selectedCityFilter) {
-                        return s.endereco_obra?.city === selectedCityFilter;
-                    }
+                    if (selectedCityFilter) return s.endereco_obra?.city === selectedCityFilter;
                     return true;
                 })
                 .reduce((acc, s) => acc + s.valor_pago, 0);
@@ -161,10 +158,7 @@ export default function AnalyticsPage() {
                     const dateToUse = s.data_ultimo_pagamento || s.data_cadastro;
                     const isInMonth = s.valor_pago > 0 && dateToUse >= monthStart && dateToUse <= monthEnd;
                     if (!isInMonth) return false;
-                    
-                    if (selectedCityFilter) {
-                        return s.endereco_obra?.city === selectedCityFilter;
-                    }
+                    if (selectedCityFilter) return s.endereco_obra?.city === selectedCityFilter;
                     return true;
                 })
                 .reduce((acc, s) => acc + s.valor_pago, 0);
@@ -181,6 +175,40 @@ export default function AnalyticsPage() {
                 receitas: received, 
                 despesas: paid,
                 lucro: received - paid
+            });
+        }
+        return data;
+    };
+
+    const cumulativeMonthlyData = () => {
+        const data: { name: string; receitas: number; despesas: number; saldo: number }[] = [];
+        for (let i = 11; i >= 0; i--) {
+            const date = subMonths(new Date(), i);
+            const monthName = format(date, 'MMM/yy', { locale: ptBR });
+            const monthEnd = endOfMonth(date);
+
+            const cumulativeReceived = services
+                .filter(s => {
+                    const dateToUse = s.data_ultimo_pagamento || s.data_cadastro;
+                    const isBeforeOrInMonth = s.valor_pago > 0 && isBefore(dateToUse, endOfDay(monthEnd));
+                    if (!isBeforeOrInMonth) return false;
+                    if (selectedCityFilter) return s.endereco_obra?.city === selectedCityFilter;
+                    return true;
+                })
+                .reduce((acc, s) => acc + s.valor_pago, 0);
+            
+            const cumulativePaid = accountsPayable
+                .filter(a => {
+                    const dueDate = a.vencimento;
+                    return a.status === 'pago' && isBefore(dueDate, endOfDay(monthEnd));
+                })
+                .reduce((acc, a) => acc + a.valor, 0);
+
+            data.push({ 
+                name: monthName, 
+                receitas: cumulativeReceived, 
+                despesas: cumulativePaid,
+                saldo: cumulativeReceived - cumulativePaid
             });
         }
         return data;
@@ -262,7 +290,6 @@ export default function AnalyticsPage() {
             start = startOfDay(subDays(new Date(), 90));
         }
 
-        // 1. Calcular Saldo Inicial (Tudo antes da data 'start')
         const revenuesBeforeStart = services
             .filter(s => {
                 const dateToUse = s.data_ultimo_pagamento || s.data_cadastro;
@@ -276,7 +303,6 @@ export default function AnalyticsPage() {
 
         let currentCumulativeBalance = revenuesBeforeStart - expensesBeforeStart;
 
-        // 2. Gerar histórico dia a dia a partir de 'start'
         try {
             const intervalDays = eachDayOfInterval({ start, end });
             return intervalDays.map(day => {
@@ -456,8 +482,32 @@ export default function AnalyticsPage() {
                 <Card className="lg:col-span-2">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
+                            <TrendingUp className="h-5 w-5 text-green-500" />
+                            Crescimento Histórico (Receitas e Despesas Cumulativas)
+                        </CardTitle>
+                        <CardDescription>Evolução da soma total de entradas e saídas ao longo dos últimos 12 meses.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <ChartContainer config={{}} className="h-[400px] w-full">
+                            <LineChart data={cumulativeMonthlyData()}>
+                                <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                                <XAxis dataKey="name" tickLine={false} axisLine={false} tickMargin={8} />
+                                <YAxis tickFormatter={(value) => `R$${Number(value).toLocaleString('pt-BR', { notation: 'compact' })}`}/>
+                                <ChartTooltip content={<ChartTooltipContent formatter={(value, name) => `${name}: R$ ${Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}/>} />
+                                <ChartLegend content={<ChartLegendContent />} />
+                                <Line type="monotone" dataKey="receitas" stroke={POSITIVE_COLOR} strokeWidth={3} dot={{ r: 4 }} name="Receitas Acumuladas" />
+                                <Line type="monotone" dataKey="despesas" stroke={NEGATIVE_COLOR} strokeWidth={3} dot={{ r: 4 }} name="Despesas Acumuladas" />
+                                <Line type="monotone" dataKey="saldo" stroke={BALANCE_COLOR} strokeWidth={4} strokeDasharray="5 5" name="Saldo no Período" />
+                            </LineChart>
+                        </ChartContainer>
+                    </CardContent>
+                </Card>
+
+                <Card className="lg:col-span-2">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
                             <Wallet className="h-5 w-5 text-blue-500" />
-                            Evolução do Saldo em Caixa (Acumulado)
+                            Evolução do Saldo em Caixa (Acumulado Diário)
                         </CardTitle>
                         <CardDescription>Acompanhe o saldo real dia a dia, incluindo movimentações anteriores ao período exibido.</CardDescription>
                     </CardHeader>
@@ -482,8 +532,8 @@ export default function AnalyticsPage() {
 
                 <Card className="lg:col-span-2">
                     <CardHeader>
-                        <CardTitle>Desempenho Mensal (Resultados)</CardTitle>
-                        <CardDescription>Evolução de receitas, despesas e lucro líquido (dia 1 ao último dia do mês) nos últimos 12 meses.</CardDescription>
+                        <CardTitle>Desempenho Mensal (Resultados Individuais)</CardTitle>
+                        <CardDescription>Evolução de receitas, despesas e lucro líquido mês a mês nos últimos 12 meses.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <ChartContainer config={{}} className="h-[350px] w-full">
@@ -504,7 +554,7 @@ export default function AnalyticsPage() {
                 <Card>
                     <CardHeader>
                         <CardTitle>Visão Geral Financeira (Mensal)</CardTitle>
-                        <CardDescription>Receitas vs. Despesas nos últimos 6 meses (considera filtro de cidade).</CardDescription>
+                        <CardDescription>Receitas vs. Despesas nos últimos 6 meses.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <ChartContainer config={{}} className="h-[300px] w-full">
@@ -534,7 +584,7 @@ export default function AnalyticsPage() {
                 <Card>
                     <CardHeader>
                         <CardTitle>Status dos Serviços</CardTitle>
-                        <CardDescription>Contagem de serviços por status de execução (baseado nos filtros).</CardDescription>
+                        <CardDescription>Contagem de serviços por status de execução.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <ChartContainer config={{}} className="h-[300px] w-full">
@@ -556,7 +606,7 @@ export default function AnalyticsPage() {
                  <Card>
                     <CardHeader>
                         <CardTitle>Top 5 Clientes por Receita</CardTitle>
-                        <CardDescription>Clientes que mais geraram receita (baseado nos filtros).</CardDescription>
+                        <CardDescription>Clientes que mais geraram receita.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <ChartContainer config={{}} className="h-[300px] w-full">
@@ -591,7 +641,7 @@ export default function AnalyticsPage() {
                 <Card>
                     <CardHeader>
                         <CardTitle>Fluxo de Caixa (Diário)</CardTitle>
-                        <CardDescription>Entradas e saídas diárias detalhadas (baseado nos filtros de data ou últimos 90 dias de movimento).</CardDescription>
+                        <CardDescription>Entradas e saídas diárias detalhadas.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <ChartContainer config={{}} className="h-[300px] w-full">
@@ -626,7 +676,7 @@ export default function AnalyticsPage() {
                 <Card>
                     <CardHeader>
                         <CardTitle>Receita: Recebido vs. A Receber</CardTitle>
-                        <CardDescription>Proporção do valor total dos serviços que foi pago versus o que está pendente.</CardDescription>
+                        <CardDescription>Proporção do valor total contratado.</CardDescription>
                     </CardHeader>
                     <CardContent className="flex justify-center">
                         <ChartContainer config={{}} className="h-[300px] w-[300px]">
