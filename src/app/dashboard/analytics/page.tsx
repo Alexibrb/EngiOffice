@@ -10,7 +10,7 @@ import { PageHeader } from '@/components/page-header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell, AreaChart, Area, LineChart, Line } from 'recharts';
-import { Loader2, XCircle, Calendar as CalendarIcon, ShieldAlert, TrendingUp } from 'lucide-react';
+import { Loader2, XCircle, Calendar as CalendarIcon, ShieldAlert, TrendingUp, Truck } from 'lucide-react';
 import { format, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, eachMonthOfInterval, startOfDay, subDays, isBefore, endOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
@@ -166,6 +166,58 @@ export default function AnalyticsPage() {
             return [];
         }
     }, [services, accountsPayable, dateRange, selectedCityFilter, selectedClient, selectedEmployee]);
+
+    const cumulativeMonthlySuppliersData = useMemo(() => {
+        let start: Date;
+        let end: Date;
+
+        if (dateRange?.from) {
+            start = startOfMonth(dateRange.from);
+            end = dateRange.to ? endOfMonth(dateRange.to) : endOfMonth(start);
+        } else {
+            end = endOfMonth(new Date());
+            start = startOfMonth(subMonths(end, 11));
+        }
+
+        try {
+            const intervalMonths = eachMonthOfInterval({ start, end });
+
+            return intervalMonths.map(month => {
+                const monthEnd = endOfMonth(month);
+
+                const cumulativeReceived = services
+                    .filter(s => {
+                        const dateToUse = s.data_ultimo_pagamento || s.data_cadastro;
+                        const isBeforeOrInMonth = s.valor_pago > 0 && isBefore(dateToUse, endOfDay(monthEnd));
+                        if (!isBeforeOrInMonth) return false;
+                        if (selectedCityFilter && s.endereco_obra?.city !== selectedCityFilter) return false;
+                        if (selectedClient && s.cliente_id !== selectedClient) return false;
+                        return true;
+                    })
+                    .reduce((acc, s) => acc + (s.valor_pago || 0), 0);
+                
+                const cumulativePaidSuppliers = accountsPayable
+                    .filter(a => {
+                        const dueDate = a.vencimento;
+                        const isBeforeOrInMonth = a.status === 'pago' && isBefore(dueDate, endOfDay(monthEnd));
+                        if (!isBeforeOrInMonth) return false;
+                        if (a.tipo_referencia !== 'fornecedor') return false;
+                        if (selectedClient && a.cliente_id !== selectedClient) return false;
+                        return true;
+                    })
+                    .reduce((acc, a) => acc + (a.valor || 0), 0);
+
+                return { 
+                    name: format(month, 'MMM/yy', { locale: ptBR }), 
+                    receitas: cumulativeReceived, 
+                    despesas: cumulativePaidSuppliers,
+                    saldo: cumulativeReceived - cumulativePaidSuppliers
+                };
+            });
+        } catch (e) {
+            return [];
+        }
+    }, [services, accountsPayable, dateRange, selectedCityFilter, selectedClient]);
 
     const cumulativeDailyData = useMemo(() => {
         let start: Date;
@@ -492,7 +544,32 @@ export default function AnalyticsPage() {
                     </CardContent>
                 </Card>
 
-                {/* 2. Crescimento Histórico Diário (Cumulativo) */}
+                {/* 2. Crescimento Histórico Mensal - Apenas Fornecedores (Cumulativo) */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <Truck className="h-5 w-5 text-orange-500" />
+                            Crescimento Histórico Mensal (Apenas Fornecedores)
+                        </CardTitle>
+                        <CardDescription>Evolução acumulada focada em gastos com fornecedores comparados à receita total.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <ChartContainer config={{}} className="h-[400px] w-full">
+                            <LineChart data={cumulativeMonthlySuppliersData}>
+                                <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                                <XAxis dataKey="name" tickLine={false} axisLine={false} tickMargin={8} />
+                                <YAxis tickFormatter={(value) => `R$${Number(value).toLocaleString('pt-BR', { notation: 'compact' })}`}/>
+                                <ChartTooltip content={<ChartTooltipContent formatter={(value, name) => `${name}: R$ ${Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}/>} />
+                                <ChartLegend content={<ChartLegendContent />} />
+                                <Line type="monotone" dataKey="receitas" stroke={POSITIVE_COLOR} strokeWidth={3} dot={{ r: 4 }} name="Receitas Totais" />
+                                <Line type="monotone" dataKey="despesas" stroke="#f97316" strokeWidth={3} dot={{ r: 4 }} name="Despesas Fornecedores" />
+                                <Line type="monotone" dataKey="saldo" stroke="#64748b" strokeWidth={4} strokeDasharray="5 5" name="Saldo (Rec - Forn)" />
+                            </LineChart>
+                        </ChartContainer>
+                    </CardContent>
+                </Card>
+
+                {/* 3. Crescimento Histórico Diário (Cumulativo) */}
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
@@ -517,7 +594,7 @@ export default function AnalyticsPage() {
                     </CardContent>
                 </Card>
 
-                {/* 3. Fluxo de Caixa (Diário) */}
+                {/* 4. Fluxo de Caixa (Diário) */}
                 <Card>
                     <CardHeader>
                         <CardTitle>Fluxo de Caixa (Diário)</CardTitle>
@@ -553,7 +630,7 @@ export default function AnalyticsPage() {
                     </CardContent>
                 </Card>
 
-                {/* 4. Receita: Recebido vs. A Receber */}
+                {/* 5. Receita: Recebido vs. A Receber */}
                 <Card>
                     <CardHeader>
                         <CardTitle>Receita: Recebido vs. A Receber</CardTitle>
@@ -573,7 +650,7 @@ export default function AnalyticsPage() {
                     </CardContent>
                 </Card>
 
-                {/* 5. Top 5 Clientes por Receita */}
+                {/* 6. Top 5 Clientes por Receita */}
                 <Card>
                     <CardHeader>
                         <CardTitle>Top 5 Clientes por Receita</CardTitle>
@@ -609,7 +686,7 @@ export default function AnalyticsPage() {
                     </CardContent>
                 </Card>
 
-                {/* 6. Status dos Serviços */}
+                {/* 7. Status dos Serviços */}
                 <Card>
                     <CardHeader>
                         <CardTitle>Status dos Serviços</CardTitle>
