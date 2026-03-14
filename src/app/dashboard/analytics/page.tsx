@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { collection, getDocs, query, where, Timestamp } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell, AreaChart, Area, LineChart, Line } from 'recharts';
 import { Loader2, XCircle, Calendar as CalendarIcon, ShieldAlert } from 'lucide-react';
-import { format, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, startOfDay, subDays } from 'date-fns';
+import { format, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, startOfDay, subDays, isWithinInterval } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -77,9 +77,27 @@ export default function AnalyticsPage() {
                 getDocs(collection(db, "cidades")),
             ]);
 
-            const servicesData = servicesSnap.docs.map(doc => ({ ...doc.data(), id: doc.id, data_cadastro: doc.data().data_cadastro.toDate() } as Service));
+            const servicesData = servicesSnap.docs.map(doc => {
+                const data = doc.data();
+                return {
+                    ...data,
+                    id: doc.id,
+                    data_cadastro: data.data_cadastro instanceof Timestamp ? data.data_cadastro.toDate() : new Date(data.data_cadastro),
+                    data_ultimo_pagamento: data.data_ultimo_pagamento instanceof Timestamp ? data.data_ultimo_pagamento.toDate() : (data.data_ultimo_pagamento ? new Date(data.data_ultimo_pagamento) : null),
+                } as Service;
+            });
+
             const clientsData = clientsSnap.docs.map(doc => ({ ...doc.data(), codigo_cliente: doc.id } as Client));
-            const accountsData = accountsPayableSnap.docs.map(doc => ({ ...doc.data(), id: doc.id, vencimento: doc.data().vencimento.toDate() } as Account));
+            
+            const accountsData = accountsPayableSnap.docs.map(doc => {
+                const data = doc.data();
+                return {
+                    ...data,
+                    id: doc.id,
+                    vencimento: data.vencimento instanceof Timestamp ? data.vencimento.toDate() : new Date(data.vencimento)
+                } as Account;
+            });
+
             const employeesData = employeesSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Employee));
             const citiesData = citiesSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as City));
 
@@ -98,16 +116,12 @@ export default function AnalyticsPage() {
 
     const filteredServices = useMemo(() => {
         return services.filter(service => {
-            const serviceDate = new Date(service.data_cadastro);
+            const serviceDate = service.data_cadastro;
             if (isNaN(serviceDate.getTime())) return false;
 
             const inDateRange = dateRange?.from ? (serviceDate >= dateRange.from && serviceDate <= (dateRange.to || dateRange.from)) : true;
             const clientMatch = selectedClient ? service.cliente_id === selectedClient : true;
-            
-            let cityMatch = true;
-            if (selectedCityFilter) {
-                cityMatch = service.endereco_obra?.city === selectedCityFilter;
-            }
+            const cityMatch = selectedCityFilter ? service.endereco_obra?.city === selectedCityFilter : true;
 
             return inDateRange && clientMatch && cityMatch;
         });
@@ -115,7 +129,7 @@ export default function AnalyticsPage() {
     
     const filteredAccountsPayable = useMemo(() => {
          return accountsPayable.filter(account => {
-            const dueDate = new Date(account.vencimento);
+            const dueDate = account.vencimento;
             if (isNaN(dueDate.getTime())) return false;
 
             const inDateRange = dateRange?.from ? (dueDate >= dateRange.from && dueDate <= (dateRange.to || dateRange.from)) : true;
@@ -134,8 +148,9 @@ export default function AnalyticsPage() {
 
             const received = services
                 .filter(s => {
-                    const serviceDate = new Date(s.data_cadastro);
-                    const isInMonth = s.valor_pago > 0 && !isNaN(serviceDate.getTime()) && serviceDate >= monthStart && serviceDate <= monthEnd;
+                    // Para bater com o caixa, usamos a data do pagamento se disponível, senão a de cadastro
+                    const dateToUse = s.data_ultimo_pagamento || s.data_cadastro;
+                    const isInMonth = s.valor_pago > 0 && dateToUse >= monthStart && dateToUse <= monthEnd;
                     if (!isInMonth) return false;
                     
                     if (selectedCityFilter) {
@@ -147,8 +162,8 @@ export default function AnalyticsPage() {
             
             const paid = accountsPayable
                 .filter(a => {
-                    const dueDate = new Date(a.vencimento);
-                    return a.status === 'pago' && !isNaN(dueDate.getTime()) && dueDate >= monthStart && dueDate <= monthEnd;
+                    const dueDate = a.vencimento;
+                    return a.status === 'pago' && dueDate >= monthStart && dueDate <= monthEnd;
                 })
                 .reduce((acc, a) => acc + a.valor, 0);
 
@@ -167,8 +182,8 @@ export default function AnalyticsPage() {
 
             const received = services
                 .filter(s => {
-                    const serviceDate = new Date(s.data_cadastro);
-                    const isInMonth = s.valor_pago > 0 && !isNaN(serviceDate.getTime()) && serviceDate >= monthStart && serviceDate <= monthEnd;
+                    const dateToUse = s.data_ultimo_pagamento || s.data_cadastro;
+                    const isInMonth = s.valor_pago > 0 && dateToUse >= monthStart && dateToUse <= monthEnd;
                     if (!isInMonth) return false;
                     
                     if (selectedCityFilter) {
@@ -180,8 +195,8 @@ export default function AnalyticsPage() {
             
             const paid = accountsPayable
                 .filter(a => {
-                    const dueDate = new Date(a.vencimento);
-                    return a.status === 'pago' && !isNaN(dueDate.getTime()) && dueDate >= monthStart && dueDate <= monthEnd;
+                    const dueDate = a.vencimento;
+                    return a.status === 'pago' && dueDate >= monthStart && dueDate <= monthEnd;
                 })
                 .reduce((acc, a) => acc + a.valor, 0);
 
@@ -204,16 +219,13 @@ export default function AnalyticsPage() {
             end = dateRange.to ? startOfDay(dateRange.to) : start;
         } else {
             const allDates = [
-                ...filteredServices.map(s => new Date(s.data_cadastro).getTime()),
-                ...filteredAccountsPayable.map(a => new Date(a.vencimento).getTime())
+                ...services.filter(s => s.valor_pago > 0).map(s => (s.data_ultimo_pagamento || s.data_cadastro).getTime()),
+                ...accountsPayable.filter(a => a.status === 'pago').map(a => a.vencimento.getTime())
             ].filter(t => !isNaN(t));
 
             if (allDates.length > 0) {
-                const minD = Math.min(...allDates);
                 const maxD = Math.max(...allDates);
-                
-                const limitDate = subDays(new Date(maxD), 90);
-                start = startOfDay(new Date(Math.max(minD, limitDate.getTime())));
+                start = startOfDay(subDays(new Date(maxD), 90));
                 end = startOfDay(new Date(maxD));
             } else {
                 start = startOfDay(subDays(new Date(), 30));
@@ -227,23 +239,25 @@ export default function AnalyticsPage() {
             return intervalDays.map(day => {
                 const dayStart = startOfDay(day);
 
-                const dailyRevenue = filteredServices
+                const dailyRevenue = services
                     .filter(s => {
-                        const serviceDate = startOfDay(new Date(s.data_cadastro));
-                        return s.valor_pago > 0 && serviceDate.getTime() === dayStart.getTime();
+                        const dateToUse = startOfDay(s.data_ultimo_pagamento || s.data_cadastro);
+                        const isSameDay = s.valor_pago > 0 && dateToUse.getTime() === dayStart.getTime();
+                        if (selectedCityFilter) return isSameDay && s.endereco_obra?.city === selectedCityFilter;
+                        return isSameDay;
                     })
                     .reduce((sum, s) => sum + s.valor_pago, 0);
 
-                const dailyExpensesFornecedores = filteredAccountsPayable
+                const dailyExpensesFornecedores = accountsPayable
                     .filter(a => {
-                        const dueDate = startOfDay(new Date(a.vencimento));
+                        const dueDate = startOfDay(a.vencimento);
                         return a.status === 'pago' && a.tipo_referencia === 'fornecedor' && dueDate.getTime() === dayStart.getTime();
                     })
                     .reduce((sum, a) => sum + a.valor, 0);
 
-                const dailyExpensesFolha = filteredAccountsPayable
+                const dailyExpensesFolha = accountsPayable
                     .filter(a => {
-                        const dueDate = startOfDay(new Date(a.vencimento));
+                        const dueDate = startOfDay(a.vencimento);
                         return a.status === 'pago' && a.tipo_referencia === 'funcionario' && dueDate.getTime() === dayStart.getTime();
                     })
                     .reduce((sum, a) => sum + a.valor, 0);
@@ -258,34 +272,48 @@ export default function AnalyticsPage() {
         } catch (e) {
             return [];
         }
-    }, [filteredServices, filteredAccountsPayable, dateRange]);
+    }, [services, accountsPayable, dateRange, selectedCityFilter]);
     
     const revenueStatusData = useMemo(() => {
-        const totalPaid = filteredServices.reduce((sum, s) => sum + (s.valor_pago || 0), 0);
-        const totalPending = filteredServices.reduce((sum, s) => sum + (s.saldo_devedor || 0), 0);
+        const totalPaid = services
+            .filter(s => selectedCityFilter ? s.endereco_obra?.city === selectedCityFilter : true)
+            .reduce((sum, s) => sum + (s.valor_pago || 0), 0);
+        
+        const totalPending = services
+            .filter(s => selectedCityFilter ? s.endereco_obra?.city === selectedCityFilter : true)
+            .reduce((sum, s) => sum + (s.saldo_devedor || 0), 0);
         
         return [
             { name: 'Recebido', value: totalPaid },
             { name: 'A Receber', value: totalPending },
         ].filter(item => item.value > 0);
-    }, [filteredServices]);
+    }, [services, selectedCityFilter]);
 
 
     const serviceStatusData = useMemo(() => {
-        const total = filteredServices.filter(s => s.status_financeiro !== 'cancelado').length;
-        const inProgress = filteredServices.filter(s => s.status_execucao === 'em andamento').length;
-        const completed = filteredServices.filter(s => s.status_execucao === 'finalizado').length;
+        const base = services.filter(s => {
+            const cityMatch = selectedCityFilter ? s.endereco_obra?.city === selectedCityFilter : true;
+            return cityMatch && s.status_financeiro !== 'cancelado';
+        });
+
+        const total = base.length;
+        const inProgress = base.filter(s => s.status_execucao === 'em andamento').length;
+        const completed = base.filter(s => s.status_execucao === 'finalizado').length;
 
         return [
             { name: 'Cadastrados', value: total, fill: COLORS[0] },
             { name: 'Em Andamento', value: inProgress, fill: COLORS[2] },
             { name: 'Concluídos', value: completed, fill: COLORS[1] },
         ];
-    }, [filteredServices]);
+    }, [services, selectedCityFilter]);
 
     const revenueByClientData = clients
         .map(client => {
-            const clientServices = filteredServices.filter(s => s.cliente_id === client.codigo_cliente);
+            const clientServices = services.filter(s => {
+                const match = s.cliente_id === client.codigo_cliente;
+                const cityMatch = selectedCityFilter ? s.endereco_obra?.city === selectedCityFilter : true;
+                return match && cityMatch;
+            });
             const totalRevenue = clientServices.reduce((sum, s) => sum + (s.valor_pago || 0), 0);
             return { 
                 name: client.nome_completo, 
@@ -503,7 +531,7 @@ export default function AnalyticsPage() {
                 <Card>
                     <CardHeader>
                         <CardTitle>Fluxo de Caixa (Diário)</CardTitle>
-                        <CardDescription>Entradas e saídas diárias detalhadas (baseado nos filtros de data ou últimos 90 dias).</CardDescription>
+                        <CardDescription>Entradas e saídas diárias detalhadas (baseado nos filtros de data ou últimos 90 dias de movimento).</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <ChartContainer config={{}} className="h-[300px] w-full">
