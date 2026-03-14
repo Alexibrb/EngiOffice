@@ -406,8 +406,9 @@ export default function AnalyticsPage() {
                 </CardContent>
             </Card>
 
-            <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-                <Card className="lg:col-span-2">
+            <div className="flex flex-col gap-8">
+                {/* 1. Crescimento Histórico Mensal (Cumulativo) */}
+                <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <TrendingUp className="h-5 w-5 text-green-500" />
@@ -431,7 +432,8 @@ export default function AnalyticsPage() {
                     </CardContent>
                 </Card>
 
-                <Card className="lg:col-span-2">
+                {/* 2. Crescimento Histórico Diário (Cumulativo) */}
+                <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <TrendingUp className="h-5 w-5 text-blue-500" />
@@ -455,63 +457,7 @@ export default function AnalyticsPage() {
                     </CardContent>
                 </Card>
 
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Status dos Serviços</CardTitle>
-                        <CardDescription>Contagem de serviços por status de execução.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <ChartContainer config={{}} className="h-[300px] w-full">
-                            <BarChart data={serviceStatusData} layout="vertical">
-                                <CartesianGrid horizontal={false} />
-                                <XAxis type="number" hide />
-                                <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} tickMargin={8} width={100} />
-                                <ChartTooltip content={<ChartTooltipContent formatter={(value) => Number(value).toLocaleString('pt-BR')}/>} />
-                                <Bar dataKey="value" name="Total" radius={4}>
-                                    {serviceStatusData.map((entry) => (
-                                        <Cell key={`cell-${entry.name}`} fill={entry.fill} />
-                                    ))}
-                                </Bar>
-                            </BarChart>
-                        </ChartContainer>
-                    </CardContent>
-                </Card>
-
-                 <Card>
-                    <CardHeader>
-                        <CardTitle>Top 5 Clientes por Receita</CardTitle>
-                        <CardDescription>Clientes que mais geraram receita.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <ChartContainer config={{}} className="h-[300px] w-full">
-                            <BarChart data={revenueByClientData} layout="vertical">
-                                <CartesianGrid horizontal={false} />
-                                <XAxis type="number" hide />
-                                <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} tickMargin={8} width={150} />
-                                <ChartTooltip 
-                                    content={
-                                        <ChartTooltipContent 
-                                            formatter={(value, name, item) => (
-                                                <div className="flex flex-col gap-1">
-                                                    <div className="flex items-center justify-between gap-4">
-                                                        <span className="text-muted-foreground">Receita:</span>
-                                                        <span className="font-bold">R$ {Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                                                    </div>
-                                                    <div className="flex items-center justify-between gap-4">
-                                                        <span className="text-muted-foreground">Contratos:</span>
-                                                        <span className="font-bold">{item.payload.contratos}</span>
-                                                    </div>
-                                                </div>
-                                            )}
-                                        />
-                                    } 
-                                />
-                                <Bar dataKey="receita" fill={POSITIVE_COLOR} radius={4} name="Receita" />
-                            </BarChart>
-                        </ChartContainer>
-                    </CardContent>
-                </Card>
-                
+                {/* 3. Fluxo de Caixa (Diário) */}
                 <Card>
                     <CardHeader>
                         <CardTitle>Fluxo de Caixa (Diário)</CardTitle>
@@ -547,6 +493,7 @@ export default function AnalyticsPage() {
                     </CardContent>
                 </Card>
 
+                {/* 4. Receita: Recebido vs. A Receber */}
                 <Card>
                     <CardHeader>
                         <CardTitle>Receita: Recebido vs. A Receber</CardTitle>
@@ -562,6 +509,65 @@ export default function AnalyticsPage() {
                                 </Pie>
                                 <ChartLegend content={<ChartLegendContent />} />
                             </PieChart>
+                        </ChartContainer>
+                    </CardContent>
+                </Card>
+
+                {/* 5. Top 5 Clientes por Receita */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Top 5 Clientes por Receita</CardTitle>
+                        <CardDescription>Clientes que mais geraram receita.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <ChartContainer config={{}} className="h-[300px] w-full">
+                            <BarChart data={revenueByClientData} layout="vertical">
+                                <CartesianGrid horizontal={false} />
+                                <XAxis type="number" hide />
+                                <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} tickMargin={8} width={150} />
+                                <ChartTooltip 
+                                    content={
+                                        <ChartTooltipContent 
+                                            formatter={(value, name, item) => (
+                                                <div className="flex flex-col gap-1">
+                                                    <div className="flex items-center justify-between gap-4">
+                                                        <span className="text-muted-foreground">Receita:</span>
+                                                        <span className="font-bold">R$ {Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                                                    </div>
+                                                    <div className="flex items-center justify-between gap-4">
+                                                        <span className="text-muted-foreground">Contratos:</span>
+                                                        <span className="font-bold">{item.payload.contratos}</span>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        />
+                                    } 
+                                />
+                                <Bar dataKey="receita" fill={POSITIVE_COLOR} radius={4} name="Receita" />
+                            </BarChart>
+                        </ChartContainer>
+                    </CardContent>
+                </Card>
+
+                {/* 6. Status dos Serviços */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Status dos Serviços</CardTitle>
+                        <CardDescription>Contagem de serviços por status de execução.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <ChartContainer config={{}} className="h-[300px] w-full">
+                            <BarChart data={serviceStatusData} layout="vertical">
+                                <CartesianGrid horizontal={false} />
+                                <XAxis type="number" hide />
+                                <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} tickMargin={8} width={100} />
+                                <ChartTooltip content={<ChartTooltipContent formatter={(value) => Number(value).toLocaleString('pt-BR')}/>} />
+                                <Bar dataKey="value" name="Total" radius={4}>
+                                    {serviceStatusData.map((entry) => (
+                                        <Cell key={`cell-${entry.name}`} fill={entry.fill} />
+                                    ))}
+                                </Bar>
+                            </BarChart>
                         </ChartContainer>
                     </CardContent>
                 </Card>
