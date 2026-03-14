@@ -184,7 +184,7 @@ export default function AnalyticsPage() {
                 despesa: totalPaidUntilNow
             };
         });
-    }, [filteredReceivables, filteredExpenses]);
+    }, [filteredReceivables, filteredExpenses, receivables, accountsPayable]);
 
     // 2. Crescimento Histórico Mensal (Cumulativo)
     const cumulativeMonthlyData = useMemo(() => {
@@ -214,7 +214,7 @@ export default function AnalyticsPage() {
         } catch (e) {
             return [];
         }
-    }, [filteredReceivables, filteredExpenses]);
+    }, [filteredReceivables, filteredExpenses, receivables, accountsPayable]);
 
     // 3. Fluxo de Caixa Mensal
     const monthlyFlowData = useMemo(() => {
@@ -334,18 +334,21 @@ export default function AnalyticsPage() {
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <Activity className="h-5 w-5 text-blue-500" />
-                            Evolução Diária do Saldo (Últimos 90 Dias)
+                            Evolução Diária do Patrimônio (Últimos 90 Dias)
                         </CardTitle>
-                        <CardDescription>Movimentação detalhada do patrimônio dia após dia.</CardDescription>
+                        <CardDescription>Acompanhamento diário do saldo, receitas e despesas acumuladas.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <ChartContainer config={{}} className="h-[350px] w-full">
+                        <ChartContainer config={{}} className="h-[400px] w-full">
                             <LineChart data={dailyStepData}>
                                 <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.3} />
                                 <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} minTickGap={30} />
                                 <YAxis tickFormatter={(v) => `R$${Number(v).toLocaleString('pt-BR', { notation: 'compact' })}`} axisLine={false} tickLine={false} />
-                                <ChartTooltip content={<ChartTooltipContent formatter={(v) => `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />} />
-                                <Line type="stepAfter" dataKey="saldo" stroke={BALANCE_COLOR} strokeWidth={3} dot={false} name="Saldo Acumulado" />
+                                <ChartTooltip content={<ChartTooltipContent formatter={(v, n) => `${n}: R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />} />
+                                <ChartLegend content={<ChartLegendContent />} />
+                                <Line type="stepAfter" dataKey="receita" stroke={REVENUE_COLOR} strokeWidth={2} dot={false} name="Receita Acum." />
+                                <Line type="stepAfter" dataKey="despesa" stroke={EXPENSE_COLOR} strokeWidth={2} dot={false} name="Despesa Acum." />
+                                <Line type="stepAfter" dataKey="saldo" stroke={BALANCE_COLOR} strokeWidth={4} dot={false} name="Saldo Líquido" />
                             </LineChart>
                         </ChartContainer>
                     </CardContent>
