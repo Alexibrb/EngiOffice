@@ -22,7 +22,7 @@ import type { Client, Supplier, Service, Account, Employee, AuthorizedUser, City
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Download, Search, XCircle, Calendar as CalendarIcon, ChevronDown, ChevronRight, Link as LinkIcon, ExternalLink, ClipboardCopy } from 'lucide-react';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { collection, getDocs, query, where, Timestamp } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import { useToast } from "@/hooks/use-toast"
 import { format, startOfDay, endOfDay } from 'date-fns';
@@ -179,11 +179,36 @@ export default function RelatoriosPage() {
 
       setClients(clientsSnapshot.docs.map(doc => ({ ...doc.data(), codigo_cliente: doc.id })) as Client[]);
       setSuppliers(suppliersSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Supplier[]);
-      setServices(servicesSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, data_cadastro: doc.data().data_cadastro.toDate() })) as Service[]);
-      setAccountsPayable(accountsPayableSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, vencimento: doc.data().vencimento.toDate() })) as Account[]);
+      
+      setServices(servicesSnapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+              ...data,
+              id: doc.id,
+              data_cadastro: data.data_cadastro instanceof Timestamp ? data.data_cadastro.toDate() : new Date(data.data_cadastro)
+          } as Service;
+      }));
+
+      setAccountsPayable(accountsPayableSnapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+              ...data,
+              id: doc.id,
+              vencimento: data.vencimento instanceof Timestamp ? data.vencimento.toDate() : new Date(data.vencimento)
+          } as Account;
+      }));
+
       setEmployees(employeesSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Employee[]);
       setCities(citiesSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as City[]);
-      setReceivablesHistory(receivablesSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, data: doc.data().data.toDate() })) as ServicePayment[]);
+      
+      setReceivablesHistory(receivablesSnapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+              ...data,
+              id: doc.id,
+              data: data.data instanceof Timestamp ? data.data.toDate() : new Date(data.data)
+          } as ServicePayment;
+      }));
 
     } catch (error) {
       console.error("Erro ao buscar dados: ", error);
@@ -279,6 +304,7 @@ export default function RelatoriosPage() {
         case 'receivables_history':
             data = receivablesHistory
                 .filter(p => {
+                    if (!searchFilter) return true;
                     const client = getClient(p.cliente_id);
                     const service = getService(p.servico_id);
                     const searchStr = `${client?.nome_completo || ''} ${service?.descricao || ''}`.toLowerCase();
@@ -287,7 +313,8 @@ export default function RelatoriosPage() {
                 .filter(p => {
                     if (!selectedCityFilter) return true;
                     const service = getService(p.servico_id);
-                    return service?.endereco_obra?.city === selectedCityFilter;
+                    if (!service) return false;
+                    return service.endereco_obra?.city === selectedCityFilter;
                 })
                 .filter(p => {
                     if (!dateRange?.from) return true;
