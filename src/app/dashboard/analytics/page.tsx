@@ -509,7 +509,7 @@ export default function AnalyticsPage() {
                     </CardContent>
                 </Card>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="grid grid-cols-1 gap-8">
                     <Card>
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
@@ -552,7 +552,7 @@ export default function AnalyticsPage() {
                             <CardDescription>No período selecionado.</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <ChartContainer config={{}} className="h-[300px] w-full">
+                            <ChartContainer config={{}} className="h-[400px] w-full">
                                 <BarChart 
                                     data={Object.entries(receivablesForRankings.reduce((acc, curr) => {
                                         const name = clients.find(c => c.codigo_cliente === curr.cliente_id)?.nome_completo || 'Desconhecido';
@@ -567,7 +567,7 @@ export default function AnalyticsPage() {
                                 >
                                     <CartesianGrid horizontal={false} opacity={0.2} />
                                     <XAxis type="number" hide />
-                                    <YAxis dataKey="name" type="category" width={100} axisLine={false} tickLine={false} className="text-[10px]" />
+                                    <YAxis dataKey="name" type="category" width={150} axisLine={false} tickLine={false} className="text-[12px]" />
                                     <ChartTooltip content={<ChartTooltipContent formatter={(v) => `R$ ${Number(v).toLocaleString('pt-BR')}`} />} />
                                     <Bar dataKey="value" fill="#8884d8" radius={[0, 4, 4, 0]} name="Receita Total" />
                                 </BarChart>
@@ -584,7 +584,7 @@ export default function AnalyticsPage() {
                             <CardDescription>No período selecionado.</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <ChartContainer config={{}} className="h-[300px] w-full">
+                            <ChartContainer config={{}} className="h-[400px] w-full">
                                 <BarChart 
                                     data={Object.entries(expensesForRankings
                                         .filter(a => a.tipo_referencia === 'fornecedor')
@@ -601,7 +601,7 @@ export default function AnalyticsPage() {
                                 >
                                     <CartesianGrid horizontal={false} opacity={0.2} />
                                     <XAxis type="number" hide />
-                                    <YAxis dataKey="name" type="category" width={100} axisLine={false} tickLine={false} className="text-[10px]" />
+                                    <YAxis dataKey="name" type="category" width={150} axisLine={false} tickLine={false} className="text-[12px]" />
                                     <ChartTooltip content={<ChartTooltipContent formatter={(v) => `R$ ${Number(v).toLocaleString('pt-BR')}`} />} />
                                     <Bar dataKey="value" fill="#f43f5e" radius={[0, 4, 4, 0]} name="Gasto Total" />
                                 </BarChart>
