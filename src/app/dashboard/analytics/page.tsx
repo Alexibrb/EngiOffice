@@ -9,8 +9,8 @@ import type { Service, Client, Account, AuthorizedUser, City, ServicePayment, Su
 import { PageHeader } from '@/components/page-header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent, type ChartConfig } from '@/components/ui/chart';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, BarChart, Bar } from 'recharts';
-import { Loader2, XCircle, ShieldAlert, TrendingUp, Users, Truck, Activity, Calendar as CalendarIcon, History } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
+import { Loader2, XCircle, ShieldAlert, TrendingUp, Users, Truck, Activity, Calendar as CalendarIcon, History, PieChart as PieIcon } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachMonthOfInterval, isAfter, eachDayOfInterval, startOfDay, endOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
@@ -24,11 +24,17 @@ const REVENUE_COLOR = '#22c55e'; // Verde
 const EXPENSE_COLOR = '#ef4444'; // Vermelho
 const BALANCE_COLOR = '#3b82f6';  // Azul
 const PAYROLL_COLOR = '#a855f7'; // Roxo
+const PENDING_COLOR = '#f59e0b'; // Âmbar/Laranja para "A Receber"
 
 const flowChartConfig = {
     receita: { label: "Receitas", color: REVENUE_COLOR },
     despesa: { label: "Fornecedores", color: EXPENSE_COLOR },
     folha: { label: "Folha Pagto", color: PAYROLL_COLOR },
+} satisfies ChartConfig;
+
+const pieChartConfig = {
+    recebido: { label: "Total Recebido", color: REVENUE_COLOR },
+    pendente: { label: "A Receber", color: PENDING_COLOR },
 } satisfies ChartConfig;
 
 export default function AnalyticsPage() {
@@ -45,7 +51,6 @@ export default function AnalyticsPage() {
 
     const [selectedCityFilter, setSelectedCityFilter] = useState('none');
     
-    // Padrão: Mês vigente para evitar poluição visual
     const [dateRange, setDateRange] = useState<DateRange | undefined>({
         from: startOfMonth(new Date()),
         to: endOfDay(new Date())
@@ -116,7 +121,6 @@ export default function AnalyticsPage() {
                 } as ServicePayment;
             });
 
-            // Reconstrução de receitas de serviços antigos (sem histórico de parcelas)
             const reconstructedReceivables: ServicePayment[] = [...receivablesHistory];
             servicesData.forEach(service => {
                 const historyForThisService = receivablesHistory.filter(r => r.servico_id === service.id);
@@ -134,7 +138,6 @@ export default function AnalyticsPage() {
                 }
             });
 
-            // Identificar o início absoluto do período para a função "Todo o Período"
             const allDates = [
                 ...reconstructedReceivables.map(r => r.data.getTime()),
                 ...accountsData.map(a => a.vencimento.getTime())
@@ -160,7 +163,6 @@ export default function AnalyticsPage() {
 
     const isGlobalView = !selectedCityFilter || selectedCityFilter === 'none';
 
-    // Filtro de Receitas (Sensível a cidade se aplicada)
     const activeReceivables = useMemo(() => {
         return receivables.filter(r => {
             const service = services.find(s => s.id === r.servico_id);
@@ -169,20 +171,17 @@ export default function AnalyticsPage() {
         });
     }, [receivables, services, selectedCityFilter, isGlobalView]);
 
-    // Filtro de Despesas (Ocultadas se filtro de cidade estiver ativo para focar no faturamento regional)
     const activeExpenses = useMemo(() => {
         if (!isGlobalView) return [];
         return accountsPayable.filter(a => a.status === 'pago');
     }, [accountsPayable, isGlobalView]);
 
-    // Intervalo de Datas da Amostra (Eixo X)
     const sampleRange = useMemo(() => {
         const start = dateRange?.from || startOfMonth(new Date());
         const end = dateRange?.to || new Date();
         return { start, end };
     }, [dateRange]);
 
-    // 1. Fluxo Diário Pontual (Barras Agrupadas)
     const dailyFlowTransactions = useMemo(() => {
         try {
             const days = eachDayOfInterval({ start: sampleRange.start, end: sampleRange.end });
@@ -213,7 +212,6 @@ export default function AnalyticsPage() {
         } catch (e) { return []; }
     }, [activeReceivables, activeExpenses, sampleRange]);
 
-    // 2. Evolução do Patrimônio (Acumulado Diário)
     const dailyStepData = useMemo(() => {
         try {
             const days = eachDayOfInterval({ start: sampleRange.start, end: sampleRange.end });
@@ -221,7 +219,6 @@ export default function AnalyticsPage() {
             return days.map(day => {
                 const dEnd = endOfDay(day);
                 
-                // O acumulado sempre considera TUDO antes do ponto atual
                 const totalReceivedUntilNow = activeReceivables
                     .filter(r => !isAfter(r.data, dEnd))
                     .reduce((acc, r) => acc + (r.valor || 0), 0);
@@ -240,7 +237,6 @@ export default function AnalyticsPage() {
         } catch (e) { return []; }
     }, [activeReceivables, activeExpenses, sampleRange]);
 
-    // 3. Crescimento Mensal (Cumulativo)
     const cumulativeMonthlyData = useMemo(() => {
         try {
             const months = eachMonthOfInterval({ start: sampleRange.start, end: sampleRange.end });
@@ -265,7 +261,20 @@ export default function AnalyticsPage() {
         } catch (e) { return []; }
     }, [activeReceivables, activeExpenses, sampleRange]);
 
-    // Filtros para os rankings (Barras)
+    const pieData = useMemo(() => {
+        const filteredServices = services.filter(s => 
+            (isGlobalView || s.endereco_obra?.city === selectedCityFilter) && s.status_financeiro !== 'cancelado'
+        );
+
+        const totalReceived = filteredServices.reduce((acc, s) => acc + (s.valor_pago || 0), 0);
+        const totalToReceive = filteredServices.reduce((acc, s) => acc + (s.saldo_devedor || 0), 0);
+
+        return [
+            { name: "Recebido", value: totalReceived, fill: REVENUE_COLOR },
+            { name: "A Receber", value: totalToReceive, fill: PENDING_COLOR },
+        ];
+    }, [services, selectedCityFilter, isGlobalView]);
+
     const receivablesForRankings = useMemo(() => {
         const start = startOfDay(sampleRange.start);
         const end = endOfDay(sampleRange.end);
@@ -383,7 +392,6 @@ export default function AnalyticsPage() {
 
             <div className="grid grid-cols-1 gap-8">
                 
-                {/* 1. Evolução do Patrimônio (Acumulado em Degraus) */}
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2 text-blue-500">
@@ -408,7 +416,6 @@ export default function AnalyticsPage() {
                     </CardContent>
                 </Card>
 
-                {/* 2. Crescimento Mensal Cumulativo (Suavizado) */}
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2 text-green-500">
@@ -433,7 +440,6 @@ export default function AnalyticsPage() {
                     </CardContent>
                 </Card>
 
-                {/* 3. Fluxo de Caixa Diário (Barras Agrupadas) - ABAIXO DO MENSAL */}
                 <Card>
                     <CardHeader>
                         <CardTitle className="text-xl font-bold">Fluxo de Caixa (Diário)</CardTitle>
@@ -486,8 +492,42 @@ export default function AnalyticsPage() {
                     </CardContent>
                 </Card>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    {/* 4. Top Clientes (Filtrado por Data e Cidade) */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    {/* Gráfico de Pizza - Status de Recebíveis */}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <PieIcon className="h-5 w-5" />
+                                Status de Recebíveis (Contratos Ativos)
+                            </CardTitle>
+                            <CardDescription>O que foi faturado vs. saldo pendente na carteira.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <ChartContainer config={pieChartConfig} className="h-[300px] w-full">
+                                <PieChart>
+                                    <Pie
+                                        data={pieData}
+                                        dataKey="value"
+                                        nameKey="name"
+                                        cx="50%"
+                                        cy="50%"
+                                        innerRadius={60}
+                                        outerRadius={80}
+                                        paddingAngle={5}
+                                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                                    >
+                                        {pieData.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={entry.fill} />
+                                        ))}
+                                    </Pie>
+                                    <ChartTooltip content={<ChartTooltipContent formatter={(v) => `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />} />
+                                    <ChartLegend verticalAlign="bottom" align="center" />
+                                </PieChart>
+                            </ChartContainer>
+                        </CardContent>
+                    </Card>
+
+                    {/* Top Clientes */}
                     <Card>
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
@@ -520,7 +560,7 @@ export default function AnalyticsPage() {
                         </CardContent>
                     </Card>
 
-                    {/* 5. Top Fornecedores (Filtrado por Data) */}
+                    {/* Top Fornecedores */}
                     <Card>
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
