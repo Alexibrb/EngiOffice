@@ -45,7 +45,7 @@ export default function AnalyticsPage() {
 
     const [selectedCityFilter, setSelectedCityFilter] = useState('none');
     
-    // Padrão: Mês vigente
+    // Padrão: Mês vigente para evitar poluição visual
     const [dateRange, setDateRange] = useState<DateRange | undefined>({
         from: startOfMonth(new Date()),
         to: endOfDay(new Date())
@@ -221,7 +221,7 @@ export default function AnalyticsPage() {
             return days.map(day => {
                 const dEnd = endOfDay(day);
                 
-                // Nota: O acumulado sempre considera TUDO antes do ponto atual, independente do início do filtro de data
+                // O acumulado sempre considera TUDO antes do ponto atual
                 const totalReceivedUntilNow = activeReceivables
                     .filter(r => !isAfter(r.data, dEnd))
                     .reduce((acc, r) => acc + (r.valor || 0), 0);
@@ -383,7 +383,57 @@ export default function AnalyticsPage() {
 
             <div className="grid grid-cols-1 gap-8">
                 
-                {/* 1. Fluxo de Caixa Diário (Barras Agrupadas) */}
+                {/* 1. Evolução do Patrimônio (Acumulado em Degraus) */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-blue-500">
+                            <Activity className="h-5 w-5" />
+                            Patrimônio Acumulado (Diário)
+                        </CardTitle>
+                        <CardDescription>Saldo líquido acumulado dia a dia, mostrando o impacto direto das transações.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <ChartContainer config={{}} className="h-[400px] w-full">
+                            <LineChart data={dailyStepData}>
+                                <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.2} />
+                                <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} minTickGap={60} />
+                                <YAxis tickFormatter={(v) => `R$${Number(v).toLocaleString('pt-BR', { notation: 'compact' })}`} axisLine={false} tickLine={false} />
+                                <ChartTooltip content={<ChartTooltipContent formatter={(v, n) => `${n}: R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />} />
+                                <ChartLegend content={<ChartLegendContent />} />
+                                <Line type="stepAfter" dataKey="receita" stroke={REVENUE_COLOR} strokeWidth={1.5} dot={false} name="Receita Acum." />
+                                <Line type="stepAfter" dataKey="despesa" stroke={EXPENSE_COLOR} strokeWidth={1.5} dot={false} name="Despesa Acum." />
+                                <Line type="stepAfter" dataKey="saldo" stroke={BALANCE_COLOR} strokeWidth={4} dot={false} name="Patrimônio Líquido" />
+                            </LineChart>
+                        </ChartContainer>
+                    </CardContent>
+                </Card>
+
+                {/* 2. Crescimento Mensal Cumulativo (Suavizado) */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-green-500">
+                            <TrendingUp className="h-5 w-5" />
+                            Crescimento Histórico (Mensal)
+                        </CardTitle>
+                        <CardDescription>Visão agrupada por mês da evolução patrimonial total.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <ChartContainer config={{}} className="h-[400px] w-full">
+                            <LineChart data={cumulativeMonthlyData}>
+                                <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.3} />
+                                <XAxis dataKey="name" tickLine={false} axisLine={false} tickMargin={8} />
+                                <YAxis tickFormatter={(v) => `R$${Number(v).toLocaleString('pt-BR', { notation: 'compact' })}`} axisLine={false} tickLine={false} />
+                                <ChartTooltip content={<ChartTooltipContent formatter={(v, n) => `${n}: R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />} />
+                                <ChartLegend content={<ChartLegendContent />} />
+                                <Line type="monotone" dataKey="receitas" stroke={REVENUE_COLOR} strokeWidth={2} dot={true} name="Receitas Acum." />
+                                <Line type="monotone" dataKey="despesas" stroke={EXPENSE_COLOR} strokeWidth={2} dot={true} name="Despesas Acum." />
+                                <Line type="monotone" dataKey="saldo" stroke={BALANCE_COLOR} strokeWidth={4} strokeDasharray="5 5" dot={true} name="Saldo Acumulado" />
+                            </LineChart>
+                        </ChartContainer>
+                    </CardContent>
+                </Card>
+
+                {/* 3. Fluxo de Caixa Diário (Barras Agrupadas) - ABAIXO DO MENSAL */}
                 <Card>
                     <CardHeader>
                         <CardTitle className="text-xl font-bold">Fluxo de Caixa (Diário)</CardTitle>
@@ -432,56 +482,6 @@ export default function AnalyticsPage() {
                                     name="Folha Pagto" 
                                 />
                             </BarChart>
-                        </ChartContainer>
-                    </CardContent>
-                </Card>
-
-                {/* 2. Evolução do Patrimônio (Acumulado em Degraus) */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-blue-500">
-                            <Activity className="h-5 w-5" />
-                            Patrimônio Acumulado (Diário)
-                        </CardTitle>
-                        <CardDescription>Saldo líquido acumulado dia a dia, mostrando o impacto direto das transações.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <ChartContainer config={{}} className="h-[400px] w-full">
-                            <LineChart data={dailyStepData}>
-                                <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.2} />
-                                <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} minTickGap={60} />
-                                <YAxis tickFormatter={(v) => `R$${Number(v).toLocaleString('pt-BR', { notation: 'compact' })}`} axisLine={false} tickLine={false} />
-                                <ChartTooltip content={<ChartTooltipContent formatter={(v, n) => `${n}: R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />} />
-                                <ChartLegend content={<ChartLegendContent />} />
-                                <Line type="stepAfter" dataKey="receita" stroke={REVENUE_COLOR} strokeWidth={1.5} dot={false} name="Receita Acum." />
-                                <Line type="stepAfter" dataKey="despesa" stroke={EXPENSE_COLOR} strokeWidth={1.5} dot={false} name="Despesa Acum." />
-                                <Line type="stepAfter" dataKey="saldo" stroke={BALANCE_COLOR} strokeWidth={4} dot={false} name="Patrimônio Líquido" />
-                            </LineChart>
-                        </ChartContainer>
-                    </CardContent>
-                </Card>
-
-                {/* 3. Crescimento Mensal Cumulativo */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-green-500">
-                            <TrendingUp className="h-5 w-5" />
-                            Crescimento Histórico (Mensal)
-                        </CardTitle>
-                        <CardDescription>Visão agrupada por mês da evolução patrimonial total.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <ChartContainer config={{}} className="h-[400px] w-full">
-                            <LineChart data={cumulativeMonthlyData}>
-                                <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.3} />
-                                <XAxis dataKey="name" tickLine={false} axisLine={false} tickMargin={8} />
-                                <YAxis tickFormatter={(v) => `R$${Number(v).toLocaleString('pt-BR', { notation: 'compact' })}`} axisLine={false} tickLine={false} />
-                                <ChartTooltip content={<ChartTooltipContent formatter={(v, n) => `${n}: R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />} />
-                                <ChartLegend content={<ChartLegendContent />} />
-                                <Line type="monotone" dataKey="receitas" stroke={REVENUE_COLOR} strokeWidth={2} dot={true} name="Receitas Acum." />
-                                <Line type="monotone" dataKey="despesas" stroke={EXPENSE_COLOR} strokeWidth={2} dot={true} name="Despesas Acum." />
-                                <Line type="monotone" dataKey="saldo" stroke={BALANCE_COLOR} strokeWidth={4} strokeDasharray="5 5" dot={true} name="Saldo Acumulado" />
-                            </LineChart>
                         </ChartContainer>
                     </CardContent>
                 </Card>
