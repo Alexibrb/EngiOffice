@@ -111,6 +111,7 @@ export default function DespesasPage() {
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
     const [statusFilter, setStatusFilter] = useState<string>('');
     const [typeFilter, setTypeFilter] = useState<string>('');
+    const [payeeFilter, setPayeeFilter] = useState<string>('');
 
 
     const form = useForm<z.infer<typeof accountSchema>>({
@@ -357,13 +358,14 @@ export default function DespesasPage() {
         return accountsPayable
             .filter(acc => typeFilter ? acc.tipo_referencia === typeFilter : true)
             .filter(acc => statusFilter ? acc.status === statusFilter : true)
+            .filter(acc => payeeFilter ? acc.referencia_id === payeeFilter : true)
             .filter(acc => {
                 if (!dateRange?.from) return true;
                 const fromDate = startOfDay(dateRange.from);
                 const toDate = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from);
                 return acc.vencimento >= fromDate && acc.vencimento <= toDate;
             });
-    }, [accountsPayable, typeFilter, statusFilter, dateRange]);
+    }, [accountsPayable, typeFilter, statusFilter, payeeFilter, dateRange]);
 
     const totalPayablePending = accountsPayable
       .filter((a) => a.status === 'pendente')
@@ -417,6 +419,7 @@ export default function DespesasPage() {
         setDateRange(undefined);
         setStatusFilter('');
         setTypeFilter('');
+        setPayeeFilter('');
     }
 
     return (
@@ -475,9 +478,24 @@ export default function DespesasPage() {
                             <SelectTrigger className="w-[150px]"><SelectValue placeholder="Status" /></SelectTrigger>
                             <SelectContent><SelectItem value="pendente">Pendente</SelectItem><SelectItem value="pago">Pago</SelectItem></SelectContent>
                         </Select>
-                        <Select value={typeFilter} onValueChange={setTypeFilter}>
+                        <Select value={typeFilter} onValueChange={(val) => { setTypeFilter(val); setPayeeFilter(''); }}>
                             <SelectTrigger className="w-[180px]"><SelectValue placeholder="Tipo de despesa" /></SelectTrigger>
                             <SelectContent><SelectItem value="fornecedor">Fornecedores</SelectItem><SelectItem value="funcionario">Folha Pagto</SelectItem></SelectContent>
+                        </Select>
+                        <Select value={payeeFilter} onValueChange={setPayeeFilter}>
+                            <SelectTrigger className="w-[250px]"><SelectValue placeholder="Filtrar favorecido..." /></SelectTrigger>
+                            <SelectContent>
+                                {typeFilter === 'funcionario' ? (
+                                    employees.map(e => <SelectItem key={e.id} value={e.id}>{e.nome}</SelectItem>)
+                                ) : typeFilter === 'fornecedor' ? (
+                                    suppliers.map(s => <SelectItem key={s.id} value={s.id}>{s.razao_social}</SelectItem>)
+                                ) : (
+                                    <>
+                                        {suppliers.map(s => <SelectItem key={s.id} value={s.id}>{s.razao_social}</SelectItem>)}
+                                        {employees.map(e => <SelectItem key={e.id} value={e.id}>{e.nome}</SelectItem>)}
+                                    </>
+                                )}
+                            </SelectContent>
                         </Select>
                         <Button variant="ghost" onClick={handleClearFilters} className="text-muted-foreground"><XCircle className="mr-2 h-4 w-4"/>Limpar</Button>
                     </div>
