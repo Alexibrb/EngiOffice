@@ -266,6 +266,19 @@ export default function AnalyticsPage() {
         } catch (e) { return []; }
     }, [activeReceivables, activeExpenses, sampleRange]);
 
+    // Filtros para os rankings (Barras)
+    const receivablesForRankings = useMemo(() => {
+        const start = startOfDay(sampleRange.start);
+        const end = endOfDay(sampleRange.end);
+        return activeReceivables.filter(r => r.data >= start && r.data <= end);
+    }, [activeReceivables, sampleRange]);
+
+    const expensesForRankings = useMemo(() => {
+        const start = startOfDay(sampleRange.start);
+        const end = endOfDay(sampleRange.end);
+        return activeExpenses.filter(a => a.vencimento >= start && a.vencimento <= end);
+    }, [activeExpenses, sampleRange]);
+
     const handleClearFilters = () => {
         setSelectedCityFilter('none');
         setDateRange({ from: startOfMonth(new Date()), to: endOfDay(new Date()) });
@@ -498,18 +511,19 @@ export default function AnalyticsPage() {
                 </Card>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    {/* 4. Top Clientes */}
+                    {/* 4. Top Clientes (Filtrado por Data e Cidade) */}
                     <Card>
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
                                 <Users className="h-5 w-5" />
                                 Maiores Faturamentos por Cliente
                             </CardTitle>
+                            <CardDescription>No período selecionado.</CardDescription>
                         </CardHeader>
                         <CardContent>
                             <ChartContainer config={{}} className="h-[300px] w-full">
                                 <BarChart 
-                                    data={Object.entries(activeReceivables.reduce((acc, curr) => {
+                                    data={Object.entries(receivablesForRankings.reduce((acc, curr) => {
                                         const name = clients.find(c => c.codigo_cliente === curr.cliente_id)?.nome_completo || 'Desconhecido';
                                         acc[name] = (acc[name] || 0) + curr.valor;
                                         return acc;
@@ -530,18 +544,19 @@ export default function AnalyticsPage() {
                         </CardContent>
                     </Card>
 
-                    {/* 5. Top Fornecedores */}
+                    {/* 5. Top Fornecedores (Filtrado por Data) */}
                     <Card>
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
                                 <Truck className="h-5 w-5" />
                                 Maiores Gastos com Fornecedores
                             </CardTitle>
+                            <CardDescription>No período selecionado.</CardDescription>
                         </CardHeader>
                         <CardContent>
                             <ChartContainer config={{}} className="h-[300px] w-full">
                                 <BarChart 
-                                    data={Object.entries(activeExpenses
+                                    data={Object.entries(expensesForRankings
                                         .filter(a => a.tipo_referencia === 'fornecedor')
                                         .reduce((acc, curr) => {
                                             const name = suppliers.find(s => s.id === curr.referencia_id)?.razao_social || 'Desconhecido';
