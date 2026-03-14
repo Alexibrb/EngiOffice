@@ -765,6 +765,7 @@ export default function ServicosPage() {
                 <Table>
                 <TableHeader>
                     <TableRow>
+                        <TableHead className="w-[100px]">Data</TableHead>
                         <TableHead>Cliente / Projeto</TableHead>
                         <TableHead>Localização / Anexos</TableHead>
                         <TableHead>Status</TableHead>
@@ -786,9 +787,11 @@ export default function ServicosPage() {
                         return (
                             <TableRow key={service.id}>
                                 <TableCell className="align-top">
+                                    <div className="text-sm font-medium">{format(service.data_cadastro, 'dd/MM/yyyy')}</div>
+                                </TableCell>
+                                <TableCell className="align-top">
                                     <div className="font-bold">{client?.nome_completo || 'Desconhecido'}</div>
                                     <div className="text-sm text-muted-foreground">{service.descricao}</div>
-                                    <div className="text-xs text-muted-foreground">Cadastrado em: {format(service.data_cadastro, 'dd/MM/yyyy')}</div>
                                 </TableCell>
                                 <TableCell className="align-top">
                                   <div className="text-xs font-medium">Obra: {formattedObra}</div>
@@ -866,7 +869,7 @@ export default function ServicosPage() {
                                 </TableCell>
                             </TableRow>
                         )
-                    }) : <TableRow><TableCell colSpan={6} className="h-24 text-center">Nenhum serviço encontrado.</TableCell></TableRow>}
+                    }) : <TableRow><TableCell colSpan={7} className="h-24 text-center">Nenhum serviço encontrado.</TableCell></TableRow>}
                 </TableBody>
                 </Table>
             </div>
