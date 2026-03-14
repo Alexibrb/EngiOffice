@@ -10,8 +10,8 @@ import { PageHeader } from '@/components/page-header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell, AreaChart, Area, LineChart, Line } from 'recharts';
-import { Loader2, XCircle, Calendar as CalendarIcon, ShieldAlert, Wallet, TrendingUp } from 'lucide-react';
-import { format, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, startOfDay, subDays, isWithinInterval, isBefore, endOfDay } from 'date-fns';
+import { Loader2, XCircle, Calendar as CalendarIcon, ShieldAlert, TrendingUp } from 'lucide-react';
+import { format, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, startOfDay, subDays, isBefore, endOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -178,6 +178,54 @@ export default function AnalyticsPage() {
         }
         return data;
     };
+
+    const cumulativeDailyData = useMemo(() => {
+        let start: Date;
+        let end: Date;
+
+        if (dateRange?.from) {
+            start = startOfDay(dateRange.from);
+            end = dateRange.to ? endOfDay(dateRange.to) : endOfDay(start);
+        } else {
+            // Padrão: últimos 90 dias para manter a legibilidade
+            end = endOfDay(new Date());
+            start = startOfDay(subDays(end, 90));
+        }
+
+        try {
+            const intervalDays = eachDayOfInterval({ start, end });
+
+            return intervalDays.map(day => {
+                const dayEnd = endOfDay(day);
+
+                const cumulativeReceived = services
+                    .filter(s => {
+                        const dateToUse = s.data_ultimo_pagamento || s.data_cadastro;
+                        const isBeforeOrInDay = s.valor_pago > 0 && isBefore(dateToUse, dayEnd);
+                        if (!isBeforeOrInDay) return false;
+                        if (selectedCityFilter) return s.endereco_obra?.city === selectedCityFilter;
+                        return true;
+                    })
+                    .reduce((acc, s) => acc + s.valor_pago, 0);
+                
+                const cumulativePaid = accountsPayable
+                    .filter(a => {
+                        const dueDate = a.vencimento;
+                        return a.status === 'pago' && isBefore(dueDate, dayEnd);
+                    })
+                    .reduce((acc, a) => acc + a.valor, 0);
+
+                return {
+                    name: format(day, 'dd/MM'),
+                    receitas: cumulativeReceived,
+                    despesas: cumulativePaid,
+                    saldo: cumulativeReceived - cumulativePaid
+                };
+            });
+        } catch (e) {
+            return [];
+        }
+    }, [services, accountsPayable, dateRange, selectedCityFilter]);
     
     const dailyFinancialsData = useMemo(() => {
         let start: Date;
@@ -394,7 +442,7 @@ export default function AnalyticsPage() {
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <TrendingUp className="h-5 w-5 text-green-500" />
-                            Crescimento Histórico (Receitas e Despesas Cumulativas)
+                            Crescimento Histórico Mensal (Cumulativo)
                         </CardTitle>
                         <CardDescription>Evolução da soma total de entradas e saídas ao longo dos últimos 12 meses.</CardDescription>
                     </CardHeader>
@@ -409,6 +457,30 @@ export default function AnalyticsPage() {
                                 <Line type="monotone" dataKey="receitas" stroke={POSITIVE_COLOR} strokeWidth={3} dot={{ r: 4 }} name="Receitas Acumuladas" />
                                 <Line type="monotone" dataKey="despesas" stroke={NEGATIVE_COLOR} strokeWidth={3} dot={{ r: 4 }} name="Despesas Acumuladas" />
                                 <Line type="monotone" dataKey="saldo" stroke={BALANCE_COLOR} strokeWidth={4} strokeDasharray="5 5" name="Saldo no Período" />
+                            </LineChart>
+                        </ChartContainer>
+                    </CardContent>
+                </Card>
+
+                <Card className="lg:col-span-2">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <TrendingUp className="h-5 w-5 text-blue-500" />
+                            Crescimento Histórico Diário (Cumulativo)
+                        </CardTitle>
+                        <CardDescription>Detalhamento dia a dia do saldo acumulado (Últimos 90 dias ou período filtrado).</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <ChartContainer config={{}} className="h-[400px] w-full">
+                            <LineChart data={cumulativeDailyData}>
+                                <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                                <XAxis dataKey="name" tickLine={false} axisLine={false} tickMargin={8} />
+                                <YAxis tickFormatter={(value) => `R$${Number(value).toLocaleString('pt-BR', { notation: 'compact' })}`}/>
+                                <ChartTooltip content={<ChartTooltipContent formatter={(value, name) => `${name}: R$ ${Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}/>} />
+                                <ChartLegend content={<ChartLegendContent />} />
+                                <Line type="stepAfter" dataKey="receitas" stroke={POSITIVE_COLOR} strokeWidth={2} dot={false} name="Receitas Acumuladas" />
+                                <Line type="stepAfter" dataKey="despesas" stroke={NEGATIVE_COLOR} strokeWidth={2} dot={false} name="Despesas Acumuladas" />
+                                <Line type="stepAfter" dataKey="saldo" stroke={BALANCE_COLOR} strokeWidth={3} dot={false} name="Saldo em Caixa" />
                             </LineChart>
                         </ChartContainer>
                     </CardContent>
