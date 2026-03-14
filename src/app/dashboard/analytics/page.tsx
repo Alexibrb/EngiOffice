@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -10,7 +9,7 @@ import type { Service, Client, Account, AuthorizedUser, City, ServicePayment, Su
 import { PageHeader } from '@/components/page-header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent, type ChartConfig } from '@/components/ui/chart';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, BarChart, Bar, AreaChart, Area } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, BarChart, Bar } from 'recharts';
 import { Loader2, XCircle, ShieldAlert, TrendingUp, Users, Truck, Activity, Calendar as CalendarIcon, History } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachMonthOfInterval, isAfter, eachDayOfInterval, startOfDay, endOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -21,10 +20,10 @@ import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { DateRange } from 'react-day-picker';
 
-const REVENUE_COLOR = '#22c55e'; // Verde vibrante
-const EXPENSE_COLOR = '#ef4444'; // Vermelho vibrante
+const REVENUE_COLOR = '#22c55e'; // Verde
+const EXPENSE_COLOR = '#ef4444'; // Vermelho
 const BALANCE_COLOR = '#3b82f6';  // Azul
-const PAYROLL_COLOR = '#a855f7'; // Roxo vibrante
+const PAYROLL_COLOR = '#a855f7'; // Roxo
 
 const flowChartConfig = {
     receita: { label: "Receitas", color: REVENUE_COLOR },
@@ -183,7 +182,7 @@ export default function AnalyticsPage() {
         return { start, end };
     }, [dateRange]);
 
-    // 1. Fluxo Diário Pontual (Suavizado)
+    // 1. Fluxo Diário Pontual (Barras Agrupadas)
     const dailyFlowTransactions = useMemo(() => {
         try {
             const days = eachDayOfInterval({ start: sampleRange.start, end: sampleRange.end });
@@ -384,29 +383,15 @@ export default function AnalyticsPage() {
 
             <div className="grid grid-cols-1 gap-8">
                 
-                {/* 1. Fluxo de Caixa Diário (Interpolado Monotone) */}
+                {/* 1. Fluxo de Caixa Diário (Barras Agrupadas) */}
                 <Card>
                     <CardHeader>
                         <CardTitle className="text-xl font-bold">Fluxo de Caixa (Diário)</CardTitle>
-                        <CardDescription>Entradas e saídas diárias pontuais no período selecionado.</CardDescription>
+                        <CardDescription>Comparativo de entradas e saídas por dia no período selecionado.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <ChartContainer config={flowChartConfig} className="h-[400px] w-full">
-                            <AreaChart data={dailyFlowTransactions} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                                <defs>
-                                    <linearGradient id="colorReceita" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor={REVENUE_COLOR} stopOpacity={0.6}/>
-                                        <stop offset="95%" stopColor={REVENUE_COLOR} stopOpacity={0.1}/>
-                                    </linearGradient>
-                                    <linearGradient id="colorDespesa" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor={EXPENSE_COLOR} stopOpacity={0.6}/>
-                                        <stop offset="95%" stopColor={EXPENSE_COLOR} stopOpacity={0.1}/>
-                                    </linearGradient>
-                                    <linearGradient id="colorFolha" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor={PAYROLL_COLOR} stopOpacity={0.6}/>
-                                        <stop offset="95%" stopColor={PAYROLL_COLOR} stopOpacity={0.1}/>
-                                    </linearGradient>
-                                </defs>
+                            <BarChart data={dailyFlowTransactions} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                                 <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.3} />
                                 <XAxis 
                                     dataKey="date" 
@@ -424,38 +409,29 @@ export default function AnalyticsPage() {
                                     className="text-[10px] text-muted-foreground"
                                 />
                                 <ChartTooltip 
-                                    cursor={{ stroke: '#ccc', strokeWidth: 1 }}
+                                    cursor={{ fill: 'rgba(0,0,0,0.05)' }}
                                     content={<ChartTooltipContent formatter={(v, n) => `${n}: R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />} 
                                 />
                                 <ChartLegend verticalAlign="bottom" align="center" iconType="circle" />
-                                <Area 
-                                    type="monotone" 
+                                <Bar 
                                     dataKey="receita" 
-                                    stroke={REVENUE_COLOR} 
-                                    strokeWidth={3}
-                                    fillOpacity={1} 
-                                    fill="url(#colorReceita)" 
+                                    fill={REVENUE_COLOR} 
+                                    radius={[4, 4, 0, 0]} 
                                     name="Receitas" 
                                 />
-                                <Area 
-                                    type="monotone" 
+                                <Bar 
                                     dataKey="despesa" 
-                                    stroke={EXPENSE_COLOR} 
-                                    strokeWidth={2}
-                                    fillOpacity={1} 
-                                    fill="url(#colorDespesa)" 
+                                    fill={EXPENSE_COLOR} 
+                                    radius={[4, 4, 0, 0]} 
                                     name="Fornecedores" 
                                 />
-                                <Area 
-                                    type="monotone" 
+                                <Bar 
                                     dataKey="folha" 
-                                    stroke={PAYROLL_COLOR} 
-                                    strokeWidth={2}
-                                    fillOpacity={1} 
-                                    fill="url(#colorFolha)" 
+                                    fill={PAYROLL_COLOR} 
+                                    radius={[4, 4, 0, 0]} 
                                     name="Folha Pagto" 
                                 />
-                            </AreaChart>
+                            </BarChart>
                         </ChartContainer>
                     </CardContent>
                 </Card>
@@ -500,7 +476,7 @@ export default function AnalyticsPage() {
                                 <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.3} />
                                 <XAxis dataKey="name" tickLine={false} axisLine={false} tickMargin={8} />
                                 <YAxis tickFormatter={(v) => `R$${Number(v).toLocaleString('pt-BR', { notation: 'compact' })}`} axisLine={false} tickLine={false} />
-                                <ChartTooltip content={<ChartTooltipContent formatter={(v, n) => `${n}: R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}/>} />
+                                <ChartTooltip content={<ChartTooltipContent formatter={(v, n) => `${n}: R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />} />
                                 <ChartLegend content={<ChartLegendContent />} />
                                 <Line type="monotone" dataKey="receitas" stroke={REVENUE_COLOR} strokeWidth={2} dot={true} name="Receitas Acum." />
                                 <Line type="monotone" dataKey="despesas" stroke={EXPENSE_COLOR} strokeWidth={2} dot={true} name="Despesas Acum." />
