@@ -129,12 +129,12 @@ export default function AnalyticsPage() {
                 }
             });
 
-            // Definir o range de data padrão (do início de tudo até hoje)
             const allDates = [
                 ...reconstructedReceivables.map(r => r.data.getTime()),
                 ...accountsData.map(a => a.vencimento.getTime())
             ];
-            if (allDates.length > 0) {
+            
+            if (allDates.length > 0 && !dateRange) {
                 const firstDate = new Date(Math.min(...allDates));
                 setDateRange({ from: startOfMonth(firstDate), to: new Date() });
             }
@@ -153,20 +153,22 @@ export default function AnalyticsPage() {
         }
     };
 
-    // Filtro de Receitas (Sempre filtradas por serviço existente e cidade)
+    const isGlobalView = !selectedCityFilter || selectedCityFilter === 'none';
+
+    // Filtro de Receitas
     const activeReceivables = useMemo(() => {
         return receivables.filter(r => {
             const service = services.find(s => s.id === r.servico_id);
             if (!service) return false;
-            return selectedCityFilter === 'none' || service.endereco_obra?.city === selectedCityFilter;
+            return isGlobalView || service.endereco_obra?.city === selectedCityFilter;
         });
-    }, [receivables, services, selectedCityFilter]);
+    }, [receivables, services, selectedCityFilter, isGlobalView]);
 
     // Filtro de Despesas (Se cidade selecionada, não mostramos saídas)
     const activeExpenses = useMemo(() => {
-        if (selectedCityFilter !== 'none') return [];
+        if (!isGlobalView) return [];
         return accountsPayable.filter(a => a.status === 'pago');
-    }, [accountsPayable, selectedCityFilter]);
+    }, [accountsPayable, isGlobalView]);
 
     // Identifica o início absoluto para cálculos acumulados
     const absoluteStartDate = useMemo(() => {
@@ -192,7 +194,6 @@ export default function AnalyticsPage() {
         return days.map(day => {
             const dEnd = endOfDay(day);
             
-            // O acumulado sempre conta desde o início absoluto até o dia da amostra
             const totalReceivedUntilNow = activeReceivables
                 .filter(r => !isAfter(r.data, dEnd))
                 .reduce((acc, r) => acc + (r.valor || 0), 0);
@@ -210,7 +211,7 @@ export default function AnalyticsPage() {
         });
     }, [activeReceivables, activeExpenses, sampleRange]);
 
-    // 2. Fluxo Diário Pontual
+    // 2. Fluxo Diário Pontual (O gráfico das 3 linhas)
     const dailyFlowTransactions = useMemo(() => {
         const days = eachDayOfInterval({ start: sampleRange.start, end: sampleRange.end });
 
@@ -293,7 +294,7 @@ export default function AnalyticsPage() {
         }
     }, [activeReceivables, activeExpenses, sampleRange]);
 
-    // 5. Ranking de Clientes (No período filtrado)
+    // Rankings (No período filtrado)
     const topClientsData = useMemo(() => {
         const clientRevenue: Record<string, number> = {};
         activeReceivables
@@ -308,7 +309,6 @@ export default function AnalyticsPage() {
             .slice(0, 10);
     }, [activeReceivables, clients, sampleRange]);
 
-    // 6. Gastos por Fornecedor (No período filtrado)
     const topSuppliersData = useMemo(() => {
         const supplierExpenses: Record<string, number> = {};
         activeExpenses
@@ -362,7 +362,7 @@ export default function AnalyticsPage() {
                 <CardHeader><CardTitle>Filtros de Amostragem</CardTitle></CardHeader>
                 <CardContent className="flex flex-wrap items-center gap-4">
                     <div className="flex items-center gap-2">
-                        <Label className="text-xs text-muted-foreground">Período:</Label>
+                        <span className="text-sm font-medium">Período:</span>
                         <Popover>
                             <PopoverTrigger asChild>
                                 <Button
@@ -396,7 +396,7 @@ export default function AnalyticsPage() {
                     </div>
 
                     <div className="flex items-center gap-2">
-                        <Label className="text-xs text-muted-foreground">Cidade da Obra:</Label>
+                        <span className="text-sm font-medium">Cidade:</span>
                         <Select value={selectedCityFilter} onValueChange={setSelectedCityFilter}>
                             <SelectTrigger className="w-[200px]"><SelectValue placeholder="Todas as Cidades" /></SelectTrigger>
                             <SelectContent>
@@ -415,14 +415,14 @@ export default function AnalyticsPage() {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 
-                {/* Evolução Diária do Saldo (Patrimônio Acumulado) */}
+                {/* 1. Evolução Diária (Patrimônio) */}
                 <Card className="lg:col-span-2">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <Activity className="h-5 w-5 text-blue-500" />
                             Evolução do Patrimônio (Acumulado)
                         </CardTitle>
-                        <CardDescription>Saldo, receitas e despesas somadas desde o primeiro lançamento até a data do gráfico.</CardDescription>
+                        <CardDescription>Saldo histórico acumulado dia a dia.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <ChartContainer config={{}} className="h-[400px] w-full">
@@ -433,21 +433,21 @@ export default function AnalyticsPage() {
                                 <ChartTooltip content={<ChartTooltipContent formatter={(v, n) => `${n}: R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />} />
                                 <ChartLegend content={<ChartLegendContent />} />
                                 <Line type="stepAfter" dataKey="receita" stroke={REVENUE_COLOR} strokeWidth={2} dot={false} name="Receita Acum." />
-                                {selectedCityFilter === 'none' && <Line type="stepAfter" dataKey="despesa" stroke={EXPENSE_COLOR} strokeWidth={2} dot={false} name="Despesa Acum." />}
+                                {isGlobalView && <Line type="stepAfter" dataKey="despesa" stroke={EXPENSE_COLOR} strokeWidth={2} dot={false} name="Despesa Acum." />}
                                 <Line type="stepAfter" dataKey="saldo" stroke={BALANCE_COLOR} strokeWidth={4} dot={false} name="Patrimônio Líquido" />
                             </LineChart>
                         </ChartContainer>
                     </CardContent>
                 </Card>
 
-                {/* Fluxo de Caixa (Diário) - Reconstruído como na imagem */}
+                {/* 2. Fluxo de Caixa Diário (As 3 Linhas da Imagem) */}
                 <Card className="lg:col-span-2">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <Wallet className="h-5 w-5 text-purple-500" />
                             Fluxo de Caixa (Diário)
                         </CardTitle>
-                        <CardDescription>Entradas e saídas diárias detalhadas.</CardDescription>
+                        <CardDescription>Entradas e saídas pontuais ocorridas em cada dia.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <ChartContainer config={flowChartConfig} className="h-[400px] w-full">
@@ -475,19 +475,19 @@ export default function AnalyticsPage() {
                                     type="monotone" 
                                     dataKey="receita" 
                                     stroke={REVENUE_COLOR} 
-                                    strokeWidth={2}
+                                    strokeWidth={3}
                                     fillOpacity={1} 
                                     fill="url(#colorReceita)" 
                                     name="Receitas" 
                                 />
-                                {selectedCityFilter === 'none' && (
+                                {isGlobalView && (
                                     <>
                                         <Area 
                                             type="monotone" 
                                             dataKey="despesa" 
                                             stroke={EXPENSE_COLOR} 
-                                            strokeWidth={2}
-                                            fillOpacity={1} 
+                                            strokeWidth={3}
+                                            fillOpacity={0.6} 
                                             fill="url(#colorDespesa)" 
                                             name="Fornecedores" 
                                         />
@@ -495,8 +495,8 @@ export default function AnalyticsPage() {
                                             type="monotone" 
                                             dataKey="folha" 
                                             stroke={PAYROLL_COLOR} 
-                                            strokeWidth={2}
-                                            fillOpacity={1} 
+                                            strokeWidth={3}
+                                            fillOpacity={0.6} 
                                             fill="url(#colorFolha)" 
                                             name="Folha Pagto" 
                                         />
@@ -507,7 +507,7 @@ export default function AnalyticsPage() {
                     </CardContent>
                 </Card>
 
-                {/* Crescimento Mensal Acumulado */}
+                {/* 3. Crescimento Mensal Cumulativo */}
                 <Card className="lg:col-span-2">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
@@ -525,14 +525,14 @@ export default function AnalyticsPage() {
                                 <ChartTooltip content={<ChartTooltipContent formatter={(v, n) => `${n}: R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}/>} />
                                 <ChartLegend content={<ChartLegendContent />} />
                                 <Line type="monotone" dataKey="receitas" stroke={REVENUE_COLOR} strokeWidth={3} dot={false} name="Receitas Acum." />
-                                {selectedCityFilter === 'none' && <Line type="monotone" dataKey="despesas" stroke={EXPENSE_COLOR} strokeWidth={3} dot={false} name="Despesas Acum." />}
+                                {isGlobalView && <Line type="monotone" dataKey="despesas" stroke={EXPENSE_COLOR} strokeWidth={3} dot={false} name="Despesas Acum." />}
                                 <Line type="monotone" dataKey="saldo" stroke={BALANCE_COLOR} strokeWidth={4} strokeDasharray="5 5" dot={false} name="Patrimônio" />
                             </LineChart>
                         </ChartContainer>
                     </CardContent>
                 </Card>
 
-                {/* Fluxo de Caixa Mensal */}
+                {/* 4. Fluxo de Caixa Mensal (Barras) */}
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
@@ -550,20 +550,20 @@ export default function AnalyticsPage() {
                                 <ChartTooltip content={<ChartTooltipContent formatter={(v) => `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />} />
                                 <ChartLegend content={<ChartLegendContent />} />
                                 <Bar dataKey="entradas" fill={REVENUE_COLOR} radius={[4, 4, 0, 0]} name="Entradas" />
-                                {selectedCityFilter === 'none' && <Bar dataKey="saidas" fill={EXPENSE_COLOR} radius={[4, 4, 0, 0]} name="Saídas" />}
+                                {isGlobalView && <Bar dataKey="saidas" fill={EXPENSE_COLOR} radius={[4, 4, 0, 0]} name="Saídas" />}
                             </BarChart>
                         </ChartContainer>
                     </CardContent>
                 </Card>
 
-                {/* Top Clientes */}
+                {/* 5. Top Clientes */}
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <Users className="h-5 w-5 text-orange-500" />
                             Top Clientes por Faturamento
                         </CardTitle>
-                        <CardDescription>Clientes com maior volume de pagamentos realizados no período.</CardDescription>
+                        <CardDescription>Clientes com maior volume de pagamentos no período.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <ChartContainer config={{}} className="h-[300px] w-full">
@@ -578,15 +578,15 @@ export default function AnalyticsPage() {
                     </CardContent>
                 </Card>
 
-                {/* Gastos com Fornecedores */}
-                {selectedCityFilter === 'none' && (
+                {/* 6. Gastos com Fornecedores */}
+                {isGlobalView && (
                     <Card className="lg:col-span-2">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
                                 <Truck className="h-5 w-5 text-red-500" />
                                 Gastos por Fornecedor
                             </CardTitle>
-                            <CardDescription>Ranking de pagamentos efetuados para fornecedores no período.</CardDescription>
+                            <CardDescription>Ranking de pagamentos efetuados no período.</CardDescription>
                         </CardHeader>
                         <CardContent>
                             <ChartContainer config={{}} className="h-[400px] w-full">
@@ -604,8 +604,4 @@ export default function AnalyticsPage() {
             </div>
         </div>
     );
-}
-
-function Label({ children, className }: { children: React.ReactNode, className?: string }) {
-    return <span className={cn("text-sm font-medium leading-none", className)}>{children}</span>;
 }
