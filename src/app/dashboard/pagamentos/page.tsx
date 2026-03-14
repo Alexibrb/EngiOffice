@@ -12,7 +12,6 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-  TableFooter,
 } from '@/components/ui/table';
 import { useToast } from "@/hooks/use-toast"
 import { collection, addDoc, getDocs, doc, query, where, deleteDoc, updateDoc, Timestamp, setDoc } from 'firebase/firestore';
@@ -581,7 +580,20 @@ export default function PagamentosPage() {
                         </div>
                     </CardHeader>
                     <CardContent>
-                        <div className="border rounded-lg">
+                        {/* Barra de Totais Filtrados no Topo */}
+                        <div className="bg-slate-900 text-white p-4 rounded-t-lg flex flex-row justify-between items-center border-x border-t">
+                            <div className="font-bold text-lg pl-2">Totais Filtrados</div>
+                            <div className="flex flex-row gap-12 pr-4">
+                                <div className="text-right">
+                                    <div className="text-sm font-bold text-blue-400">Total Pago: R$</div>
+                                    <div className="text-lg font-bold text-blue-300">
+                                        {totalPaid.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="border border-t-0 rounded-b-lg overflow-hidden">
                             <Table>
                                 <TableHeader>
                                     <TableRow>
@@ -658,15 +670,6 @@ export default function PagamentosPage() {
                                         </TableRow>
                                     )}
                                 </TableBody>
-                                <TableFooter>
-                                    <TableRow>
-                                        <TableCell colSpan={4} className="font-bold text-right">Total Pago (Filtrado)</TableCell>
-                                        <TableCell className="text-right font-bold text-green-500">
-                                            {totalPaid.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                        </TableCell>
-                                        <TableCell></TableCell>
-                                    </TableRow>
-                                </TableFooter>
                             </Table>
                         </div>
                     </CardContent>
