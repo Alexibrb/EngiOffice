@@ -535,6 +535,7 @@ export default function AnalyticsPage() {
         accountsPayable
             .filter(a => {
                 if (a.status !== 'pago') return false;
+                if (a.tipo_referencia !== 'fornecedor') return false;
                 if (selectedClient && a.cliente_id !== selectedClient) return false;
                 if (dateRange?.from) {
                     const from = startOfDay(dateRange.from);
@@ -546,12 +547,7 @@ export default function AnalyticsPage() {
             .forEach(a => {
                 const id = a.referencia_id;
                 if (!payeeMap[id]) {
-                    let name = 'Desconhecido';
-                    if (a.tipo_referencia === 'funcionario') {
-                        name = employees.find(e => e.id === id)?.nome || 'Funcionário';
-                    } else {
-                        name = suppliers.find(s => s.id === id)?.razao_social || 'Fornecedor';
-                    }
+                    const name = suppliers.find(s => s.id === id)?.razao_social || 'Fornecedor';
                     payeeMap[id] = { name, total: 0 };
                 }
                 payeeMap[id].total += (a.valor || 0);
@@ -559,9 +555,8 @@ export default function AnalyticsPage() {
 
         return Object.values(payeeMap)
             .filter(p => p.total > 0)
-            .sort((a, b) => b.total - a.total)
-            .slice(0, 10);
-    }, [accountsPayable, employees, suppliers, dateRange, selectedClient]);
+            .sort((a, b) => b.total - a.total);
+    }, [accountsPayable, suppliers, dateRange, selectedClient]);
         
     const handleClearFilters = () => {
         setDateRange(undefined);
@@ -879,17 +874,17 @@ export default function AnalyticsPage() {
                     </CardContent>
                 </Card>
 
-                {/* 9. Gastos por Favorecido */}
+                {/* 9. Gastos por Fornecedor */}
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
-                            <User className="h-5 w-5 text-red-500" />
-                            Top 10 Favorecidos por Gastos
+                            <Truck className="h-5 w-5 text-red-500" />
+                            Gastos por Fornecedor
                         </CardTitle>
-                        <CardDescription>Maiores volumes de pagamentos realizados (Fornecedores e Funcionários).</CardDescription>
+                        <CardDescription>Volumes de pagamentos realizados para fornecedores no período.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <ChartContainer config={{}} className="h-[400px] w-full">
+                        <ChartContainer config={{}} className="h-[500px] w-full">
                             <BarChart data={expensesByPayeeData} layout="vertical">
                                 <CartesianGrid horizontal={false} strokeDasharray="3 3" />
                                 <XAxis type="number" hide />
