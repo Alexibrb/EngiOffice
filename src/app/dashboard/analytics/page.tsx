@@ -9,16 +9,12 @@ import type { Service, Client, Account, AuthorizedUser, City, ServicePayment, Su
 import { PageHeader } from '@/components/page-header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@/components/ui/chart';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, BarChart, Bar, ResponsiveContainer } from 'recharts';
-import { Loader2, XCircle, Calendar as CalendarIcon, ShieldAlert, TrendingUp, Wallet, Users, Truck } from 'lucide-react';
-import { format, subMonths, startOfMonth, endOfMonth, eachMonthOfInterval, isAfter, isBefore, startOfDay, endOfDay } from 'date-fns';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, BarChart, Bar } from 'recharts';
+import { Loader2, XCircle, ShieldAlert, TrendingUp, Wallet, Users, Truck } from 'lucide-react';
+import { format, subMonths, startOfMonth, endOfMonth, eachMonthOfInterval, isAfter } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { DateRange } from 'react-day-picker';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
-import { Calendar } from '@/components/ui/calendar';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import { cn } from '@/lib/utils';
 
 const REVENUE_COLOR = '#16a34a'; // Verde
 const EXPENSE_COLOR = '#dc2626'; // Vermelho
@@ -35,7 +31,6 @@ export default function AnalyticsPage() {
     const [isAdmin, setIsAdmin] = useState(false);
     const router = useRouter();
 
-    const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
     const [selectedClient, setSelectedClient] = useState('none');
     const [selectedCityFilter, setSelectedCityFilter] = useState('none');
 
@@ -76,7 +71,16 @@ export default function AnalyticsPage() {
                 getDocs(collection(db, "fornecedores")),
             ]);
 
-            const servicesData = servicesSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Service));
+            const servicesData = servicesSnap.docs.map(doc => {
+                const d = doc.data();
+                return { 
+                    ...d, 
+                    id: doc.id,
+                    data_cadastro: d.data_cadastro instanceof Timestamp ? d.data_cadastro.toDate() : new Date(d.data_cadastro),
+                    data_ultimo_pagamento: d.data_ultimo_pagamento instanceof Timestamp ? d.data_ultimo_pagamento.toDate() : (d.data_ultimo_pagamento ? new Date(d.data_ultimo_pagamento) : undefined)
+                } as Service;
+            });
+
             const clientsData = clientsSnap.docs.map(doc => ({ ...doc.data(), codigo_cliente: doc.id } as Client));
             const suppliersData = suppliersSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Supplier));
             const citiesData = citiesSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as City));
@@ -90,7 +94,7 @@ export default function AnalyticsPage() {
                 } as Account;
             });
 
-            const receivablesData = receivablesSnap.docs.map(doc => {
+            const receivablesHistory = receivablesSnap.docs.map(doc => {
                 const data = doc.data();
                 return {
                     ...data,
@@ -99,12 +103,31 @@ export default function AnalyticsPage() {
                 } as ServicePayment;
             });
 
+            // Lógica de Reconstrução: Incluir valores pagos que não possuem histórico detalhado
+            const reconstructedReceivables: ServicePayment[] = [...receivablesHistory];
+            
+            servicesData.forEach(service => {
+                const historyForThisService = receivablesHistory.filter(r => r.servico_id === service.id);
+                const documentedTotal = historyForThisService.reduce((sum, r) => sum + (r.valor || 0), 0);
+                const missingAmount = (service.valor_pago || 0) - documentedTotal;
+
+                if (missingAmount > 0.01) {
+                    reconstructedReceivables.push({
+                        id: `legacy-${service.id}`,
+                        servico_id: service.id,
+                        cliente_id: service.cliente_id,
+                        valor: missingAmount,
+                        data: service.data_ultimo_pagamento || service.data_cadastro || new Date(),
+                    } as ServicePayment);
+                }
+            });
+
             setServices(servicesData);
             setClients(clientsData.sort((a, b) => a.nome_completo.localeCompare(b.nome_completo)));
             setSuppliers(suppliersData);
             setAccountsPayable(accountsData);
             setCities(citiesData.sort((a, b) => a.nome_cidade.localeCompare(b.nome_cidade)));
-            setReceivables(receivablesData);
+            setReceivables(reconstructedReceivables);
 
         } catch (error) {
             console.error("Erro ao buscar dados para analytics:", error);
@@ -113,11 +136,11 @@ export default function AnalyticsPage() {
         }
     };
 
-    // Lógica Unificada de Filtragem
+    // 1. Filtro de Recebimentos
     const filteredReceivables = useMemo(() => {
         return receivables.filter(r => {
             const service = services.find(s => s.id === r.servico_id);
-            if (!service) return false; // Ignora parcelas de serviços excluídos
+            if (!service) return false;
 
             const matchesCity = selectedCityFilter === 'none' || service.endereco_obra?.city === selectedCityFilter;
             const matchesClient = selectedClient === 'none' || r.cliente_id === selectedClient;
@@ -126,17 +149,16 @@ export default function AnalyticsPage() {
         });
     }, [receivables, services, selectedCityFilter, selectedClient]);
 
+    // 2. Filtro de Despesas
     const filteredExpenses = useMemo(() => {
         return accountsPayable.filter(a => {
             if (a.status !== 'pago') return false;
 
-            // Se a despesa for vinculada a um serviço, o serviço deve existir e bater com a cidade
             if (a.servico_id) {
                 const service = services.find(s => s.id === a.servico_id);
                 if (!service) return false;
                 if (selectedCityFilter !== 'none' && service.endereco_obra?.city !== selectedCityFilter) return false;
             } else {
-                // Despesas gerais (sem serviço) só aparecem se não houver filtro de cidade
                 if (selectedCityFilter !== 'none') return false;
             }
 
@@ -145,7 +167,7 @@ export default function AnalyticsPage() {
         });
     }, [accountsPayable, services, selectedClient, selectedCityFilter]);
 
-    // 1. Gráfico Crescimento Histórico Mensal (Cumulativo)
+    // 3. Gráfico Crescimento Histórico Mensal (Cumulativo)
     const cumulativeMonthlyData = useMemo(() => {
         if (receivables.length === 0 && accountsPayable.length === 0) return [];
 
@@ -158,7 +180,7 @@ export default function AnalyticsPage() {
             return months.map(month => {
                 const monthEnd = endOfMonth(month);
 
-                // Soma TUDO desde o início até o final deste mês específico
+                // Soma acumulada até o final do mês corrente no loop
                 const totalReceivedUntilNow = filteredReceivables
                     .filter(r => !isAfter(r.data, monthEnd))
                     .reduce((acc, r) => acc + (r.valor || 0), 0);
@@ -177,9 +199,9 @@ export default function AnalyticsPage() {
         } catch (e) {
             return [];
         }
-    }, [filteredReceivables, filteredExpenses]);
+    }, [filteredReceivables, filteredExpenses, receivables.length, accountsPayable.length]);
 
-    // 2. Fluxo de Caixa Mensal (Mês a Mês)
+    // 4. Fluxo de Caixa Mensal
     const monthlyFlowData = useMemo(() => {
         const end = endOfMonth(new Date());
         const start = startOfMonth(subMonths(end, 11)); 
@@ -191,11 +213,11 @@ export default function AnalyticsPage() {
 
             const receivedInMonth = filteredReceivables
                 .filter(r => r.data >= mStart && r.data <= mEnd)
-                .reduce((acc, r) => acc + r.valor, 0);
+                .reduce((acc, r) => acc + (r.valor || 0), 0);
             
             const paidInMonth = filteredExpenses
                 .filter(a => a.vencimento >= mStart && a.vencimento <= mEnd)
-                .reduce((acc, a) => acc + a.valor, 0);
+                .reduce((acc, a) => acc + (a.valor || 0), 0);
 
             return {
                 name: format(month, 'MMM/yy', { locale: ptBR }),
@@ -205,7 +227,7 @@ export default function AnalyticsPage() {
         });
     }, [filteredReceivables, filteredExpenses]);
 
-    // 3. Ranking de Clientes (Top 5)
+    // 5. Ranking de Clientes
     const topClientsData = useMemo(() => {
         const clientRevenue: Record<string, number> = {};
         filteredReceivables.forEach(r => {
@@ -216,10 +238,10 @@ export default function AnalyticsPage() {
         return Object.entries(clientRevenue)
             .map(([name, value]) => ({ name, value }))
             .sort((a, b) => b.value - a.value)
-            .slice(0, 5);
+            .slice(0, 10);
     }, [filteredReceivables, clients]);
 
-    // 4. Ranking de Fornecedores (Gastos - Excluindo Funcionários)
+    // 6. Gastos por Fornecedor (Exclui Funcionários)
     const topSuppliersData = useMemo(() => {
         const supplierExpenses: Record<string, number> = {};
         filteredExpenses
@@ -235,10 +257,9 @@ export default function AnalyticsPage() {
     }, [filteredExpenses, suppliers]);
 
     const handleClearFilters = () => {
-        setDateRange(undefined);
         setSelectedClient('none');
         setSelectedCityFilter('none');
-    }
+    };
 
     if (isLoading) {
         return (
@@ -261,14 +282,14 @@ export default function AnalyticsPage() {
                   </CardDescription>
               </CardHeader>
           </Card>
-        )
+        );
     }
 
     return (
         <div className="flex flex-col gap-8">
             <PageHeader 
                 title="Analytics"
-                description="Visão completa da saúde financeira e produtividade do escritório."
+                description="Saúde financeira baseada em recebimentos reais e pagamentos realizados."
             />
             
             {/* Filtros */}
@@ -300,6 +321,7 @@ export default function AnalyticsPage() {
 
             {/* Grid de Gráficos Principais */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                
                 {/* 1. Crescimento Cumulativo */}
                 <Card className="lg:col-span-2">
                     <CardHeader>
@@ -307,7 +329,7 @@ export default function AnalyticsPage() {
                             <TrendingUp className="h-5 w-5 text-green-500" />
                             Crescimento Histórico Acumulado
                         </CardTitle>
-                        <CardDescription>Evolução do patrimônio (Receitas vs Despesas Totais ao longo do tempo).</CardDescription>
+                        <CardDescription>Evolução patrimonial: soma total de todas as receitas vs todas as despesas ao longo do tempo.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <ChartContainer config={{}} className="h-[400px] w-full">
@@ -332,7 +354,7 @@ export default function AnalyticsPage() {
                             <Wallet className="h-5 w-5 text-blue-500" />
                             Fluxo de Caixa Mensal
                         </CardTitle>
-                        <CardDescription>Comparativo de entradas e saídas reais de cada mês.</CardDescription>
+                        <CardDescription>Entradas e saídas reais registradas em cada mês.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <ChartContainer config={{}} className="h-[300px] w-full">
@@ -340,7 +362,7 @@ export default function AnalyticsPage() {
                                 <CartesianGrid vertical={false} opacity={0.3} />
                                 <XAxis dataKey="name" tickLine={false} axisLine={false} />
                                 <YAxis hide />
-                                <ChartTooltip content={<ChartTooltipContent />} />
+                                <ChartTooltip content={<ChartTooltipContent formatter={(v) => `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />} />
                                 <ChartLegend content={<ChartLegendContent />} />
                                 <Bar dataKey="entradas" fill={REVENUE_COLOR} radius={[4, 4, 0, 0]} name="Entradas" />
                                 <Bar dataKey="saidas" fill={EXPENSE_COLOR} radius={[4, 4, 0, 0]} name="Saídas" />
@@ -356,7 +378,7 @@ export default function AnalyticsPage() {
                             <Users className="h-5 w-5 text-orange-500" />
                             Top Clientes por Receita
                         </CardTitle>
-                        <CardDescription>Clientes que mais investiram no escritório.</CardDescription>
+                        <CardDescription>Clientes com maior volume de pagamentos realizados.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <ChartContainer config={{}} className="h-[300px] w-full">
@@ -378,7 +400,7 @@ export default function AnalyticsPage() {
                             <Truck className="h-5 w-5 text-red-500" />
                             Gastos por Fornecedor
                         </CardTitle>
-                        <CardDescription>Ranking de pagamentos realizados para fornecedores no período.</CardDescription>
+                        <CardDescription>Ranking completo de pagamentos efetuados para fornecedores no período.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <ChartContainer config={{}} className="h-[400px] w-full">
