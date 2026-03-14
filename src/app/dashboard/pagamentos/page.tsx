@@ -279,6 +279,10 @@ export default function PagamentosPage() {
     const totalPaid = filteredPayments
         .filter(p => p.status === 'pago')
         .reduce((sum, item) => sum + item.valor, 0);
+
+    const totalPending = filteredPayments
+        .filter(p => p.status === 'pendente')
+        .reduce((sum, item) => sum + item.valor, 0);
     
     const handleClearFilters = () => {
         setSelectedEmployeeFilter('');
@@ -338,6 +342,23 @@ export default function PagamentosPage() {
         doc.text(filterText, 14, currentY);
         currentY += 7;
 
+        // Tabela de Resumo Financeiro
+        autoTable(doc, {
+            startY: currentY,
+            head: [['Resumo da Folha no Filtro', '']],
+            body: [
+                ['Total Pago:', `R$ ${totalPaid.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
+                ['Total Pendente:', `R$ ${totalPending.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
+                ['Total Geral:', `R$ ${(totalPaid + totalPending).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
+            ],
+            theme: 'grid',
+            headStyles: { fillColor: [34, 139, 34] },
+            styles: { fontSize: 9 },
+            margin: { left: 14 },
+            tableWidth: 100,
+        });
+        currentY = (doc as any).lastAutoTable.finalY + 10;
+
         autoTable(doc, {
             startY: currentY,
             head: [['Funcionário', 'Cliente / Projeto (Obra)', 'Data', 'Status', 'Valor']],
@@ -348,13 +369,9 @@ export default function PagamentosPage() {
                 p.status.toUpperCase(),
                 p.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
             ]),
-            foot: [[
-                { content: 'Total Pago (Filtrado)', colSpan: 4, styles: { halign: 'right', fontStyle: 'bold' } },
-                { content: totalPaid.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), styles: { fontStyle: 'bold' } }
-            ]],
             theme: 'striped',
             headStyles: { fillColor: [34, 139, 34] },
-            footStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0] }
+            rowPageBreak: 'avoid',
         });
 
         doc.save(`folha_pagamento_${new Date().getTime()}.pdf`);
