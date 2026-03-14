@@ -25,7 +25,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from '@/components/ui/badge';
 import { collection, getDocs, deleteDoc, doc, updateDoc, query, orderBy, addDoc, Timestamp } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
-import type { Service, Account, Client, Note } from '@/lib/types';
+import type { Service, Account, Client, Note, ServicePayment } from '@/lib/types';
 import { format, isPast, differenceInDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import jsPDF from 'jspdf';
@@ -98,6 +98,7 @@ export default function DashboardPage() {
   const [services, setServices] = useState<Service[]>([]);
   const [accountsPayable, setAccountsPayable] = useState<Account[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
+  const [paymentsHistory, setPaymentsHistory] = useState<ServicePayment[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isNotesLoading, setIsNotesLoading] = useState(true);
@@ -144,10 +145,11 @@ export default function DashboardPage() {
 
   const fetchDashboardData = async () => {
       try {
-        const [servicesSnapshot, payableSnapshot, clientsSnapshot] = await Promise.all([
+        const [servicesSnapshot, payableSnapshot, clientsSnapshot, paymentsSnapshot] = await Promise.all([
           getDocs(collection(db, "servicos")),
           getDocs(collection(db, "contas_a_pagar")),
           getDocs(collection(db, "clientes")),
+          getDocs(collection(db, "recebimentos")),
         ]);
 
         const servicesData = servicesSnapshot.docs.map(doc => {
@@ -169,6 +171,13 @@ export default function DashboardPage() {
         
         const clientsData = clientsSnapshot.docs.map(doc => ({ ...doc.data(), codigo_cliente: doc.id })) as Client[];
         setClients(clientsData);
+
+        const paymentsData = paymentsSnapshot.docs.map(doc => ({
+            ...doc.data(),
+            id: doc.id,
+            data: doc.data().data.toDate(),
+        })) as ServicePayment[];
+        setPaymentsHistory(paymentsData);
 
       } catch (error) {
         console.error("Erro ao buscar dados do dashboard: ", error);
@@ -275,7 +284,6 @@ export default function DashboardPage() {
     (s) => s.saldo_devedor > 0.01 && s.status_financeiro === 'pendente'
   );
 
-  // Lógica de Alerta: Serviços com saldo devedor e sem pagamento há mais de 30 dias
   const overdueReceivables = useMemo(() => {
     const today = new Date();
     return services.filter(s => {
@@ -354,13 +362,10 @@ export default function DashboardPage() {
         const valueToDisplay = isPartialPayment ? paymentValue : service.valor_pago;
         const title = isPartialPayment ? 'RECIBO DE PAGAMENTO PARCIAL' : 'RECIBO DE PAGAMENTO';
 
-
-        // Cabeçalho
         doc.setFontSize(20);
         doc.setFont('helvetica', 'bold');
         doc.text(title, pageWidth / 2, 20, { align: 'center' });
 
-        // Informações da Empresa
         doc.setFontSize(12);
         doc.setFont('helvetica', 'normal');
         doc.text(companyData?.companyName || 'Empresa/Profissional', 20, 40);
@@ -375,7 +380,6 @@ export default function DashboardPage() {
         doc.setLineWidth(0.5);
         doc.line(20, 60, pageWidth - 20, 60);
 
-        // Valor
         doc.setFontSize(14);
         doc.text('Valor Recebido:', 20, 70);
         doc.setFont('helvetica', 'bold');
@@ -385,17 +389,40 @@ export default function DashboardPage() {
         doc.setLineWidth(0.2);
         doc.line(20, 75, pageWidth - 20, 75);
 
-        // Corpo do Recibo
         doc.setFontSize(12);
         const areaText = service.quantidade_m2 ? ` (Área: ${service.quantidade_m2} m²)` : '';
         const obraAddress = (service.endereco_obra && service.endereco_obra.street) ? `${service.endereco_obra.street}, ${service.endereco_obra.number} - ${service.endereco_obra.neighborhood}, ${service.endereco_obra.city} - ${service.endereco_obra.state}` : 'Endereço da obra não informado';
         const receiptText = `Recebemos de ${client.nome_completo}, CPF/CNPJ nº ${client.cpf_cnpj || 'Não informado'}, a importância de R$ ${valueToDisplay.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} referente ao pagamento ${isPartialPayment ? 'parcial' : ''} pelo serviço de "${service.descricao}"${areaText}.\n\nEndereço da Obra: ${obraAddress}`;
         const splitText = doc.splitTextToSize(receiptText, pageWidth - 40);
         doc.text(splitText, 20, 90);
+
+        let currentY = 90 + (splitText.length * 7) + 15;
+
+        // Histórico de Recebimentos
+        const serviceHistory = paymentsHistory
+            .filter(p => p.servico_id === service.id)
+            .sort((a, b) => a.data.getTime() - b.data.getTime());
+
+        if (serviceHistory.length > 0) {
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Histórico de Recebimentos Realizados:', 20, currentY);
+            currentY += 5;
+
+            autoTable(doc, {
+                startY: currentY,
+                head: [['Data', 'Valor Recebido']],
+                body: serviceHistory.map(p => [
+                    format(p.data, "dd/MM/yyyy HH:mm"),
+                    `R$ ${p.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+                ]),
+                theme: 'striped',
+                headStyles: { fillColor: [100, 100, 100] },
+                styles: { fontSize: 10 }
+            });
+            currentY = (doc as any).lastAutoTable.finalY + 15;
+        }
         
-        let currentY = 120;
-        
-        // Resumo Financeiro
         autoTable(doc, {
             startY: currentY,
             head: [['Resumo Financeiro do Serviço']],
@@ -410,8 +437,6 @@ export default function DashboardPage() {
         });
         currentY = (doc as any).lastAutoTable.finalY + 15;
 
-
-        // Data e Assinatura
         const today = format(new Date(), "d 'de' MMMM 'de' yyyy", { locale: ptBR });
         doc.text(`${(client.endereco_residencial && client.endereco_residencial.city) ? client.endereco_residencial.city : 'Localidade não informada'}, ${today}.`, 20, currentY);
         
@@ -433,7 +458,6 @@ export default function DashboardPage() {
     const pageWidth = doc.internal.pageSize.getWidth();
     let currentY = 15;
 
-    // Cabeçalho da Empresa
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(16);
     doc.text(companyData?.companyName || 'Empresa/Profissional', pageWidth / 2, currentY, { align: 'center' });
@@ -457,13 +481,11 @@ export default function DashboardPage() {
     doc.line(14, currentY, pageWidth - 14, currentY);
     currentY += 10;
     
-    // Título do Documento
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(14);
     doc.text('COMPROVANTE DE PRESTAÇÃO DE SERVIÇO', pageWidth / 2, currentY, { align: 'center' });
     currentY += 10;
 
-    // Data e Valor
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
     doc.text(`Data de Cadastro: ${format(service.data_cadastro, 'dd/MM/yyyy')}`, 14, currentY);
@@ -474,7 +496,6 @@ export default function DashboardPage() {
     doc.text(`R$ ${service.valor_total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, pageWidth - 38, currentY);
     currentY += 8;
 
-    // Seção Cliente
     doc.setFont('helvetica', 'bold');
     autoTable(doc, {
         startY: currentY,
@@ -497,7 +518,6 @@ export default function DashboardPage() {
     });
     currentY = (doc as any).lastAutoTable.finalY + 5;
     
-    // Seção Serviço
     doc.setFont('helvetica', 'bold');
     autoTable(doc, {
         startY: currentY,
@@ -527,8 +547,6 @@ export default function DashboardPage() {
     });
     currentY = (doc as any).lastAutoTable.finalY + 25;
 
-
-    // Assinatura e Data
     const today = format(new Date(), "d 'de' MMMM 'de' yyyy", { locale: ptBR });
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
@@ -539,7 +557,6 @@ export default function DashboardPage() {
     doc.line(pageWidth / 2 - 40, currentY, pageWidth / 2 + 40, currentY);
     doc.text(companyData?.companyName || 'Empresa/Profissional', pageWidth / 2, currentY + 5, { align: 'center' });
     
-    // Rodapé
     if (companyData?.address && companyData?.phone) {
         const footerText = `${companyData.address} | ${companyData.phone}`;
         doc.setFontSize(8);
@@ -567,7 +584,6 @@ export default function DashboardPage() {
         const serviceDocRef = doc(db, 'servicos', editingService.id);
         const newStatus = novoSaldoDevedor <= 0.01 ? 'pago' : 'pendente';
         
-        // Atualiza valor, saldo e a data do último pagamento
         await updateDoc(serviceDocRef, {
             valor_pago: novoValorPago,
             saldo_devedor: Math.max(0, novoSaldoDevedor),
@@ -575,7 +591,6 @@ export default function DashboardPage() {
             data_ultimo_pagamento: Timestamp.now(),
         });
 
-        // Registrar na coleção de recebimentos para histórico por data
         await addDoc(collection(db, 'recebimentos'), {
             servico_id: editingService.id,
             cliente_id: editingService.cliente_id,
@@ -585,6 +600,8 @@ export default function DashboardPage() {
 
         toast({ title: 'Sucesso!', description: 'Pagamento lançado com sucesso.' });
         
+        await fetchDashboardData();
+
         const updatedServiceForReceipt = {
           ...editingService,
           valor_pago: novoValorPago,
@@ -595,7 +612,6 @@ export default function DashboardPage() {
         setIsPaymentDialogOpen(false);
         setEditingService(null);
         paymentForm.reset();
-        await fetchDashboardData();
 
     } catch (error) {
          console.error("Erro ao processar pagamento: ", error);
@@ -623,7 +639,6 @@ export default function DashboardPage() {
           description="Uma visão geral do seu escritório."
       />
 
-      {/* Seção de Alertas de Recebimento */}
       {overdueReceivables.length > 0 && (
         <Collapsible open={showOverdueDetails} onOpenChange={setShowOverdueAlerts} className="space-y-4">
           <Alert variant="destructive" className="bg-destructive/10 dark:bg-red-950/30 border-destructive/50 flex items-center justify-between">

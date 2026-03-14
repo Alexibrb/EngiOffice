@@ -26,7 +26,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import type { Service, Client, ServiceType, City, AuthorizedUser, Account } from '@/lib/types';
+import type { Service, Client, ServiceType, City, AuthorizedUser, Account, ServicePayment } from '@/lib/types';
 import { PlusCircle, Search, MoreHorizontal, Loader2, Calendar as CalendarIcon, Wrench, Link as LinkIcon, ExternalLink, ClipboardCopy, XCircle, FileText, CheckCircle, ArrowUp, TrendingUp, HandCoins, Trash, DollarSign } from 'lucide-react';
 import {
   DropdownMenu,
@@ -170,6 +170,7 @@ export default function ServicosPage() {
   const [cities, setCities] = useState<City[]>([]);
   const [serviceTypes, setServiceTypes] = useState<ServiceType[]>([]);
   const [expenses, setExpenses] = useState<Account[]>([]);
+  const [receivablesHistory, setReceivablesHistory] = useState<ServicePayment[]>([]);
   const [search, setSearch] = useState('');
   const [selectedCityFilter, setSelectedCityFilter] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -269,9 +270,10 @@ export default function ServicosPage() {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const [servicesSnapshot, accountsSnapshot] = await Promise.all([
+      const [servicesSnapshot, accountsSnapshot, receivablesSnapshot] = await Promise.all([
         getDocs(collection(db, "servicos")),
         getDocs(collection(db, "contas_a_pagar")),
+        getDocs(collection(db, "recebimentos")),
       ]);
 
       const servicesData = servicesSnapshot.docs.map(doc => {
@@ -292,6 +294,13 @@ export default function ServicosPage() {
           vencimento: doc.data().vencimento instanceof Timestamp ? doc.data().vencimento.toDate() : new Date(doc.data().vencimento)
       })) as Account[];
       setExpenses(accountsData);
+
+      const paymentsData = receivablesSnapshot.docs.map(doc => ({
+          ...doc.data(),
+          id: doc.id,
+          data: doc.data().data.toDate()
+      })) as ServicePayment[];
+      setReceivablesHistory(paymentsData);
 
       await fetchClientsAndCities();
       await fetchServiceTypes();
@@ -425,6 +434,9 @@ export default function ServicosPage() {
 
         toast({ title: 'Sucesso!', description: 'Pagamento lançado com sucesso.' });
         
+        // Refresh to have up-to-date history
+        await fetchData();
+
         const updatedServiceForReceipt = {
             ...editingService,
             valor_pago: novoValorPago,
@@ -433,7 +445,6 @@ export default function ServicosPage() {
         generateReceipt(updatedServiceForReceipt, values.valor_pago);
         
         setIsPaymentDialogOpen(false);
-        await fetchData();
 
     } catch (error) {
          console.error("Erro ao processar pagamento: ", error);
@@ -538,6 +549,11 @@ export default function ServicosPage() {
     doc.setFontSize(12);
     doc.setFont('helvetica', 'normal');
     doc.text(companyData?.companyName || 'EngiOffice', 20, 40);
+    const contactInfo = [
+        companyData?.cnpj ? `CNPJ: ${companyData.cnpj}` : '',
+        companyData?.crea ? `CREA: ${companyData.crea}` : ''
+    ].filter(Boolean).join(' | ');
+    doc.text(contactInfo, 20, 46);
     doc.text(companyData?.address || 'Endereço não informado', 20, 52);
 
     doc.setLineWidth(0.5);
@@ -552,16 +568,45 @@ export default function ServicosPage() {
     doc.setLineWidth(0.2);
     doc.line(20, 75, pageWidth - 20, 75);
 
+    const areaText = service.quantidade_m2 ? ` (Área: ${service.quantidade_m2} m²)` : '';
     const obraAddress = (service.endereco_obra && service.endereco_obra.street) ? `${service.endereco_obra.street}, ${service.endereco_obra.number} - ${service.endereco_obra.neighborhood}, ${service.endereco_obra.city} - ${service.endereco_obra.state}` : 'Endereço da obra não informado';
-    const receiptText = `Recebemos de ${client.nome_completo}, CPF/CNPJ nº ${client.cpf_cnpj || 'Não informado'}, a importância de R$ ${valueToDisplay.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} referente ao pagamento ${isPartialPayment ? 'parcial' : ''} pelo serviço de "${service.descricao}".\n\nEndereço da Obra: ${obraAddress}`;
+    const receiptText = `Recebemos de ${client.nome_completo}, CPF/CNPJ nº ${client.cpf_cnpj || 'Não informado'}, a importância de R$ ${valueToDisplay.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} referente ao pagamento ${isPartialPayment ? 'parcial' : ''} pelo serviço de "${service.descricao}"${areaText}.\n\nEndereço da Obra: ${obraAddress}`;
     const splitText = doc.splitTextToSize(receiptText, pageWidth - 40);
     doc.text(splitText, 20, 90);
 
+    let currentY = 90 + (splitText.length * 7) + 15;
+
+    // Histórico de Recebimentos
+    const serviceHistory = receivablesHistory
+        .filter(p => p.servico_id === service.id)
+        .sort((a, b) => a.data.getTime() - b.data.getTime());
+
+    if (serviceHistory.length > 0) {
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Histórico de Recebimentos Realizados:', 20, currentY);
+        currentY += 5;
+
+        autoTable(doc, {
+            startY: currentY,
+            head: [['Data', 'Valor Recebido']],
+            body: serviceHistory.map(p => [
+                format(p.data, "dd/MM/yyyy HH:mm"),
+                `R$ ${p.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+            ]),
+            theme: 'striped',
+            headStyles: { fillColor: [100, 100, 100] },
+            styles: { fontSize: 10 }
+        });
+        currentY = (doc as any).lastAutoTable.finalY + 15;
+    }
+
     autoTable(doc, {
-        startY: 120,
+        startY: currentY,
         head: [['Resumo Financeiro do Serviço']],
         body: [
             [`Valor Total: R$ ${service.valor_total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
+            [`Total Pago: R$ ${service.valor_pago.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
             [`Saldo Devedor: R$ ${service.saldo_devedor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
         ],
         theme: 'plain',

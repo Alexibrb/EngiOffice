@@ -208,7 +208,32 @@ export default function ContasAReceberPage() {
         const splitText = doc.splitTextToSize(receiptText, pageWidth - 40);
         doc.text(splitText, 20, 90);
 
-        let currentY = 120;
+        let currentY = 90 + (splitText.length * 7) + 15;
+
+        // Histórico de Recebimentos
+        const serviceHistory = paymentsHistory
+            .filter(p => p.servico_id === service.id)
+            .sort((a, b) => a.data.getTime() - b.data.getTime());
+
+        if (serviceHistory.length > 0) {
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Histórico de Recebimentos Realizados:', 20, currentY);
+            currentY += 5;
+
+            autoTable(doc, {
+                startY: currentY,
+                head: [['Data', 'Valor Recebido']],
+                body: serviceHistory.map(p => [
+                    format(p.data, "dd/MM/yyyy HH:mm"),
+                    `R$ ${p.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+                ]),
+                theme: 'striped',
+                headStyles: { fillColor: [100, 100, 100] },
+                styles: { fontSize: 10 }
+            });
+            currentY = (doc as any).lastAutoTable.finalY + 15;
+        }
         
         autoTable(doc, {
             startY: currentY,
@@ -388,6 +413,9 @@ export default function ContasAReceberPage() {
 
             toast({ title: 'Sucesso!', description: 'Pagamento lançado com sucesso.' });
             
+            // Re-fetch data to have up-to-date history before generating PDF
+            await fetchData();
+
             const updatedServiceForReceipt = {
                 ...editingService,
                 valor_pago: novoValorPago,
@@ -396,9 +424,6 @@ export default function ContasAReceberPage() {
             generateReceipt(updatedServiceForReceipt, values.valor_pago);
 
             setIsPaymentDialogOpen(false);
-            
-            await fetchData();
-
 
         } catch (error) {
             console.error("Erro ao processar pagamento: ", error);
@@ -822,7 +847,7 @@ function ReceivableTableComponent({ services, getClient, totalValor, totalSaldo,
                                     <div className={cn("text-sm font-medium", isFullyPaid ? "text-muted-foreground" : "text-red-500")}>
                                         Saldo: R$ {(service.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                                     </div>
-                                    {service.quantidade_m2 ? <div className="text-xs text-muted-foreground">Área: {service.quantidade_m2} m²</div> : null}
+                                    {service.quantidade_m2 ? <div className="text-xs text-muted-foreground">Area: {service.quantidade_m2} m²</div> : null}
                                 </TableCell>
                                  <TableCell className="align-top space-y-1">
                                     <Badge 
