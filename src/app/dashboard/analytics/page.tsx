@@ -145,41 +145,6 @@ export default function AnalyticsPage() {
         return data;
     };
 
-    const monthlyPerformanceData = () => {
-        const data: { name: string; receitas: number; despesas: number; lucro: number }[] = [];
-        for (let i = 11; i >= 0; i--) {
-            const date = subMonths(new Date(), i);
-            const monthName = format(date, 'MMM/yy', { locale: ptBR });
-            const monthStart = startOfMonth(date);
-            const monthEnd = endOfMonth(date);
-
-            const received = services
-                .filter(s => {
-                    const dateToUse = s.data_ultimo_pagamento || s.data_cadastro;
-                    const isInMonth = s.valor_pago > 0 && dateToUse >= monthStart && dateToUse <= monthEnd;
-                    if (!isInMonth) return false;
-                    if (selectedCityFilter) return s.endereco_obra?.city === selectedCityFilter;
-                    return true;
-                })
-                .reduce((acc, s) => acc + s.valor_pago, 0);
-            
-            const paid = accountsPayable
-                .filter(a => {
-                    const dueDate = a.vencimento;
-                    return a.status === 'pago' && dueDate >= monthStart && dueDate <= monthEnd;
-                })
-                .reduce((acc, a) => acc + a.valor, 0);
-
-            data.push({ 
-                name: monthName, 
-                receitas: received, 
-                despesas: paid,
-                lucro: received - paid
-            });
-        }
-        return data;
-    };
-
     const cumulativeMonthlyData = () => {
         const data: { name: string; receitas: number; despesas: number; saldo: number }[] = [];
         for (let i = 11; i >= 0; i--) {
@@ -279,60 +244,6 @@ export default function AnalyticsPage() {
         }
     }, [services, accountsPayable, dateRange, selectedCityFilter]);
 
-    const balanceHistoryData = useMemo(() => {
-        let start: Date;
-        let end: Date = new Date();
-
-        if (dateRange?.from) {
-            start = startOfDay(dateRange.from);
-            if (dateRange.to) end = endOfDay(dateRange.to);
-        } else {
-            start = startOfDay(subDays(new Date(), 90));
-        }
-
-        const revenuesBeforeStart = services
-            .filter(s => {
-                const dateToUse = s.data_ultimo_pagamento || s.data_cadastro;
-                return s.valor_pago > 0 && isBefore(dateToUse, start);
-            })
-            .reduce((sum, s) => sum + s.valor_pago, 0);
-
-        const expensesBeforeStart = accountsPayable
-            .filter(a => a.status === 'pago' && isBefore(a.vencimento, start))
-            .reduce((sum, a) => sum + a.valor, 0);
-
-        let currentCumulativeBalance = revenuesBeforeStart - expensesBeforeStart;
-
-        try {
-            const intervalDays = eachDayOfInterval({ start, end });
-            return intervalDays.map(day => {
-                const dayStart = startOfDay(day);
-                const dayEnd = endOfDay(day);
-
-                const dailyRevenue = services
-                    .filter(s => {
-                        const dateToUse = s.data_ultimo_pagamento || s.data_cadastro;
-                        return s.valor_pago > 0 && dateToUse >= dayStart && dateToUse <= dayEnd;
-                    })
-                    .reduce((sum, s) => sum + s.valor_pago, 0);
-
-                const dailyExpenses = accountsPayable
-                    .filter(a => a.status === 'pago' && a.vencimento >= dayStart && a.vencimento <= dayEnd)
-                    .reduce((sum, a) => sum + a.valor, 0);
-
-                currentCumulativeBalance += (dailyRevenue - dailyExpenses);
-
-                return {
-                    name: format(day, 'dd/MM'),
-                    saldo: currentCumulativeBalance,
-                    fullDate: format(day, "dd 'de' MMM, yyyy", { locale: ptBR })
-                };
-            });
-        } catch (e) {
-            return [];
-        }
-    }, [services, accountsPayable, dateRange]);
-    
     const revenueStatusData = useMemo(() => {
         const totalPaid = services
             .filter(s => selectedCityFilter ? s.endereco_obra?.city === selectedCityFilter : true)
@@ -498,54 +409,6 @@ export default function AnalyticsPage() {
                                 <Line type="monotone" dataKey="receitas" stroke={POSITIVE_COLOR} strokeWidth={3} dot={{ r: 4 }} name="Receitas Acumuladas" />
                                 <Line type="monotone" dataKey="despesas" stroke={NEGATIVE_COLOR} strokeWidth={3} dot={{ r: 4 }} name="Despesas Acumuladas" />
                                 <Line type="monotone" dataKey="saldo" stroke={BALANCE_COLOR} strokeWidth={4} strokeDasharray="5 5" name="Saldo no Período" />
-                            </LineChart>
-                        </ChartContainer>
-                    </CardContent>
-                </Card>
-
-                <Card className="lg:col-span-2">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <Wallet className="h-5 w-5 text-blue-500" />
-                            Evolução do Saldo em Caixa (Acumulado Diário)
-                        </CardTitle>
-                        <CardDescription>Acompanhe o saldo real dia a dia, incluindo movimentações anteriores ao período exibido.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <ChartContainer config={{}} className="h-[350px] w-full">
-                            <AreaChart data={balanceHistoryData}>
-                                <defs>
-                                    <linearGradient id="colorSaldo" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor={BALANCE_COLOR} stopOpacity={0.3}/>
-                                        <stop offset="95%" stopColor={BALANCE_COLOR} stopOpacity={0}/>
-                                    </linearGradient>
-                                </defs>
-                                <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                                <XAxis dataKey="name" tickLine={false} axisLine={false} tickMargin={8} />
-                                <YAxis tickFormatter={(value) => `R$${Number(value).toLocaleString('pt-BR', { notation: 'compact' })}`}/>
-                                <ChartTooltip content={<ChartTooltipContent formatter={(value) => `Saldo: R$ ${Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}/>} />
-                                <Area type="stepAfter" dataKey="saldo" stroke={BALANCE_COLOR} strokeWidth={3} fillOpacity={1} fill="url(#colorSaldo)" name="Saldo Acumulado" />
-                            </AreaChart>
-                        </ChartContainer>
-                    </CardContent>
-                </Card>
-
-                <Card className="lg:col-span-2">
-                    <CardHeader>
-                        <CardTitle>Desempenho Mensal (Resultados Individuais)</CardTitle>
-                        <CardDescription>Evolução de receitas, despesas e lucro líquido mês a mês nos últimos 12 meses.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <ChartContainer config={{}} className="h-[350px] w-full">
-                            <LineChart data={monthlyPerformanceData()}>
-                                <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                                <XAxis dataKey="name" tickLine={false} axisLine={false} tickMargin={8} />
-                                <YAxis tickFormatter={(value) => `R$${value/1000}k`}/>
-                                <ChartTooltip content={<ChartTooltipContent formatter={(value, name) => `${name}: R$ ${Number(value).toLocaleString('pt-BR')}`}/>} />
-                                <ChartLegend content={<ChartLegendContent />} />
-                                <Line type="monotone" dataKey="receitas" stroke={POSITIVE_COLOR} strokeWidth={2} dot={{ r: 4 }} name="Receitas" />
-                                <Line type="monotone" dataKey="despesas" stroke={NEGATIVE_COLOR} strokeWidth={2} dot={{ r: 4 }} name="Despesas" />
-                                <Line type="monotone" dataKey="lucro" stroke={BALANCE_COLOR} strokeWidth={4} dot={{ r: 6 }} name="Lucro Líquido" />
                             </LineChart>
                         </ChartContainer>
                     </CardContent>
