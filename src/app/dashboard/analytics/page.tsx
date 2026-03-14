@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -5,7 +6,7 @@ import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
-import type { Service, Client, Account, Employee, AuthorizedUser } from '@/lib/types';
+import type { Service, Client, Account, Employee, AuthorizedUser, City } from '@/lib/types';
 import { PageHeader } from '@/components/page-header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@/components/ui/chart';
@@ -29,6 +30,7 @@ export default function AnalyticsPage() {
     const [clients, setClients] = useState<Client[]>([]);
     const [accountsPayable, setAccountsPayable] = useState<Account[]>([]);
     const [employees, setEmployees] = useState<Employee[]>([]);
+    const [cities, setCities] = useState<City[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isAdmin, setIsAdmin] = useState(false);
     const router = useRouter();
@@ -41,6 +43,7 @@ export default function AnalyticsPage() {
     });
     const [selectedClient, setSelectedClient] = useState('');
     const [selectedEmployee, setSelectedEmployee] = useState('');
+    const [selectedCityFilter, setSelectedCityFilter] = useState('');
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -70,22 +73,25 @@ export default function AnalyticsPage() {
     const fetchData = async () => {
         setIsLoading(true);
         try {
-            const [servicesSnap, clientsSnap, accountsPayableSnap, employeesSnap] = await Promise.all([
+            const [servicesSnap, clientsSnap, accountsPayableSnap, employeesSnap, citiesSnap] = await Promise.all([
                 getDocs(collection(db, "servicos")),
                 getDocs(collection(db, "clientes")),
                 getDocs(collection(db, "contas_a_pagar")),
                 getDocs(collection(db, "funcionarios")),
+                getDocs(collection(db, "cidades")),
             ]);
 
             const servicesData = servicesSnap.docs.map(doc => ({ ...doc.data(), id: doc.id, data_cadastro: doc.data().data_cadastro.toDate() } as Service));
             const clientsData = clientsSnap.docs.map(doc => ({ ...doc.data(), codigo_cliente: doc.id } as Client));
             const accountsData = accountsPayableSnap.docs.map(doc => ({ ...doc.data(), id: doc.id, vencimento: doc.data().vencimento.toDate() } as Account));
             const employeesData = employeesSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Employee));
+            const citiesData = citiesSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as City));
 
             setServices(servicesData);
             setClients(clientsData);
             setAccountsPayable(accountsData);
             setEmployees(employeesData);
+            setCities(citiesData.sort((a, b) => a.nome_cidade.localeCompare(b.nome_cidade)));
 
         } catch (error) {
             console.error("Erro ao buscar dados para analytics:", error);
@@ -94,6 +100,8 @@ export default function AnalyticsPage() {
         }
     };
 
+    const getClient = (clientId: string) => clients.find(c => c.codigo_cliente === clientId);
+
     const filteredServices = useMemo(() => {
         return services.filter(service => {
             const serviceDate = new Date(service.data_cadastro);
@@ -101,9 +109,16 @@ export default function AnalyticsPage() {
 
             const inDateRange = dateRange?.from ? (serviceDate >= dateRange.from && serviceDate <= (dateRange.to || dateRange.from)) : true;
             const clientMatch = selectedClient ? service.cliente_id === selectedClient : true;
-            return inDateRange && clientMatch;
+            
+            let cityMatch = true;
+            if (selectedCityFilter) {
+                const client = getClient(service.cliente_id);
+                cityMatch = client?.endereco_residencial?.city === selectedCityFilter;
+            }
+
+            return inDateRange && clientMatch && cityMatch;
         });
-    }, [services, dateRange, selectedClient]);
+    }, [services, dateRange, selectedClient, selectedCityFilter, clients]);
     
     const filteredAccountsPayable = useMemo(() => {
          return accountsPayable.filter(account => {
@@ -127,7 +142,14 @@ export default function AnalyticsPage() {
             const received = services
                 .filter(s => {
                     const serviceDate = new Date(s.data_cadastro);
-                    return s.valor_pago > 0 && !isNaN(serviceDate.getTime()) && serviceDate >= monthStart && serviceDate <= monthEnd;
+                    const isInMonth = s.valor_pago > 0 && !isNaN(serviceDate.getTime()) && serviceDate >= monthStart && serviceDate <= monthEnd;
+                    if (!isInMonth) return false;
+                    
+                    if (selectedCityFilter) {
+                        const client = getClient(s.cliente_id);
+                        return client?.endereco_residencial?.city === selectedCityFilter;
+                    }
+                    return true;
                 })
                 .reduce((acc, s) => acc + s.valor_pago, 0);
             
@@ -213,6 +235,7 @@ export default function AnalyticsPage() {
         setDateRange(undefined);
         setSelectedClient('');
         setSelectedEmployee('');
+        setSelectedCityFilter('');
     }
 
     if (isLoading) {
@@ -283,6 +306,18 @@ export default function AnalyticsPage() {
                         <SelectTrigger className="w-[250px]"><SelectValue placeholder="Filtrar por funcionário..." /></SelectTrigger>
                         <SelectContent>{employees.map(e => <SelectItem key={e.id} value={e.id}>{e.nome}</SelectItem>)}</SelectContent>
                     </Select>
+                    <Select value={selectedCityFilter} onValueChange={setSelectedCityFilter}>
+                        <SelectTrigger className="w-[200px]">
+                            <SelectValue placeholder="Filtrar por cidade..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {cities.map(city => (
+                                <SelectItem key={city.id} value={city.nome_cidade}>
+                                    {city.nome_cidade}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
                     <Button variant="ghost" onClick={handleClearFilters} className="text-muted-foreground">
                         <XCircle className="mr-2 h-4 w-4"/>
                         Limpar Filtros
@@ -294,7 +329,7 @@ export default function AnalyticsPage() {
                 <Card>
                     <CardHeader>
                         <CardTitle>Visão Geral Financeira (Mensal)</CardTitle>
-                        <CardDescription>Receitas vs. Despesas nos últimos 6 meses (ignora filtros).</CardDescription>
+                        <CardDescription>Receitas vs. Despesas nos últimos 6 meses (considera filtro de cidade).</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <ChartContainer config={{}} className="h-[300px] w-full">

@@ -249,6 +249,11 @@ export default function RelatoriosPage() {
                 .filter(s => statusFilter ? s.status_execucao === statusFilter : true)
                 .filter(s => s.descricao.toLowerCase().includes(searchLower) || (getClient(s.cliente_id)?.nome_completo.toLowerCase() || '').includes(searchLower))
                 .filter(s => {
+                    if (!selectedCityFilter) return true;
+                    const client = getClient(s.cliente_id);
+                    return client?.endereco_residencial?.city === selectedCityFilter;
+                })
+                .filter(s => {
                     if (!dateRange?.from) return true;
                     const from = startOfDay(dateRange.from);
                     const to = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from);
@@ -475,6 +480,7 @@ export default function RelatoriosPage() {
   
   const renderFilterControls = () => {
     const isClients = selectedReport === 'clients';
+    const isServices = selectedReport === 'services';
     const hasStatus = ['services', 'accountsPayable'].includes(selectedReport);
     const hasDate = ['services', 'accountsPayable'].includes(selectedReport);
     const searchPlaceholder = {
@@ -500,7 +506,7 @@ export default function RelatoriosPage() {
                     onChange={(e) => setSearchFilter(e.target.value)}
                 />
             </div>
-            {isClients && (
+            {(isClients || isServices) && (
                 <Select value={selectedCityFilter} onValueChange={setSelectedCityFilter}>
                     <SelectTrigger className="w-full sm:w-[200px]">
                         <SelectValue placeholder="Filtrar por cidade..." />

@@ -29,7 +29,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { format, endOfDay, startOfDay } from 'date-fns';
-import type { Client, Service, AuthorizedUser } from '@/lib/types';
+import type { Client, Service, AuthorizedUser, City } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -61,6 +61,7 @@ const paymentSchema = z.object({
 export default function ContasAReceberPage() {
     const [services, setServices] = useState<Service[]>([]);
     const [clients, setClients] = useState<Client[]>([]);
+    const [cities, setCities] = useState<City[]>([]);
     const { toast } = useToast();
     const [isAdmin, setIsAdmin] = useState(false);
     const companyData = useCompanyData();
@@ -68,6 +69,7 @@ export default function ContasAReceberPage() {
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
     const [statusFilter, setStatusFilter] = useState<string>('');
     const [selectedClient, setSelectedClient] = useState<string>('');
+    const [selectedCityFilter, setSelectedCityFilter] = useState<string>('');
 
     const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
     const [editingService, setEditingService] = useState<Service | null>(null);
@@ -98,9 +100,10 @@ export default function ContasAReceberPage() {
 
     const fetchData = async () => {
         try {
-            const [servicesSnapshot, clientsSnapshot] = await Promise.all([
+            const [servicesSnapshot, clientsSnapshot, citiesSnapshot] = await Promise.all([
                 getDocs(collection(db, "servicos")),
                 getDocs(collection(db, "clientes")),
+                getDocs(collection(db, "cidades")),
             ]);
             
             const servicesData = servicesSnapshot.docs.map(doc => {
@@ -118,6 +121,9 @@ export default function ContasAReceberPage() {
 
             const clientsData = clientsSnapshot.docs.map(doc => ({ ...doc.data(), codigo_cliente: doc.id } as Client));
             setClients(clientsData.sort((a, b) => a.nome_completo.localeCompare(b.nome_completo)));
+
+            const citiesData = citiesSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as City));
+            setCities(citiesData.sort((a, b) => a.nome_cidade.localeCompare(b.nome_cidade)));
 
         } catch (error) {
             console.error("Erro ao buscar dados: ", error);
@@ -404,13 +410,18 @@ export default function ContasAReceberPage() {
                 return selectedClient ? service.cliente_id === selectedClient : true;
             })
             .filter(service => {
+                if (!selectedCityFilter) return true;
+                const client = getClient(service.cliente_id);
+                return client?.endereco_residencial?.city === selectedCityFilter;
+            })
+            .filter(service => {
                 if (!dateRange?.from) return true;
                 const fromDate = startOfDay(dateRange.from);
                 const toDate = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from);
                 const serviceDate = service.data_cadastro;
                 return serviceDate >= fromDate && serviceDate <= toDate;
             });
-    }, [services, statusFilter, selectedClient, dateRange]);
+    }, [services, statusFilter, selectedClient, selectedCityFilter, dateRange]);
 
     const totalReceivablePending = services
         .reduce((acc, curr) => acc + (curr.saldo_devedor || 0), 0);
@@ -473,6 +484,7 @@ export default function ContasAReceberPage() {
         setDateRange(undefined);
         setStatusFilter('');
         setSelectedClient('');
+        setSelectedCityFilter('');
     }
 
     return (
@@ -577,6 +589,20 @@ export default function ContasAReceberPage() {
                                     {clients.map(c => (
                                         <SelectItem key={c.codigo_cliente} value={c.codigo_cliente}>
                                             {c.nome_completo}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                         </div>
+                         <div className="flex items-center gap-2">
+                            <Select value={selectedCityFilter} onValueChange={setSelectedCityFilter}>
+                                <SelectTrigger className="w-[200px]">
+                                    <SelectValue placeholder="Filtrar por cidade..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {cities.map(city => (
+                                        <SelectItem key={city.id} value={city.nome_cidade}>
+                                            {city.nome_cidade}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>

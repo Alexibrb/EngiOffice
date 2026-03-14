@@ -171,6 +171,7 @@ export default function ServicosPage() {
   const [serviceTypes, setServiceTypes] = useState<ServiceType[]>([]);
   const [expenses, setExpenses] = useState<Account[]>([]);
   const [search, setSearch] = useState('');
+  const [selectedCityFilter, setSelectedCityFilter] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isServiceTypeDialogOpen, setIsServiceTypeDialogOpen] = useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
@@ -493,6 +494,7 @@ export default function ServicosPage() {
   const handleClearFilters = () => {
     setSearch('');
     setStatusFilter('');
+    setSelectedCityFilter('');
     setDateRange(undefined);
   }
 
@@ -620,13 +622,18 @@ export default function ServicosPage() {
             return statusFilter ? service.status_execucao === statusFilter : true;
         })
         .filter(service => {
+            if (!selectedCityFilter) return true;
+            const client = getClient(service.cliente_id);
+            return client?.endereco_residencial?.city === selectedCityFilter;
+        })
+        .filter(service => {
             if (!dateRange?.from) return true;
             const fromDate = startOfDay(dateRange.from);
             const toDate = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from);
             const serviceDate = service.data_cadastro;
             return serviceDate >= fromDate && serviceDate <= toDate;
         });
-  }, [services, search, statusFilter, dateRange, clients]);
+  }, [services, search, statusFilter, selectedCityFilter, dateRange, clients]);
 
   const filteredTotal = filteredServices.reduce((acc, curr) => acc + (curr.valor_total || 0), 0);
   const filteredSaldoDevedor = filteredServices.reduce((acc, curr) => acc + (curr.saldo_devedor || 0), 0);
@@ -740,6 +747,18 @@ export default function ServicosPage() {
                         <SelectItem value="paralisado">Paralisado</SelectItem>
                         <SelectItem value="fiscalizado">Fiscalizado</SelectItem>
                         <SelectItem value="finalizado">Finalizado</SelectItem>
+                    </SelectContent>
+                </Select>
+                <Select value={selectedCityFilter} onValueChange={setSelectedCityFilter}>
+                    <SelectTrigger className="w-[200px]">
+                        <SelectValue placeholder="Filtrar por cidade..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {cities.map(city => (
+                            <SelectItem key={city.id} value={city.nome_cidade}>
+                                {city.nome_cidade}
+                            </SelectItem>
+                        ))}
                     </SelectContent>
                 </Select>
                 <Button variant="ghost" onClick={handleClearFilters} className="text-muted-foreground"><XCircle className="mr-2 h-4 w-4"/>Limpar</Button>

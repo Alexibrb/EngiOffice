@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -34,7 +33,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import type { Commission, Employee, Service, Client, Account, AuthorizedUser } from '@/lib/types';
+import type { Commission, Employee, Service, Client, Account, AuthorizedUser, City } from '@/lib/types';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
@@ -52,6 +51,7 @@ export default function ComissoesPage() {
     const [employees, setEmployees] = useState<Employee[]>([]);
     const [clients, setClients] = useState<Client[]>([]);
     const [services, setServices] = useState<Service[]>([]);
+    const [cities, setCities] = useState<City[]>([]);
     const [isDistributionListOpen, setIsDistributionListOpen] = useState(false);
     const [isDistributionDialogOpen, setIsDistributionDialogOpen] = useState(false);
     const [distributingService, setDistributingService] = useState<Service | null>(null);
@@ -64,6 +64,7 @@ export default function ComissoesPage() {
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
     const [statusFilter, setStatusFilter] = useState<string>('');
     const [selectedClient, setSelectedClient] = useState('');
+    const [selectedCityFilter, setSelectedCityFilter] = useState('');
     const [financials, setFinancials] = useState({
       balance: 0,
       commissionableEmployees: [] as Employee[],
@@ -98,12 +99,13 @@ export default function ComissoesPage() {
     const fetchData = async () => {
         setIsLoading(true);
         try {
-            const [commissionsSnapshot, employeesSnapshot, servicesSnapshot, clientsSnapshot, accountsPayableSnap] = await Promise.all([
+            const [commissionsSnapshot, employeesSnapshot, servicesSnapshot, clientsSnapshot, accountsPayableSnap, citiesSnapshot] = await Promise.all([
                 getDocs(collection(db, "comissoes")),
                 getDocs(collection(db, "funcionarios")),
                 getDocs(collection(db, "servicos")),
                 getDocs(collection(db, "clientes")),
                 getDocs(collection(db, "contas_a_pagar")),
+                getDocs(collection(db, "cidades")),
             ]);
 
             const commissionsData = commissionsSnapshot.docs.map(doc => {
@@ -126,6 +128,9 @@ export default function ComissoesPage() {
             
             const clientsData = clientsSnapshot.docs.map(doc => ({ ...doc.data(), codigo_cliente: doc.id } as Client));
             setClients(clientsData);
+
+            const citiesData = citiesSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as City));
+            setCities(citiesData.sort((a, b) => a.nome_cidade.localeCompare(b.nome_cidade)));
 
             // Fetch financials for distribution dialog
             const allServices = servicesData;
@@ -222,6 +227,7 @@ export default function ComissoesPage() {
         setDateRange(undefined);
         setStatusFilter('');
         setSelectedClient('');
+        setSelectedCityFilter('');
     }
 
     const filteredCommissions = commissions
@@ -237,6 +243,11 @@ export default function ComissoesPage() {
         })
         .filter(commission => {
             return selectedClient ? commission.cliente_id === selectedClient : true;
+        })
+        .filter(commission => {
+            if (!selectedCityFilter) return true;
+            const client = getClient(commission.cliente_id);
+            return client?.endereco_residencial?.city === selectedCityFilter;
         });
     
     const filteredTotal = filteredCommissions.reduce((acc, curr) => acc + curr.valor, 0);
@@ -391,6 +402,18 @@ export default function ComissoesPage() {
                      <Select value={selectedClient} onValueChange={setSelectedClient}>
                         <SelectTrigger className="w-[250px]"><SelectValue placeholder="Filtrar por cliente..." /></SelectTrigger>
                         <SelectContent>{clients.map(c => <SelectItem key={c.codigo_cliente} value={c.codigo_cliente}>{c.nome_completo}</SelectItem>)}</SelectContent>
+                    </Select>
+                    <Select value={selectedCityFilter} onValueChange={setSelectedCityFilter}>
+                        <SelectTrigger className="w-[200px]">
+                            <SelectValue placeholder="Filtrar por cidade..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {cities.map(city => (
+                                <SelectItem key={city.id} value={city.nome_cidade}>
+                                    {city.nome_cidade}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
                     </Select>
                      <Button variant="ghost" onClick={handleClearFilters} className="text-muted-foreground">
                         <XCircle className="mr-2 h-4 w-4"/>
@@ -734,6 +757,3 @@ function ProfitDistributionDialog({ isOpen, setIsOpen, service, financials, toas
         </Dialog>
     );
 }
-    
-
-    
