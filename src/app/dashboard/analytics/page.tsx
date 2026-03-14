@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -5,12 +6,12 @@ import { collection, getDocs, query, where, Timestamp } from 'firebase/firestore
 import { db, auth } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
-import type { Service, Client, Account, Employee, AuthorizedUser, City } from '@/lib/types';
+import type { Service, Client, Account, Employee, AuthorizedUser, City, Supplier } from '@/lib/types';
 import { PageHeader } from '@/components/page-header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell, AreaChart, Area, LineChart, Line } from 'recharts';
-import { Loader2, XCircle, Calendar as CalendarIcon, ShieldAlert, TrendingUp, Truck, Banknote } from 'lucide-react';
+import { Loader2, XCircle, Calendar as CalendarIcon, ShieldAlert, TrendingUp, Truck, Banknote, User } from 'lucide-react';
 import { format, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, eachMonthOfInterval, startOfDay, subDays, isBefore, endOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
@@ -31,6 +32,7 @@ export default function AnalyticsPage() {
     const [clients, setClients] = useState<Client[]>([]);
     const [accountsPayable, setAccountsPayable] = useState<Account[]>([]);
     const [employees, setEmployees] = useState<Employee[]>([]);
+    const [suppliers, setSuppliers] = useState<Supplier[]>([]);
     const [cities, setCities] = useState<City[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isAdmin, setIsAdmin] = useState(false);
@@ -70,12 +72,13 @@ export default function AnalyticsPage() {
     const fetchData = async () => {
         setIsLoading(true);
         try {
-            const [servicesSnap, clientsSnap, accountsPayableSnap, employeesSnap, citiesSnap] = await Promise.all([
+            const [servicesSnap, clientsSnap, accountsPayableSnap, employeesSnap, citiesSnap, suppliersSnap] = await Promise.all([
                 getDocs(collection(db, "servicos")),
                 getDocs(collection(db, "clientes")),
                 getDocs(collection(db, "contas_a_pagar")),
                 getDocs(collection(db, "funcionarios")),
                 getDocs(collection(db, "cidades")),
+                getDocs(collection(db, "fornecedores")),
             ]);
 
             const servicesData = servicesSnap.docs.map(doc => {
@@ -101,11 +104,13 @@ export default function AnalyticsPage() {
 
             const employeesData = employeesSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Employee));
             const citiesData = citiesSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as City));
+            const suppliersData = suppliersSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Supplier));
 
             setServices(servicesData);
             setClients(clientsData);
             setAccountsPayable(accountsData);
             setEmployees(employeesData);
+            setSuppliers(suppliersData);
             setCities(citiesData.sort((a, b) => a.nome_cidade.localeCompare(b.nome_cidade)));
 
         } catch (error) {
@@ -523,6 +528,40 @@ export default function AnalyticsPage() {
             .sort((a, b) => b.receita - a.receita)
             .slice(0, 5);
     }, [clients, services, selectedCityFilter, dateRange]);
+
+    const expensesByPayeeData = useMemo(() => {
+        const payeeMap: Record<string, { name: string, total: number }> = {};
+
+        accountsPayable
+            .filter(a => {
+                if (a.status !== 'pago') return false;
+                if (selectedClient && a.cliente_id !== selectedClient) return false;
+                if (dateRange?.from) {
+                    const from = startOfDay(dateRange.from);
+                    const to = dateRange.to ? endOfDay(dateRange.to) : endOfDay(from);
+                    return a.vencimento >= from && a.vencimento <= to;
+                }
+                return true;
+            })
+            .forEach(a => {
+                const id = a.referencia_id;
+                if (!payeeMap[id]) {
+                    let name = 'Desconhecido';
+                    if (a.tipo_referencia === 'funcionario') {
+                        name = employees.find(e => e.id === id)?.nome || 'Funcionário';
+                    } else {
+                        name = suppliers.find(s => s.id === id)?.razao_social || 'Fornecedor';
+                    }
+                    payeeMap[id] = { name, total: 0 };
+                }
+                payeeMap[id].total += (a.valor || 0);
+            });
+
+        return Object.values(payeeMap)
+            .filter(p => p.total > 0)
+            .sort((a, b) => b.total - a.total)
+            .slice(0, 10);
+    }, [accountsPayable, employees, suppliers, dateRange, selectedClient]);
         
     const handleClearFilters = () => {
         setDateRange(undefined);
@@ -840,7 +879,29 @@ export default function AnalyticsPage() {
                     </CardContent>
                 </Card>
 
-                {/* 9. Status dos Serviços */}
+                {/* 9. Gastos por Favorecido */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <User className="h-5 w-5 text-red-500" />
+                            Top 10 Favorecidos por Gastos
+                        </CardTitle>
+                        <CardDescription>Maiores volumes de pagamentos realizados (Fornecedores e Funcionários).</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <ChartContainer config={{}} className="h-[400px] w-full">
+                            <BarChart data={expensesByPayeeData} layout="vertical">
+                                <CartesianGrid horizontal={false} strokeDasharray="3 3" />
+                                <XAxis type="number" hide />
+                                <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} tickMargin={8} width={180} />
+                                <ChartTooltip content={<ChartTooltipContent formatter={(value) => `R$ ${Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}/>} />
+                                <Bar dataKey="total" fill={NEGATIVE_COLOR} radius={4} name="Total Pago" />
+                            </BarChart>
+                        </ChartContainer>
+                    </CardContent>
+                </Card>
+
+                {/* 10. Status dos Serviços */}
                 <Card>
                     <CardHeader>
                         <CardTitle>Status dos Serviços</CardTitle>
