@@ -9,9 +9,9 @@ import type { Service, Client, Account, AuthorizedUser, City, ServicePayment, Su
 import { PageHeader } from '@/components/page-header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@/components/ui/chart';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, BarChart, Bar } from 'recharts';
-import { Loader2, XCircle, ShieldAlert, TrendingUp, Wallet, Users, Truck } from 'lucide-react';
-import { format, subMonths, startOfMonth, endOfMonth, eachMonthOfInterval, isAfter } from 'date-fns';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, BarChart, Bar, ResponsiveContainer } from 'recharts';
+import { Loader2, XCircle, ShieldAlert, TrendingUp, Wallet, Users, Truck, Activity } from 'lucide-react';
+import { format, subMonths, startOfMonth, endOfMonth, eachMonthOfInterval, isAfter, subDays, eachDayOfInterval, startOfDay, endOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
@@ -103,7 +103,6 @@ export default function AnalyticsPage() {
                 } as ServicePayment;
             });
 
-            // Lógica de Reconstrução: Incluir valores pagos que não possuem histórico detalhado
             const reconstructedReceivables: ServicePayment[] = [...receivablesHistory];
             
             servicesData.forEach(service => {
@@ -136,51 +135,67 @@ export default function AnalyticsPage() {
         }
     };
 
-    // 1. Filtro de Recebimentos
     const filteredReceivables = useMemo(() => {
         return receivables.filter(r => {
             const service = services.find(s => s.id === r.servico_id);
             if (!service) return false;
-
             const matchesCity = selectedCityFilter === 'none' || service.endereco_obra?.city === selectedCityFilter;
             const matchesClient = selectedClient === 'none' || r.cliente_id === selectedClient;
-            
             return matchesCity && matchesClient;
         });
     }, [receivables, services, selectedCityFilter, selectedClient]);
 
-    // 2. Filtro de Despesas
     const filteredExpenses = useMemo(() => {
         return accountsPayable.filter(a => {
             if (a.status !== 'pago') return false;
-
             if (a.servico_id) {
                 const service = services.find(s => s.id === a.servico_id);
                 if (!service) return false;
                 if (selectedCityFilter !== 'none' && service.endereco_obra?.city !== selectedCityFilter) return false;
-            } else {
-                if (selectedCityFilter !== 'none') return false;
+            } else if (selectedCityFilter !== 'none') {
+                return false;
             }
-
             const matchesClient = selectedClient === 'none' || a.cliente_id === selectedClient;
             return matchesClient;
         });
     }, [accountsPayable, services, selectedClient, selectedCityFilter]);
 
-    // 3. Gráfico Crescimento Histórico Mensal (Cumulativo)
+    // 1. Evolução Diária (Step Line - Últimos 90 dias)
+    const dailyStepData = useMemo(() => {
+        if (receivables.length === 0 && accountsPayable.length === 0) return [];
+        const end = new Date();
+        const start = subDays(end, 89);
+        const days = eachDayOfInterval({ start, end });
+
+        return days.map(day => {
+            const dEnd = endOfDay(day);
+            const totalReceivedUntilNow = filteredReceivables
+                .filter(r => !isAfter(r.data, dEnd))
+                .reduce((acc, r) => acc + (r.valor || 0), 0);
+            
+            const totalPaidUntilNow = filteredExpenses
+                .filter(a => !isAfter(a.vencimento, dEnd))
+                .reduce((acc, a) => acc + (a.valor || 0), 0);
+
+            return {
+                date: format(day, 'dd/MM'),
+                saldo: totalReceivedUntilNow - totalPaidUntilNow,
+                receita: totalReceivedUntilNow,
+                despesa: totalPaidUntilNow
+            };
+        });
+    }, [filteredReceivables, filteredExpenses]);
+
+    // 2. Crescimento Histórico Mensal (Cumulativo)
     const cumulativeMonthlyData = useMemo(() => {
         if (receivables.length === 0 && accountsPayable.length === 0) return [];
-
         const end = endOfMonth(new Date());
         const start = startOfMonth(subMonths(end, 11)); 
 
         try {
             const months = eachMonthOfInterval({ start, end });
-
             return months.map(month => {
                 const monthEnd = endOfMonth(month);
-
-                // Soma acumulada até o final do mês corrente no loop
                 const totalReceivedUntilNow = filteredReceivables
                     .filter(r => !isAfter(r.data, monthEnd))
                     .reduce((acc, r) => acc + (r.valor || 0), 0);
@@ -199,9 +214,9 @@ export default function AnalyticsPage() {
         } catch (e) {
             return [];
         }
-    }, [filteredReceivables, filteredExpenses, receivables.length, accountsPayable.length]);
+    }, [filteredReceivables, filteredExpenses]);
 
-    // 4. Fluxo de Caixa Mensal
+    // 3. Fluxo de Caixa Mensal
     const monthlyFlowData = useMemo(() => {
         const end = endOfMonth(new Date());
         const start = startOfMonth(subMonths(end, 11)); 
@@ -210,11 +225,9 @@ export default function AnalyticsPage() {
         return months.map(month => {
             const mStart = startOfMonth(month);
             const mEnd = endOfMonth(month);
-
             const receivedInMonth = filteredReceivables
                 .filter(r => r.data >= mStart && r.data <= mEnd)
                 .reduce((acc, r) => acc + (r.valor || 0), 0);
-            
             const paidInMonth = filteredExpenses
                 .filter(a => a.vencimento >= mStart && a.vencimento <= mEnd)
                 .reduce((acc, a) => acc + (a.valor || 0), 0);
@@ -227,21 +240,20 @@ export default function AnalyticsPage() {
         });
     }, [filteredReceivables, filteredExpenses]);
 
-    // 5. Ranking de Clientes
+    // 4. Ranking de Clientes
     const topClientsData = useMemo(() => {
         const clientRevenue: Record<string, number> = {};
         filteredReceivables.forEach(r => {
             const name = clients.find(c => c.codigo_cliente === r.cliente_id)?.nome_completo || 'Desconhecido';
             clientRevenue[name] = (clientRevenue[name] || 0) + r.valor;
         });
-
         return Object.entries(clientRevenue)
             .map(([name, value]) => ({ name, value }))
             .sort((a, b) => b.value - a.value)
             .slice(0, 10);
     }, [filteredReceivables, clients]);
 
-    // 6. Gastos por Fornecedor (Exclui Funcionários)
+    // 5. Gastos por Fornecedor
     const topSuppliersData = useMemo(() => {
         const supplierExpenses: Record<string, number> = {};
         filteredExpenses
@@ -250,7 +262,6 @@ export default function AnalyticsPage() {
                 const name = suppliers.find(s => s.id === a.referencia_id)?.razao_social || 'Desconhecido';
                 supplierExpenses[name] = (supplierExpenses[name] || 0) + a.valor;
             });
-
         return Object.entries(supplierExpenses)
             .map(([name, value]) => ({ name, value }))
             .sort((a, b) => b.value - a.value);
@@ -289,12 +300,11 @@ export default function AnalyticsPage() {
         <div className="flex flex-col gap-8">
             <PageHeader 
                 title="Analytics"
-                description="Saúde financeira baseada em recebimentos reais e pagamentos realizados."
+                description="Visão detalhada da saúde financeira baseada em entradas e saídas reais."
             />
             
-            {/* Filtros */}
             <Card>
-                <CardHeader><CardTitle>Filtros do Dashboard</CardTitle></CardHeader>
+                <CardHeader><CardTitle>Filtros</CardTitle></CardHeader>
                 <CardContent className="flex flex-wrap items-center gap-4">
                     <Select value={selectedClient} onValueChange={setSelectedClient}>
                         <SelectTrigger className="w-[250px]"><SelectValue placeholder="Cliente" /></SelectTrigger>
@@ -303,7 +313,6 @@ export default function AnalyticsPage() {
                             {clients.map(c => <SelectItem key={c.codigo_cliente} value={c.codigo_cliente}>{c.nome_completo}</SelectItem>)}
                         </SelectContent>
                     </Select>
-
                     <Select value={selectedCityFilter} onValueChange={setSelectedCityFilter}>
                         <SelectTrigger className="w-[200px]"><SelectValue placeholder="Cidade da Obra" /></SelectTrigger>
                         <SelectContent>
@@ -311,7 +320,6 @@ export default function AnalyticsPage() {
                             {cities.map(city => <SelectItem key={city.id} value={city.nome_cidade}>{city.nome_cidade}</SelectItem>)}
                         </SelectContent>
                     </Select>
-
                     <Button variant="ghost" onClick={handleClearFilters} className="text-muted-foreground">
                         <XCircle className="mr-2 h-4 w-4"/>
                         Limpar Filtros
@@ -319,17 +327,38 @@ export default function AnalyticsPage() {
                 </CardContent>
             </Card>
 
-            {/* Grid de Gráficos Principais */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 
-                {/* 1. Crescimento Cumulativo */}
+                {/* NOVO: Evolução Diária do Saldo (Step Line) */}
+                <Card className="lg:col-span-2">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <Activity className="h-5 w-5 text-blue-500" />
+                            Evolução Diária do Saldo (Últimos 90 Dias)
+                        </CardTitle>
+                        <CardDescription>Movimentação detalhada do patrimônio dia após dia.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <ChartContainer config={{}} className="h-[350px] w-full">
+                            <LineChart data={dailyStepData}>
+                                <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.3} />
+                                <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} minTickGap={30} />
+                                <YAxis tickFormatter={(v) => `R$${Number(v).toLocaleString('pt-BR', { notation: 'compact' })}`} axisLine={false} tickLine={false} />
+                                <ChartTooltip content={<ChartTooltipContent formatter={(v) => `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />} />
+                                <Line type="stepAfter" dataKey="saldo" stroke={BALANCE_COLOR} strokeWidth={3} dot={false} name="Saldo Acumulado" />
+                            </LineChart>
+                        </ChartContainer>
+                    </CardContent>
+                </Card>
+
+                {/* Crescimento Histórico Acumulado Mensal */}
                 <Card className="lg:col-span-2">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <TrendingUp className="h-5 w-5 text-green-500" />
-                            Crescimento Histórico Acumulado
+                            Crescimento Histórico Acumulado (12 Meses)
                         </CardTitle>
-                        <CardDescription>Evolução patrimonial: soma total de todas as receitas vs todas as despesas ao longo do tempo.</CardDescription>
+                        <CardDescription>Evolução patrimonial total de receitas vs despesas ao longo do tempo.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <ChartContainer config={{}} className="h-[400px] w-full">
@@ -347,14 +376,14 @@ export default function AnalyticsPage() {
                     </CardContent>
                 </Card>
 
-                {/* 2. Fluxo de Caixa Mensal */}
+                {/* Fluxo de Caixa Mensal */}
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <Wallet className="h-5 w-5 text-blue-500" />
-                            Fluxo de Caixa Mensal
+                            Fluxo de Caixa Mensal (Entradas vs Saídas)
                         </CardTitle>
-                        <CardDescription>Entradas e saídas reais registradas em cada mês.</CardDescription>
+                        <CardDescription>Movimentação financeira real registrada dentro de cada mês.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <ChartContainer config={{}} className="h-[300px] w-full">
@@ -371,14 +400,14 @@ export default function AnalyticsPage() {
                     </CardContent>
                 </Card>
 
-                {/* 3. Ranking de Clientes */}
+                {/* Top Clientes */}
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <Users className="h-5 w-5 text-orange-500" />
-                            Top Clientes por Receita
+                            Top Clientes por Faturamento
                         </CardTitle>
-                        <CardDescription>Clientes com maior volume de pagamentos realizados.</CardDescription>
+                        <CardDescription>Clientes que geraram maior volume de pagamentos realizados.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <ChartContainer config={{}} className="h-[300px] w-full">
@@ -393,14 +422,14 @@ export default function AnalyticsPage() {
                     </CardContent>
                 </Card>
 
-                {/* 4. Gastos com Fornecedores */}
+                {/* Gastos com Fornecedores */}
                 <Card className="lg:col-span-2">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <Truck className="h-5 w-5 text-red-500" />
                             Gastos por Fornecedor
                         </CardTitle>
-                        <CardDescription>Ranking completo de pagamentos efetuados para fornecedores no período.</CardDescription>
+                        <CardDescription>Ranking de pagamentos efetuados para fornecedores no período.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <ChartContainer config={{}} className="h-[400px] w-full">
