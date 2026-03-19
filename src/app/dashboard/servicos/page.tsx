@@ -295,19 +295,54 @@ export default function ServicosPage() {
     try {
       const anexosArray = values.anexos ? values.anexos.split('\n').map(a => a.trim()).filter(a => a !== '') : [];
       
+      let valorPago = editingService?.valor_pago || 0;
+      
+      // Lógica de pagamento à vista: Se for novo serviço ou se foi alterado para à vista e ainda não estava pago
+      if (values.forma_pagamento === 'a_vista' && (!editingService || editingService.forma_pagamento !== 'a_vista')) {
+          valorPago = values.valor_total;
+      }
+
+      const saldoDevedor = values.valor_total - valorPago;
+      const statusFinanceiro = saldoDevedor <= 0.01 ? 'pago' : 'pendente';
+
       const serviceData = {
         ...values,
         anexos: anexosArray,
-        valor_pago: editingService?.valor_pago || 0,
-        saldo_devedor: values.valor_total - (editingService?.valor_pago || 0),
-        status_financeiro: (values.valor_total - (editingService?.valor_pago || 0)) <= 0.01 ? 'pago' : 'pendente',
+        valor_pago: valorPago,
+        saldo_devedor: Math.max(0, saldoDevedor),
+        status_financeiro: statusFinanceiro,
       };
 
       if (editingService) {
         await updateDoc(doc(db, 'servicos', editingService.id), serviceData);
+        
+        // Se mudou para à vista na edição, lança a diferença como recebimento
+        if (values.forma_pagamento === 'a_vista' && editingService.forma_pagamento !== 'a_vista') {
+            const diferenca = values.valor_total - editingService.valor_pago;
+            if (diferenca > 0) {
+                await addDoc(collection(db, 'recebimentos'), {
+                    servico_id: editingService.id,
+                    cliente_id: values.cliente_id,
+                    valor: diferenca,
+                    data: Timestamp.now(),
+                });
+            }
+        }
+        
         toast({ title: "Sucesso!", description: "Serviço atualizado." });
       } else {
-        await addDoc(collection(db, 'servicos'), serviceData);
+        const docRef = await addDoc(collection(db, 'servicos'), serviceData);
+        
+        // Se for à vista no cadastro inicial, cria o registro de recebimento automático
+        if (values.forma_pagamento === 'a_vista') {
+            await addDoc(collection(db, 'recebimentos'), {
+                servico_id: docRef.id,
+                cliente_id: values.cliente_id,
+                valor: values.valor_total,
+                data: Timestamp.now(),
+            });
+        }
+        
         toast({ title: "Sucesso!", description: "Serviço adicionado." });
       }
       setIsDialogOpen(false);
@@ -324,7 +359,6 @@ export default function ServicosPage() {
     try {
         const batch = writeBatch(db);
         
-        // Deletar dependentes
         const collections = ['recebimentos', 'contas_a_pagar', 'comissoes'];
         for (const col of collections) {
             const snap = await getDocs(query(collection(db, col), where("servico_id", "==", serviceId)));
