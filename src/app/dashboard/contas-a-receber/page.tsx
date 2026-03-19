@@ -515,6 +515,12 @@ export default function ContasAReceberPage() {
     const filteredReceivable = useMemo(() => {
         return services
             .filter(service => {
+                if (statusFilter === 'pendente') {
+                    return service.status_financeiro === 'pendente' && service.saldo_devedor > 0.01;
+                }
+                if (statusFilter === 'pago') {
+                    return service.status_financeiro === 'pago' || (service.status_financeiro !== 'cancelado' && service.saldo_devedor <= 0.01);
+                }
                 return statusFilter ? service.status_financeiro === statusFilter : true;
             })
             .filter(service => {
@@ -534,6 +540,7 @@ export default function ContasAReceberPage() {
     }, [services, statusFilter, selectedClient, selectedCityFilter, dateRange]);
 
     const totalReceivablePending = services
+        .filter(s => s.status_financeiro !== 'cancelado')
         .reduce((acc, curr) => acc + (curr.saldo_devedor || 0), 0);
 
     const totalReceivablePaid = services.reduce((acc, curr) => acc + (curr.valor_pago || 0), 0);
@@ -619,7 +626,7 @@ export default function ContasAReceberPage() {
                     <CardContent>
                         <div className="text-2xl font-bold text-green-500">R$ {totalReceivablePending.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
                         <p className="text-xs text-muted-foreground">
-                            Soma de todos os serviços "em andamento"
+                            Soma de todos os saldos devedores ativos
                         </p>
                     </CardContent>
                 </Card>

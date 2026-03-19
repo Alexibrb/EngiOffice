@@ -307,7 +307,9 @@ export default function DashboardPage() {
   
   const completedServices = services.filter(s => s.status_execucao === 'finalizado').length;
   
-  const totalReceivablePending = services.reduce((acc, curr) => acc + (curr.saldo_devedor || 0), 0);
+  const totalReceivablePending = services
+    .filter(s => s.status_financeiro !== 'cancelado')
+    .reduce((acc, curr) => acc + (curr.saldo_devedor || 0), 0);
 
   const totalPayablePending = accountsPayable
     .filter((a) => a.status === 'pendente')
@@ -766,7 +768,7 @@ export default function DashboardPage() {
               <CardContent>
                   <div className="text-2xl font-bold text-green-500">R$ {totalReceivablePending.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
                   <p className="text-xs text-muted-foreground">
-                      Soma de todos os saldos devedores
+                      Soma de todos os saldos devedores ativos
                   </p>
               </CardContent>
           </Card>
