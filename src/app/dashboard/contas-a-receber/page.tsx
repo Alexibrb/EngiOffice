@@ -68,7 +68,7 @@ export default function ContasAReceberPage() {
     const companyData = useCompanyData();
     
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
-    const [statusFilter, setStatusFilter] = useState<string>('');
+    const [statusFilter, setStatusFilter] = useState<string>('pendente');
     const [selectedClient, setSelectedClient] = useState<string>('');
     const [selectedCityFilter, setSelectedCityFilter] = useState<string>('');
 
@@ -635,10 +635,10 @@ export default function ContasAReceberPage() {
                             </PopoverTrigger>
                             <PopoverContent className="w-auto p-0" align="start"><Calendar initialFocus mode="range" selected={dateRange} onSelect={setDateRange} numberOfMonths={2} locale={ptBR}/></PopoverContent>
                         </Popover>
-                        <Select value={statusFilter} onValueChange={setStatusFilter}><SelectTrigger className="w-[180px]"><SelectValue placeholder="Filtrar status" /></SelectTrigger><SelectContent><SelectItem value="pendente">Pendente</SelectItem><SelectItem value="pago">Pago</SelectItem></SelectContent></Select>
+                        <Select value={statusFilter} onValueChange={setStatusFilter}><SelectTrigger className="w-[180px]"><SelectValue placeholder="Filtrar status" /></SelectTrigger><SelectContent><SelectItem value="all">Ver Tudo</SelectItem><SelectItem value="pendente">Pendente</SelectItem><SelectItem value="pago">Pago</SelectItem></SelectContent></Select>
                         <Select value={selectedClient} onValueChange={setSelectedClient}><SelectTrigger className="w-[220px]"><SelectValue placeholder="Filtrar cliente" /></SelectTrigger><SelectContent>{clients.map(c => <SelectItem key={c.codigo_cliente} value={c.codigo_cliente}>{c.nome_completo}</SelectItem>)}</SelectContent></Select>
                         <Select value={selectedCityFilter} onValueChange={setSelectedCityFilter}><SelectTrigger className="w-[180px]"><SelectValue placeholder="Filtrar cidade" /></SelectTrigger><SelectContent><SelectItem value="none">Todas as Cidades</SelectItem>{cities.map(city => <SelectItem key={city.id} value={city.nome_cidade}>{city.nome_cidade}</SelectItem>)}</SelectContent></Select>
-                        <Button variant="ghost" onClick={() => { setDateRange(undefined); setStatusFilter(''); setSelectedClient(''); setSelectedCityFilter(''); }} className="text-muted-foreground"><XCircle className="mr-2 h-4 w-4"/>Limpar</Button>
+                        <Button variant="ghost" onClick={() => { setDateRange(undefined); setStatusFilter('pendente'); setSelectedClient(''); setSelectedCityFilter(''); }} className="text-muted-foreground"><XCircle className="mr-2 h-4 w-4"/>Limpar</Button>
                     </div>
                 </CardHeader>
                 <CardContent>
