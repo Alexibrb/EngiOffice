@@ -173,14 +173,12 @@ export default function ContasAReceberPage() {
     const syncServiceTotal = async (serviceId: string) => {
         setIsSyncing(true);
         try {
-            // Buscar todos os recebimentos deste serviço
             const q = query(collection(db, 'recebimentos'), where('servico_id', '==', serviceId));
             const snap = await getDocs(q);
             const allPayments = snap.docs.map(doc => doc.data() as ServicePayment);
             
             const totalPago = allPayments.reduce((acc, curr) => acc + curr.valor, 0);
             
-            // Buscar dados atuais do serviço
             const serviceRef = doc(db, 'servicos', serviceId);
             const serviceSnap = await getDoc(serviceRef);
             
@@ -241,7 +239,7 @@ export default function ContasAReceberPage() {
     const generateReceipt = (service: Service, paymentValue?: number) => {
         const client = clients.find(c => c.codigo_cliente === service.cliente_id);
         if (!client) {
-            toast({ variant: 'destructive', title: 'Erro', description: 'Cliente não encontrado para gerar o recibo.' });
+            toast({ variant: 'destructive', title: 'Erro', description: 'Cliente não encontrado.' });
             return;
         }
 
@@ -288,7 +286,6 @@ export default function ContasAReceberPage() {
 
         let currentY = 90 + (splitText.length * 7) + 15;
 
-        // Histórico de Recebimentos
         const serviceHistory = paymentsHistory
             .filter(p => p.servico_id === service.id)
             .sort((a, b) => a.data.getTime() - b.data.getTime());
@@ -341,7 +338,7 @@ export default function ContasAReceberPage() {
     const generateProofOfService = (service: Service) => {
         const client = clients.find(c => c.codigo_cliente === service.cliente_id);
         if (!client) {
-            toast({ variant: 'destructive', title: 'Erro', description: 'Cliente não encontrado para gerar o comprovante.' });
+            toast({ variant: 'destructive', title: 'Erro', description: 'Cliente não encontrado.' });
             return;
         }
 
@@ -447,12 +444,6 @@ export default function ContasAReceberPage() {
         doc.line(pageWidth / 2 - 40, currentY, pageWidth / 2 + 40, currentY);
         doc.text(companyData?.companyName || 'Empresa/Profissional', pageWidth / 2, currentY + 5, { align: 'center' });
         
-        if (companyData?.address && companyData?.phone) {
-            const footerText = `${companyData.address} | ${companyData.phone}`;
-            doc.setFontSize(8);
-            doc.text(footerText, pageWidth / 2, doc.internal.pageSize.getHeight() - 10, { align: 'center' });
-        }
-
         doc.save(`comprovante_${client.nome_completo.replace(/\s/g, '_')}_${service.id}.pdf`);
     };
 
@@ -481,7 +472,6 @@ export default function ContasAReceberPage() {
                 data_ultimo_pagamento: Timestamp.now(),
             });
 
-            // Registrar na nova coleção de recebimentos (entradas financeiras individuais)
             await addDoc(collection(db, 'recebimentos'), {
                 servico_id: editingService.id,
                 cliente_id: editingService.cliente_id,
@@ -489,9 +479,7 @@ export default function ContasAReceberPage() {
                 data: Timestamp.now(),
             });
 
-            toast({ title: 'Sucesso!', description: 'Pagamento lançado com sucesso.' });
-            
-            // Re-fetch data to have up-to-date history before generating PDF
+            toast({ title: 'Sucesso!', description: 'Pagamento lançado.' });
             await fetchData();
 
             const updatedServiceForReceipt = {
@@ -500,18 +488,16 @@ export default function ContasAReceberPage() {
                 saldo_devedor: Math.max(0, novoSaldoDevedor),
             };
             generateReceipt(updatedServiceForReceipt, values.valor_pago);
-
             setIsPaymentDialogOpen(false);
 
         } catch (error) {
-            console.error("Erro ao processar pagamento: ", error);
-            toast({ variant: 'destructive', title: 'Erro', description: 'Não foi possível processar o pagamento.' });
+            console.error(error);
+            toast({ variant: 'destructive', title: 'Erro' });
         } finally {
             setIsPaymentLoading(false);
         }
     };
     
-    // Filtro de base para os contadores (ignora apenas o filtro de status em si)
     const baseFilteredServices = useMemo(() => {
         return services.filter(service => {
             const matchesClient = !selectedClient || service.cliente_id === selectedClient;
@@ -528,22 +514,16 @@ export default function ContasAReceberPage() {
 
     const filteredReceivable = useMemo(() => {
         return baseFilteredServices.filter(service => {
-            if (statusFilter === 'pendente') {
-                return service.saldo_devedor > 0.01;
-            }
-            if (statusFilter === 'pago') {
-                return service.saldo_devedor <= 0.01;
-            }
+            if (statusFilter === 'pendente') return service.saldo_devedor > 0.01;
+            if (statusFilter === 'pago') return service.saldo_devedor <= 0.01;
             return true;
         });
     }, [baseFilteredServices, statusFilter]);
 
     const counters = useMemo(() => {
-        // Calcular o recebido real somando as parcelas individuais que caem dentro do filtro de data/cliente/cidade
         const filteredPayments = paymentsHistory.filter(p => {
             const service = services.find(s => s.id === p.servico_id);
             if (!service) return false;
-            
             const matchesClient = !selectedClient || p.cliente_id === selectedClient;
             const matchesCity = !selectedCityFilter || selectedCityFilter === 'none' || service.endereco_obra?.city === selectedCityFilter;
             const matchesDate = (() => {
@@ -552,7 +532,6 @@ export default function ContasAReceberPage() {
                 const to = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from);
                 return p.data >= from && p.data <= to;
             })();
-            
             return matchesClient && matchesCity && matchesDate;
         });
 
@@ -560,7 +539,7 @@ export default function ContasAReceberPage() {
 
         return {
             total: baseFilteredServices.reduce((acc, curr) => acc + curr.valor_total, 0),
-            recebido: totalRecebidoNoPeriodo, // Dinâmico pelo histórico de pagamentos
+            recebido: totalRecebidoNoPeriodo,
             pendente: baseFilteredServices.reduce((acc, curr) => acc + (curr.saldo_devedor || 0), 0),
             quitados: baseFilteredServices.filter(s => s.saldo_devedor <= 0.01).length,
             emAberto: baseFilteredServices.filter(s => s.saldo_devedor > 0.01).length,
@@ -569,24 +548,17 @@ export default function ContasAReceberPage() {
 
     const generatePdf = () => {
         const doc = new jsPDF();
-        const title = 'Relatório de Contas a Receber (Serviços)';
-        const pageWidth = doc.internal.pageSize.getWidth();
-        
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(16);
-        doc.text(`${title} - ${companyData?.companyName || 'Empresa/Profissional'}`, 14, 22);
+        doc.text(`Relatório Financeiro de Recebíveis - ${companyData?.companyName || 'EngiOffice'}`, 14, 22);
         
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(10);
-        doc.text(`Data de Emissão: ${new Date().toLocaleDateString('pt-BR')}`, 14, 28);
-
         autoTable(doc, {
             startY: 35,
             head: [['Resumo Financeiro do Filtro', '']],
             body: [
-                ['Total dos Contratos:', `R$ ${counters.total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
-                ['Total Recebido:', `R$ ${counters.recebido.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
-                ['Total Saldo Devedor:', `R$ ${counters.pendente.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
+                ['Total dos Contratos:', `R$ ${counters.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
+                ['Total Recebido no Período:', `R$ ${counters.recebido.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
+                ['Total Saldo Devedor:', `R$ ${counters.pendente.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
             ],
             theme: 'grid',
             headStyles: { fillColor: [34, 139, 34] },
@@ -597,51 +569,32 @@ export default function ContasAReceberPage() {
     
         autoTable(doc, {
             startY: (doc as any).lastAutoTable.finalY + 10,
-            head: [['Descrição', 'Cliente', 'Data de Cadastro', 'Valor Total', 'Saldo Devedor', 'Status']],
+            head: [['Descrição', 'Cliente', 'Data', 'Valor Total', 'Saldo Devedor', 'Status']],
             body: filteredReceivable.map((service) => [
-            service.descricao,
-            getClient(service.cliente_id)?.nome_completo || 'Desconhecido',
-            format(service.data_cadastro, 'dd/MM/yyyy'),
-            `R$ ${(service.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-            `R$ ${(service.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-            service.saldo_devedor <= 0.01 ? 'pago' : 'pendente',
+                service.descricao,
+                getClient(service.cliente_id)?.nome_completo || 'Desconhecido',
+                format(service.data_cadastro, 'dd/MM/yyyy'),
+                `R$ ${service.valor_total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+                `R$ ${service.saldo_devedor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+                service.saldo_devedor <= 0.01 ? 'pago' : 'pendente',
             ]),
             theme: 'striped',
             headStyles: { fillColor: [34, 139, 34] },
-            rowPageBreak: 'avoid',
         });
     
         doc.save(`relatorio_financeiro_receber.pdf`);
       };
 
-    const handleClearFilters = () => {
-        setDateRange(undefined);
-        setStatusFilter('');
-        setSelectedClient('');
-        setSelectedCityFilter('');
-    }
-
-    const viewingServiceHistory = useMemo(() => {
-        if (!viewingService) return [];
-        return paymentsHistory
-            .filter(p => p.servico_id === viewingService.id)
-            .sort((a, b) => b.data.getTime() - a.data.getTime());
-    }, [viewingService, paymentsHistory]);
-
     return (
         <div className="flex flex-col gap-8">
-            <PageHeader 
-              title="Contas a Receber"
-              description="Gerencie os serviços prestados a serem recebidos dos clientes."
-            />
+            <PageHeader title="Contas a Receber" description="Gerencie os serviços prestados a serem recebidos dos clientes." />
             
-            {/* Contadores Financeiros */}
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                 <Card className="bg-blue-50 dark:bg-blue-950/20 border-l-4 border-l-blue-500">
                     <CardContent className="p-4 flex items-center justify-between">
                         <div className="space-y-1">
                             <p className="text-xs font-medium text-blue-600 dark:text-blue-400 uppercase">Total Contratos</p>
-                            <p className="text-xl font-bold text-foreground">R$ {counters.total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                            <p className="text-xl font-bold">R$ {counters.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
                         </div>
                         <TrendingUp className="h-8 w-8 text-blue-500 opacity-20" />
                     </CardContent>
@@ -649,8 +602,8 @@ export default function ContasAReceberPage() {
                 <Card className="bg-green-50 dark:bg-green-950/20 border-l-4 border-l-green-500">
                     <CardContent className="p-4 flex items-center justify-between">
                         <div className="space-y-1">
-                            <p className="text-xs font-medium text-green-600 dark:text-green-400 uppercase">Recebido</p>
-                            <p className="text-xl font-bold text-green-700 dark:text-green-300">R$ {counters.recebido.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                            <p className="text-xs font-medium text-green-600 dark:text-green-400 uppercase">Recebido (no período)</p>
+                            <p className="text-xl font-bold text-green-700 dark:text-green-300">R$ {counters.recebido.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
                         </div>
                         <DollarSign className="h-8 w-8 text-green-500 opacity-20" />
                     </CardContent>
@@ -659,27 +612,25 @@ export default function ContasAReceberPage() {
                     <CardContent className="p-4 flex items-center justify-between">
                         <div className="space-y-1">
                             <p className="text-xs font-medium text-red-600 dark:text-red-400 uppercase">A Receber</p>
-                            <p className="text-xl font-bold text-red-700 dark:text-red-300">R$ {counters.pendente.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                            <p className="text-xl font-bold text-red-700 dark:text-red-300">R$ {counters.pendente.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
                         </div>
                         <ArrowUp className="h-8 w-8 text-red-500 opacity-20" />
                     </CardContent>
                 </Card>
                 <Card className="bg-slate-100 dark:bg-slate-900 border-l-4 border-l-slate-400">
                     <CardContent className="p-4 flex items-center justify-between">
-                        <div className="space-y-1">
+                        <div className="space-y-1 text-center w-full">
                             <p className="text-xs font-medium text-muted-foreground uppercase">Quitados</p>
                             <p className="text-2xl font-bold">{counters.quitados}</p>
                         </div>
-                        <CheckCircle2 className="h-8 w-8 text-slate-400 opacity-20" />
                     </CardContent>
                 </Card>
                 <Card className="bg-amber-50 dark:bg-amber-950/20 border-l-4 border-l-amber-500">
                     <CardContent className="p-4 flex items-center justify-between">
-                        <div className="space-y-1">
+                        <div className="space-y-1 text-center w-full">
                             <p className="text-xs font-medium text-amber-600 dark:text-amber-400 uppercase">Em Aberto</p>
                             <p className="text-2xl font-bold text-amber-700 dark:text-amber-300">{counters.emAberto}</p>
                         </div>
-                        <Clock className="h-8 w-8 text-amber-500 opacity-20" />
                     </CardContent>
                 </Card>
             </div>
@@ -687,94 +638,23 @@ export default function ContasAReceberPage() {
              <Card>
                  <CardHeader>
                     <div className="flex flex-row items-center justify-between">
-                        <div>
-                            <CardTitle>Lançamentos</CardTitle>
-                        </div>
-                        <Button onClick={generatePdf} variant="outline">
-                            <Download className="mr-2 h-4 w-4" />
-                            Exportar PDF
-                        </Button>
+                        <CardTitle>Lançamentos</CardTitle>
+                        <Button onClick={generatePdf} variant="outline"><Download className="mr-2 h-4 w-4" />Exportar PDF</Button>
                     </div>
                      <div className="flex flex-wrap items-center gap-4 p-4 mt-4 bg-muted rounded-lg">
-                        <div className="flex items-center gap-2">
-                            <Popover>
-                                <PopoverTrigger asChild>
-                                  <Button
-                                    id="date"
-                                    variant={"outline"}
-                                    className={cn( "w-[300px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}
-                                  >
-                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                    {dateRange?.from ? (
-                                      dateRange.to ? (
-                                        <>
-                                          {format(dateRange.from, "LLL dd, y")} -{" "}
-                                          {format(dateRange.to, "LLL dd, y")}
-                                        </>
-                                      ) : (
-                                        format(dateRange.from, "LLL dd, y")
-                                      )
-                                    ) : (
-                                      <span>Todo o período</span>
-                                    )}
-                                  </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0" align="start">
-                                  <Calendar
-                                    initialFocus
-                                    mode="range"
-                                    defaultMonth={dateRange?.from}
-                                    selected={dateRange}
-                                    onSelect={setDateRange}
-                                    numberOfMonths={2}
-                                  />
-                                </PopoverContent>
-                            </Popover>
-                        </div>
-                         <div className="flex items-center gap-2">
-                            <Select value={statusFilter} onValueChange={setStatusFilter}>
-                                <SelectTrigger className="w-[200px]">
-                                    <SelectValue placeholder="Filtrar por status..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="pendente">Pendente</SelectItem>
-                                    <SelectItem value="pago">Pago</SelectItem>
-                                </SelectContent>
-                            </Select>
-                         </div>
-                         <div className="flex items-center gap-2">
-                            <Select value={selectedClient} onValueChange={setSelectedClient}>
-                                <SelectTrigger className="w-[250px]">
-                                    <SelectValue placeholder="Filtrar por cliente..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {clients.map(c => (
-                                        <SelectItem key={c.codigo_cliente} value={c.codigo_cliente}>
-                                            {c.nome_completo}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                         </div>
-                         <div className="flex items-center gap-2">
-                            <Select value={selectedCityFilter} onValueChange={setSelectedCityFilter}>
-                                <SelectTrigger className="w-[200px]">
-                                    <SelectValue placeholder="Filtrar por cidade..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="none">Todas as Cidades</SelectItem>
-                                    {cities.map(city => (
-                                        <SelectItem key={city.id} value={city.nome_cidade}>
-                                            {city.nome_cidade}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                         </div>
-                         <Button variant="ghost" onClick={handleClearFilters} className="text-muted-foreground">
-                            <XCircle className="mr-2 h-4 w-4"/>
-                            Limpar Filtros
-                         </Button>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button variant={"outline"} className={cn( "w-[300px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {dateRange?.from ? (dateRange.to ? <>{format(dateRange.from, "dd/MM/yy")} - {format(dateRange.to, "dd/MM/yy")}</> : format(dateRange.from, "dd/MM/yy")) : "Todo o período"}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start"><Calendar initialFocus mode="range" selected={dateRange} onSelect={setDateRange} numberOfMonths={2} locale={ptBR}/></PopoverContent>
+                        </Popover>
+                        <Select value={statusFilter} onValueChange={setStatusFilter}><SelectTrigger className="w-[180px]"><SelectValue placeholder="Filtrar status" /></SelectTrigger><SelectContent><SelectItem value="pendente">Pendente</SelectItem><SelectItem value="pago">Pago</SelectItem></SelectContent></Select>
+                        <Select value={selectedClient} onValueChange={setSelectedClient}><SelectTrigger className="w-[220px]"><SelectValue placeholder="Filtrar cliente" /></SelectTrigger><SelectContent>{clients.map(c => <SelectItem key={c.codigo_cliente} value={c.codigo_cliente}>{c.nome_completo}</SelectItem>)}</SelectContent></Select>
+                        <Select value={selectedCityFilter} onValueChange={setSelectedCityFilter}><SelectTrigger className="w-[180px]"><SelectValue placeholder="Filtrar cidade" /></SelectTrigger><SelectContent><SelectItem value="none">Todas as Cidades</SelectItem>{cities.map(city => <SelectItem key={city.id} value={city.nome_cidade}>{city.nome_cidade}</SelectItem>)}</SelectContent></Select>
+                        <Button variant="ghost" onClick={() => { setDateRange(undefined); setStatusFilter(''); setSelectedClient(''); setSelectedCityFilter(''); }} className="text-muted-foreground"><XCircle className="mr-2 h-4 w-4"/>Limpar</Button>
                     </div>
                 </CardHeader>
                 <CardContent>
@@ -782,12 +662,12 @@ export default function ContasAReceberPage() {
                         <div className="font-bold text-lg pl-2">Totais Filtrados</div>
                         <div className="flex flex-row gap-12 pr-4">
                             <div className="text-right">
-                                <div className="text-sm font-bold text-green-500">Recebido: R$ {counters.recebido.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                                <div className="text-sm font-bold text-red-500">Saldo: R$ {filteredReceivable.reduce((acc, curr) => acc + (curr.saldo_devedor || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                                <div className="text-sm font-bold text-green-500">Recebido (no período): R$ {counters.recebido.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                                <div className="text-sm font-bold text-red-500">Saldo Pendente: R$ {filteredReceivable.reduce((acc, curr) => acc + (curr.saldo_devedor || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
                             </div>
                             <div className="text-right">
-                                <div className="text-sm font-bold text-blue-400">Total Contratos: R$</div>
-                                <div className="text-lg font-bold text-blue-300">{filteredReceivable.reduce((acc, curr) => acc + curr.valor_total, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                                <div className="text-sm font-bold text-blue-400">Contratos na lista: R$</div>
+                                <div className="text-lg font-bold text-blue-300">{filteredReceivable.reduce((acc, curr) => acc + curr.valor_total, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
                             </div>
                         </div>
                     </div>
@@ -809,29 +689,15 @@ export default function ContasAReceberPage() {
                         <DialogTitle>Lançar Pagamento</DialogTitle>
                         <DialogDescription>
                             Serviço: {editingService?.descricao}<br/>
-                            Saldo Devedor Atual: <span className="font-bold text-red-500">R$ {(editingService?.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            Saldo Devedor: <span className="font-bold text-red-500">R$ {editingService?.saldo_devedor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                         </DialogDescription>
                     </DialogHeader>
                     <Form {...paymentForm}>
                         <form onSubmit={paymentForm.handleSubmit(handleProcessPayment)} className="space-y-4">
-                            <FormField
-                                control={paymentForm.control}
-                                name="valor_pago"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Valor Recebido (R$)</FormLabel>
-                                        <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                            <DialogFooter>
-                                <Button type="button" variant="ghost" onClick={() => setIsPaymentDialogOpen(false)}>Cancelar</Button>
-                                <Button type="submit" variant="accent" disabled={isPaymentLoading}>
-                                    {isPaymentLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                    Confirmar Pagamento
-                                </Button>
-                            </DialogFooter>
+                            <FormField control={paymentForm.control} name="valor_pago" render={({ field }) => (
+                                <FormItem><FormLabel>Valor Recebido (R$)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
+                            )}/>
+                            <DialogFooter><Button type="button" variant="ghost" onClick={() => setIsPaymentDialogOpen(false)}>Cancelar</Button><Button type="submit" variant="accent" disabled={isPaymentLoading}>{isPaymentLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Confirmar</Button></DialogFooter>
                         </form>
                     </Form>
                 </DialogContent>
@@ -839,111 +705,35 @@ export default function ContasAReceberPage() {
 
             <Dialog open={isHistoryDialogOpen} onOpenChange={setIsHistoryDialogOpen}>
                 <DialogContent className="sm:max-w-2xl">
-                    <DialogHeader>
-                        <DialogTitle>Histórico de Entradas</DialogTitle>
-                        <DialogDescription>
-                            Serviço: {viewingService?.descricao}
-                        </DialogDescription>
-                    </DialogHeader>
+                    <DialogHeader><DialogTitle>Histórico de Entradas</DialogTitle><DialogDescription>Serviço: {viewingService?.descricao}</DialogDescription></DialogHeader>
                     <div className="border rounded-md mt-4">
                         <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Data</TableHead>
-                                    <TableHead>Valor</TableHead>
-                                    {isAdmin && <TableHead className="w-[100px] text-right">Ações</TableHead>}
-                                </TableRow>
-                            </TableHeader>
+                            <TableHeader><TableRow><TableHead>Data</TableHead><TableHead>Valor</TableHead>{isAdmin && <TableHead className="w-[100px] text-right">Ações</TableHead>}</TableRow></TableHeader>
                             <TableBody>
-                                {viewingServiceHistory.length > 0 ? viewingServiceHistory.map((p) => (
+                                {paymentsHistory.filter(p => p.servico_id === viewingService?.id).length > 0 ? 
+                                    paymentsHistory.filter(p => p.servico_id === viewingService?.id).sort((a,b) => b.data.getTime() - a.data.getTime()).map((p) => (
                                     <TableRow key={p.id}>
-                                        <TableCell>{format(p.data, "dd/MM/yyyy 'às' HH:mm")}</TableCell>
-                                        <TableCell className="text-green-600 font-medium">R$ {p.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
-                                        {isAdmin && (
-                                            <TableCell className="text-right">
-                                                <div className="flex justify-end gap-2">
-                                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditEntry(p)}>
-                                                        <Pencil className="h-4 w-4 text-primary" />
-                                                    </Button>
-                                                    <AlertDialog>
-                                                        <AlertDialogTrigger asChild>
-                                                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                                                                <Trash2 className="h-4 w-4 text-destructive" />
-                                                            </Button>
-                                                        </AlertDialogTrigger>
-                                                        <AlertDialogContent>
-                                                            <AlertDialogHeader>
-                                                                <AlertDialogTitle>Excluir entrada?</AlertDialogTitle>
-                                                                <AlertDialogDescription>
-                                                                    Esta ação removerá este pagamento do histórico e atualizará o saldo devedor do serviço.
-                                                                </AlertDialogDescription>
-                                                            </AlertDialogHeader>
-                                                            <AlertDialogFooter>
-                                                                <AlertDialogCancel>Voltar</AlertDialogCancel>
-                                                                <AlertDialogAction onClick={() => handleDeleteEntry(p)} variant="destructive">Excluir</AlertDialogAction>
-                                                            </AlertDialogFooter>
-                                                        </AlertDialogContent>
-                                                    </AlertDialog>
-                                                </div>
-                                            </TableCell>
-                                        )}
+                                        <TableCell>{format(p.data, "dd/MM/yyyy HH:mm")}</TableCell>
+                                        <TableCell className="text-green-600 font-medium">R$ {p.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
+                                        {isAdmin && <TableCell className="text-right"><div className="flex justify-end gap-2"><Button variant="ghost" size="icon" onClick={() => handleEditEntry(p)}><Pencil className="h-4 w-4" /></Button><AlertDialog><AlertDialogTrigger asChild><Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button></AlertDialogTrigger><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Excluir entrada?</AlertDialogTitle></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Voltar</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteEntry(p)} variant="destructive">Excluir</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog></div></TableCell>}
                                     </TableRow>
-                                )) : (
-                                    <TableRow>
-                                        <TableCell colSpan={isAdmin ? 3 : 2} className="h-24 text-center">Nenhum registro de parcela encontrado.</TableCell>
-                                    </TableRow>
-                                )}
+                                )) : <TableRow><TableCell colSpan={3} className="h-24 text-center">Nenhum registro encontrado.</TableCell></TableRow>}
                             </TableBody>
-                            {viewingService && (
-                                <TableFooter>
-                                    <TableRow>
-                                        <TableCell className="font-bold">Total Recebido</TableCell>
-                                        <TableCell className="font-bold text-green-600">R$ {viewingService.valor_pago.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
-                                        {isAdmin && <TableCell></TableCell>}
-                                    </TableRow>
-                                </TableFooter>
-                            )}
                         </Table>
                     </div>
-                    {isSyncing && (
-                        <div className="flex items-center justify-center gap-2 mt-2 text-xs text-muted-foreground animate-pulse">
-                            <Loader2 className="h-3 w-3 animate-spin" /> Atualizando saldos...
-                        </div>
-                    )}
-                    <DialogFooter>
-                        <Button variant="ghost" onClick={() => setIsHistoryDialogOpen(false)}>Fechar</Button>
-                    </DialogFooter>
+                    <DialogFooter><Button variant="ghost" onClick={() => setIsHistoryDialogOpen(false)}>Fechar</Button></DialogFooter>
                 </DialogContent>
             </Dialog>
 
             <Dialog open={isEditEntryDialogOpen} onOpenChange={setIsEditEntryDialogOpen}>
                 <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                        <DialogTitle>Corrigir Lançamento</DialogTitle>
-                        <DialogDescription>
-                            Ajuste o valor registrado nesta entrada.
-                        </DialogDescription>
-                    </DialogHeader>
+                    <DialogHeader><DialogTitle>Corrigir Lançamento</DialogTitle></DialogHeader>
                     <Form {...editEntryForm}>
                         <form onSubmit={editEntryForm.handleSubmit(handleSaveEditedEntry)} className="space-y-4">
-                            <FormField
-                                control={editEntryForm.control}
-                                name="valor_pago"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Novo Valor (R$)</FormLabel>
-                                        <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                            <DialogFooter>
-                                <Button type="button" variant="ghost" onClick={() => setIsEditEntryDialogOpen(false)}>Cancelar</Button>
-                                <Button type="submit" variant="accent" disabled={isPaymentLoading}>
-                                    {isPaymentLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                    Salvar Alteração
-                                </Button>
-                            </DialogFooter>
+                            <FormField control={editEntryForm.control} name="valor_pago" render={({ field }) => (
+                                <FormItem><FormLabel>Novo Valor (R$)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
+                            )}/>
+                            <DialogFooter><Button type="button" variant="ghost" onClick={() => setIsEditEntryDialogOpen(false)}>Cancelar</Button><Button type="submit" variant="accent" disabled={isPaymentLoading}>Salvar</Button></DialogFooter>
                         </form>
                     </Form>
                 </DialogContent>
@@ -1001,10 +791,6 @@ function ReceivableTableComponent({ services, getClient, onPayment, onReceipt, o
                 <TableBody>
                     {services.length > 0 ? services.map((service) => {
                         const client = getClient(service.cliente_id);
-                        const obra = service.endereco_obra;
-                        const formattedObra = (obra && obra.street) ? `Obra: ${obra.street}, ${obra.number} - ${obra.neighborhood}, ${obra.city}` : '';
-                        const coordenadas = (service.coordenadas?.lat && service.coordenadas?.lng) ? `Coords: ${service.coordenadas.lat}, ${service.coordenadas.lng}` : '';
-
                         const isFullyPaid = (service.saldo_devedor || 0) <= 0.01;
                         const financialStatus = service.status_financeiro === 'cancelado' 
                             ? { text: 'Cancelado', variant: 'outline' as const }
@@ -1014,84 +800,36 @@ function ReceivableTableComponent({ services, getClient, onPayment, onReceipt, o
 
                         return (
                             <TableRow key={service.id}>
-                                <TableCell className="align-top">
-                                    <div className="font-bold">{client?.nome_completo || 'Desconhecido'}</div>
-                                </TableCell>
+                                <TableCell className="align-top"><div className="font-bold">{client?.nome_completo || 'N/A'}</div></TableCell>
                                 <TableCell className="align-top">
                                   <div className="font-medium">{service.descricao}</div>
-                                  <div className="text-xs text-muted-foreground">{formattedObra}</div>
-                                  <div className="text-xs text-muted-foreground">{coordenadas}</div>
-                                  {(service.anexos && service.anexos.length > 0) && (
-                                    <div className="text-xs text-muted-foreground mt-1 space-y-1">
-                                        {service.anexos.map((anexo, index) => (
-                                            <a key={index} href={anexo} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:underline truncate">
-                                                <LinkIcon className="h-3 w-3 shrink-0"/>
-                                                <span className="truncate">{anexo}</span>
-                                            </a>
-                                        ))}
-                                    </div>
-                                  )}
+                                  <div className="text-xs text-muted-foreground">{service.endereco_obra?.city} - {service.endereco_obra?.state}</div>
                                 </TableCell>
                                 <TableCell className="align-top">
-                                    <div className="font-medium text-xs">Contrato: R$ {(service.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                                    <div className="text-[10px] text-green-600">Já Pago: R$ {(service.valor_pago || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                                    <div className={cn("text-xs font-bold", isFullyPaid ? "text-muted-foreground" : "text-red-500")}>
-                                        Saldo: R$ {(service.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                    </div>
-                                    {service.quantidade_m2 ? <div className="text-[10px] text-muted-foreground">Area: {service.quantidade_m2} m²</div> : null}
+                                    <div className="font-medium text-xs">Contrato: R$ {service.valor_total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                                    <div className="text-[10px] text-green-600">Já Pago: R$ {service.valor_pago.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                                    <div className={cn("text-xs font-bold", isFullyPaid ? "text-muted-foreground" : "text-red-500")}>Saldo: R$ {service.saldo_devedor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
                                 </TableCell>
                                  <TableCell className="align-top space-y-1">
-                                    <Badge 
-                                        className="capitalize"
-                                        variant={financialStatus.variant}
-                                    >
-                                        {financialStatus.text}
-                                    </Badge>
-                                    <div className="text-[10px] text-muted-foreground capitalize">
-                                        Execução: {service.status_execucao}
-                                    </div>
+                                    <Badge className="capitalize" variant={financialStatus.variant}>{financialStatus.text}</Badge>
+                                    <div className="text-[10px] text-muted-foreground capitalize">Execução: {service.status_execucao}</div>
                                 </TableCell>
                                 <TableCell>
                                     <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button aria-haspopup="true" size="icon" variant="ghost">
-                                            <MoreHorizontal className="h-4 w-4" />
-                                            <span className="sr-only">Toggle menu</span>
-                                            </Button>
-                                        </DropdownMenuTrigger>
+                                        <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
-                                            <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                                            <DropdownMenuItem onClick={() => handleEditService(service.id)} disabled={!isAdmin}>
-                                                <ExternalLink className="mr-2 h-4 w-4" />
-                                                Ver/Editar Serviço
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem onClick={() => onPayment(service)} disabled={isFullyPaid || service.status_financeiro === 'cancelado'}>
-                                                <HandCoins className="mr-2 h-4 w-4" />
-                                                Lançar Pagamento
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem onClick={() => onViewHistory(service)}>
-                                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                                Ver Histórico de Entradas
-                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => handleEditService(service.id)} disabled={!isAdmin}><ExternalLink className="mr-2 h-4 w-4" />Ver/Editar</DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => onPayment(service)} disabled={isFullyPaid}><HandCoins className="mr-2 h-4 w-4" />Lançar Pagto</DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => onViewHistory(service)}><CalendarIcon className="mr-2 h-4 w-4" />Histórico</DropdownMenuItem>
                                             <DropdownMenuSeparator />
-                                            <DropdownMenuItem onClick={() => onReceipt(service)}>
-                                                <FileText className="mr-2 h-4 w-4" />
-                                                Gerar Recibo
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem onClick={() => onProofOfService(service)}>
-                                                <FileText className="mr-2 h-4 w-4" />
-                                                Gerar Comprovante
-                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => onReceipt(service)}><FileText className="mr-2 h-4 w-4" />Recibo</DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => onProofOfService(service)}><FileText className="mr-2 h-4 w-4" />Comprovante</DropdownMenuItem>
                                         </DropdownMenuContent>
                                     </DropdownMenu>
                                 </TableCell>
                             </TableRow>
                         )
-                    }) : (
-                        <TableRow>
-                            <TableCell colSpan={5} className="h-24 text-center">Nenhum serviço encontrado.</TableCell>
-                        </TableRow>
-                    )}
+                    }) : <TableRow><TableCell colSpan={5} className="h-24 text-center">Nenhum serviço encontrado.</TableCell></TableRow>}
                 </TableBody>
             </Table>
         </div>

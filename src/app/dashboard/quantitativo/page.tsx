@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo, useCallback, forwardRef, useImperativeHandle, useRef, useEffect } from 'react';
@@ -161,9 +160,9 @@ const SapataCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimento
       const totalLinearFerro = ((comprimentoBarraHorizontalM * elosHoriz) + (comprimentoBarraVerticalM * elosVert)) * quant;
       const totalBarrasFerro = totalLinearFerro > 0 ? totalLinearFerro / COMPRIMENTO_BARRA_FERRO : 0;
 
-      const cimentoSacos = volumeTotal > 0 ? volumeTotal / 0.16 : 0;
-      const areiaM3 = (cimentoSacos * 5 * 18) / 1000;
-      const britaM3 = (cimentoSacos * 6 * 18) / 1000;
+      const cimentoSacos = volumeTotal > 0 ? volumeTotal / 0.15 : 0;
+      const areiaM3 = (cimentoSacos * 4.5 * 18) / 1000;
+      const britaM3 = (cimentoSacos * 5.5 * 18) / 1000;
 
       return {
         ...row,
@@ -377,9 +376,9 @@ const VigamentoCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavime
       const totalLinearFerro = (comprimentoM > 0 ? (comprimentoM + 0.5) : 0) * quantDeFerro * quant;
       const totalBarrasFerro = totalLinearFerro > 0 ? totalLinearFerro / COMPRIMENTO_BARRA_FERRO : 0;
 
-      const cimentoSacos = volumeTotal > 0 ? volumeTotal / 0.16 : 0;
-      const areiaM3 = (cimentoSacos * 5 * 18) / 1000;
-      const britaM3 = (cimentoSacos * 6 * 18) / 1000;
+      const cimentoSacos = volumeTotal > 0 ? volumeTotal / 0.15 : 0;
+      const areiaM3 = (cimentoSacos * 4.5 * 18) / 1000;
+      const britaM3 = (cimentoSacos * 5.5 * 18) / 1000;
       
       const totalBarrasEstribos = (comprimentoM / 0.15) * (((largura + altura + 4) * 2) / 100) * quant / 12;
 
@@ -599,9 +598,9 @@ const PilarCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoF
         const totalLinearFerro = (comprimentoM > 0 ? (comprimentoM + 0.5) : 0) * quantDeFerro * quant;
         const totalBarrasFerro = totalLinearFerro > 0 ? totalLinearFerro / COMPRIMENTO_BARRA_FERRO : 0;
 
-        const cimentoSacos = volumeTotal > 0 ? volumeTotal / 0.16 : 0;
-        const areiaM3 = (cimentoSacos * 5 * 18) / 1000;
-        const britaM3 = (cimentoSacos * 6 * 18) / 1000;
+        const cimentoSacos = volumeTotal > 0 ? volumeTotal / 0.15 : 0;
+        const areiaM3 = (cimentoSacos * 4.5 * 18) / 1000;
+        const britaM3 = (cimentoSacos * 5.5 * 18) / 1000;
 
         const totalBarrasEstribos = (comprimentoM / 0.15) * (((largura + altura + 4) * 2) / 100) * quant / 12;
 
@@ -803,7 +802,7 @@ const LajeCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimentoFi
 
       const espessuraM = espessuraConcreto / 100;
       const volumeTotal = area * espessuraM;
-      const cimentoSacos = volumeTotal > 0 ? volumeTotal / 0.14 : 0;
+      const cimentoSacos = volumeTotal > 0 ? volumeTotal / 0.15 : 0;
       const areiaM3 = cimentoSacos > 0 ? (cimentoSacos * 4 * 18) / 1000 : 0;
       const britaM3 = cimentoSacos > 0 ? (cimentoSacos * 5 * 18) / 1000 : 0;
 
@@ -953,6 +952,7 @@ type AlvenariaRow = {
   area: string; // m²
   larguraBloco: string; // cm
   alturaBloco: string; // cm
+  espessuraParede: string; // cm
   junta: string; // cm
 };
 
@@ -960,8 +960,9 @@ const initialAlvenariaRow: Omit<AlvenariaRow, 'id'> = {
   pav: 'Térreo',
   descricao: 'Parede 1',
   area: '',
-  larguraBloco: '',
-  alturaBloco: '',
+  larguraBloco: '19',
+  alturaBloco: '19',
+  espessuraParede: '14',
   junta: '1.5',
 };
 
@@ -996,24 +997,25 @@ const AlvenariaCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavime
         const area = parseFloat(row.area) || 0;
         const larguraBloco = parseFloat(row.larguraBloco) || 0;
         const alturaBloco = parseFloat(row.alturaBloco) || 0;
+        const espessuraParede = parseFloat(row.espessuraParede) || 0;
         const junta = parseFloat(row.junta) || 0;
 
-        const A = area;
-        const L = larguraBloco / 100; // m
-        const H = alturaBloco / 100; // m
-        const j_m = junta / 100; // m
+        const L_m = larguraBloco / 100;
+        const H_m = alturaBloco / 100;
+        const E_m = espessuraParede / 100;
+        const j_m = junta / 100;
       
-        const areaBlocoComJunta = (L > 0 && H > 0) ? (L + j_m) * (H + j_m) : 0;
-        const N_blocos = areaBlocoComJunta > 0 ? A / areaBlocoComJunta : 0;
+        const areaBlocoComJunta = (L_m > 0 && H_m > 0) ? (L_m + j_m) * (H_m + j_m) : 0;
+        const N_blocos = areaBlocoComJunta > 0 ? area / areaBlocoComJunta : 0;
         const N_final = N_blocos * (1 + 0.05); // 5% de perda
       
-        // Traço 1:2:8 (cimento:cal:areia)
-        const V_arg = A * j_m; 
-        const V_final = V_arg * (1 + 0.10); // 10% de perda
+        // Cálculo de argamassa refinado: Volume = Area * ( (L+H+junta) * junta * espessura )
+        const V_arg_m3 = (L_m + H_m + j_m) * j_m * E_m * N_blocos;
+        const V_final = V_arg_m3 * (1 + 0.10); // 10% de perda
         
-        const Q_cimento = V_final * 193; // kg/m³
+        const Q_cimento = V_final * 190; // kg/m³ médio para traço 1:2:8
         const Sacos = Q_cimento > 0 ? Q_cimento / 50 : 0;
-        const Q_areia = V_final * 1.06; // m³/m³
+        const Q_areia = V_final * 1.05; // m³ areia por m³ argamassa
 
         return {
             ...row,
@@ -1058,14 +1060,13 @@ const AlvenariaCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavime
             <TableHeader>
               <TableRow>
                 <TableHead>Pav.</TableHead>
-                <TableHead>Descrição da Parede</TableHead>
-                <TableHead>Área Parede (m²)</TableHead>
-                <TableHead>Larg. Bloco (cm)</TableHead>
-                <TableHead>Alt. Bloco (cm)</TableHead>
+                <TableHead>Descrição Parede</TableHead>
+                <TableHead>Área (m²)</TableHead>
+                <TableHead>Bloco (L x A x E cm)</TableHead>
                 <TableHead>Junta (cm)</TableHead>
-                <TableHead className="font-bold bg-primary/10">Quant. Blocos (un)</TableHead>
+                <TableHead className="font-bold bg-primary/10">Blocos (un)</TableHead>
                 <TableHead className="font-bold bg-primary/10">Argamassa (m³)</TableHead>
-                <TableHead className="font-bold bg-primary/10">Cimento (sacos 50kg)</TableHead>
+                <TableHead className="font-bold bg-primary/10">Cimento (sacos)</TableHead>
                 <TableHead className="font-bold bg-primary/10">Areia (m³)</TableHead>
                 <TableHead className="w-[50px]"></TableHead>
               </TableRow>
@@ -1073,18 +1074,21 @@ const AlvenariaCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavime
             <TableBody>
               {calculatedRows.map((row) => (
                 <TableRow key={row.id}>
-                  <TableCell className="min-w-[150px]">
+                  <TableCell className="min-w-[120px]">
                     <Select value={row.pav} onValueChange={(value) => handleInputChange(row.id, 'pav', value)}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                            {pavimentoOptions.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
-                        </SelectContent>
+                        <SelectContent>{pavimentoOptions.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}</SelectContent>
                     </Select>
                   </TableCell>
                   <TableCell><Input value={row.descricao} onChange={(e) => handleInputChange(row.id, 'descricao', e.target.value)} /></TableCell>
                   <TableCell><Input type="number" step="0.1" value={row.area} onChange={(e) => handleInputChange(row.id, 'area', e.target.value)} /></TableCell>
-                  <TableCell><Input type="number" step="1" value={row.larguraBloco} onChange={(e) => handleInputChange(row.id, 'larguraBloco', e.target.value)} /></TableCell>
-                  <TableCell><Input type="number" step="1" value={row.alturaBloco} onChange={(e) => handleInputChange(row.id, 'alturaBloco', e.target.value)} /></TableCell>
+                  <TableCell className="min-w-[180px]">
+                    <div className="flex items-center gap-1">
+                      <Input type="number" value={row.larguraBloco} onChange={(e) => handleInputChange(row.id, 'larguraBloco', e.target.value)} placeholder="L" />
+                      <Input type="number" value={row.alturaBloco} onChange={(e) => handleInputChange(row.id, 'alturaBloco', e.target.value)} placeholder="A" />
+                      <Input type="number" value={row.espessuraParede} onChange={(e) => handleInputChange(row.id, 'espessuraParede', e.target.value)} placeholder="E" />
+                    </div>
+                  </TableCell>
                   <TableCell><Input type="number" step="0.1" value={row.junta} onChange={(e) => handleInputChange(row.id, 'junta', e.target.value)} /></TableCell>
                   <TableCell className="font-bold bg-primary/10">{Math.ceil(row.blocos)}</TableCell>
                   <TableCell className="font-bold bg-primary/10">{row.argamassa.toFixed(3)}</TableCell>
@@ -1100,7 +1104,7 @@ const AlvenariaCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavime
             </TableBody>
             <TableFooter>
               <TableRow>
-                  <TableCell colSpan={6} className="font-bold text-right">Totais</TableCell>
+                  <TableCell colSpan={5} className="font-bold text-right">Totais</TableCell>
                   <TableCell className="font-bold bg-primary/10">{Math.ceil(displayTotals.blocos as number)}</TableCell>
                   <TableCell className="font-bold bg-primary/10">{(displayTotals.argamassa as number).toFixed(3)}</TableCell>
                   <TableCell className="font-bold bg-primary/10">{(displayTotals.cimento as number).toFixed(2)}</TableCell>
@@ -1136,7 +1140,7 @@ const initialRebocoRow: Omit<RebocoRow, 'id'> = {
   pav: 'Térreo',
   descricao: 'Parede 1',
   area: '',
-  espessura: '',
+  espessura: '2',
   lados: '1',
 };
 
@@ -1175,13 +1179,12 @@ const RebocoCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimento
       const A = area * lados;
       const e = espessura / 100; // m
 
-      // Traço 1:2:9 (cimento:cal:areia)
       const V_arg = A * e; 
       const V_final = V_arg * (1 + 0.10); // 10% de perda
       
-      const Q_cimento = V_final * 174; //kg/m³
+      const Q_cimento = V_final * 175; //kg/m³ para reboco traço 1:2:9
       const Sacos = Q_cimento > 0 ? Q_cimento / 50 : 0;
-      const Q_areia = V_final * 1.04; // m³/m³
+      const Q_areia = V_final * 1.05; // m³/m³
       
       return {
         ...row,
@@ -1225,12 +1228,12 @@ const RebocoCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimento
             <TableHeader>
               <TableRow>
                 <TableHead>Pav.</TableHead>
-                <TableHead>Descrição da Parede</TableHead>
-                <TableHead>Área Parede (m²)</TableHead>
+                <TableHead>Descrição Parede</TableHead>
+                <TableHead>Área (m²)</TableHead>
                 <TableHead>Espessura (cm)</TableHead>
                 <TableHead>Lados</TableHead>
                 <TableHead className="font-bold bg-primary/10">Argamassa (m³)</TableHead>
-                <TableHead className="font-bold bg-primary/10">Cimento (sacos 50kg)</TableHead>
+                <TableHead className="font-bold bg-primary/10">Cimento (sacos)</TableHead>
                 <TableHead className="font-bold bg-primary/10">Areia (m³)</TableHead>
                 <TableHead className="w-[50px]"></TableHead>
               </TableRow>
@@ -1238,12 +1241,10 @@ const RebocoCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimento
             <TableBody>
               {calculatedRows.map((row) => (
                 <TableRow key={row.id}>
-                  <TableCell className="min-w-[150px]">
+                  <TableCell className="min-w-[120px]">
                      <Select value={row.pav} onValueChange={(value) => handleInputChange(row.id, 'pav', value)}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                            {pavimentoOptions.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
-                        </SelectContent>
+                        <SelectContent>{pavimentoOptions.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}</SelectContent>
                     </Select>
                   </TableCell>
                   <TableCell><Input value={row.descricao} onChange={(e) => handleInputChange(row.id, 'descricao', e.target.value)} /></TableCell>
@@ -1251,9 +1252,7 @@ const RebocoCalculator = forwardRef<CalculatorRef, CalculatorProps>(({ pavimento
                   <TableCell><Input type="number" step="0.1" value={row.espessura} onChange={(e) => handleInputChange(row.id, 'espessura', e.target.value)} /></TableCell>
                   <TableCell>
                      <Select value={String(row.lados)} onValueChange={(value) => handleInputChange(row.id, 'lados', value as '1' | '2')}>
-                        <SelectTrigger className="w-[80px]">
-                            <SelectValue />
-                        </SelectTrigger>
+                        <SelectTrigger className="w-[80px]"><SelectValue /></SelectTrigger>
                         <SelectContent>
                             <SelectItem value="1">1</SelectItem>
                             <SelectItem value="2">2</SelectItem>
@@ -1321,7 +1320,6 @@ export default function QuantitativoPage() {
         setClients(clientsData);
       } catch (error) {
         console.error("Erro ao buscar clientes: ", error);
-        // Optionally, show a toast message here
       }
     };
     fetchClients();
@@ -1375,7 +1373,7 @@ export default function QuantitativoPage() {
 
             doc.setFontSize(14);
             doc.setFont('helvetica', 'normal');
-            doc.text(pageNumber === 1 ? 'Relatório de Quantitativos' : 'Resumo Geral de Materiais', pageWidth / 2, currentY, { align: 'center' });
+            doc.text(pageNumber === 1 ? 'Relatório de Quantitativos Detalhado' : 'Resumo Consolidado de Materiais', pageWidth / 2, currentY, { align: 'center' });
             currentY += 10;
 
             if (selectedClient) {
@@ -1388,9 +1386,9 @@ export default function QuantitativoPage() {
             }
             
             doc.setFont('helvetica', 'bold');
-            doc.text('Filtro de Pavimento Aplicado:', 14, currentY);
+            doc.text('Filtro Aplicado:', 14, currentY);
             doc.setFont('helvetica', 'normal');
-            doc.text(pavimentoFilter === 'todos' ? 'Todos' : pavimentoFilter, 65, currentY);
+            doc.text(pavimentoFilter === 'todos' ? 'Todos os Pavimentos' : pavimentoFilter, 45, currentY);
 
             return currentY + 10;
         };
@@ -1407,7 +1405,6 @@ export default function QuantitativoPage() {
         });
 
 
-        // Seção Detalhada por Calculadora
         Object.entries(allTotals).forEach(([key, totals]) => {
             if (Object.keys(totals).length === 0) return;
             
@@ -1442,21 +1439,16 @@ export default function QuantitativoPage() {
 
             if ((totals.quantFerro3_16 as number) > 0) {
                  const value = totals.quantFerro3_16 as number;
-                 const itemName = `Ferro 3/16 (barras)`;
+                 const itemName = `Ferro 3/16 (estribos/barras)`;
                 body.push([itemName, value.toFixed(2)]);
                 consolidatedTotals[itemName] = { value: (consolidatedTotals[itemName]?.value || 0) + value, unit: 'un' };
             }
 
              if ((totals.blocos as number) > 0) {
                  const value = totals.blocos as number;
-                 const itemName = 'Blocos (un)';
+                 const itemName = 'Blocos Cerâmicos (un)';
                 body.push([itemName, Math.ceil(value)]);
                 consolidatedTotals[itemName] = { value: (consolidatedTotals[itemName]?.value || 0) + value, unit: 'un' };
-            }
-
-            if ((totals.argamassa as number) > 0) {
-                 const value = totals.argamassa as number;
-                 body.push(['Argamassa (m³)', value.toFixed(3)]);
             }
 
             if (key === 'lajes' && Array.isArray((totals as any).items)) {
@@ -1468,7 +1460,7 @@ export default function QuantitativoPage() {
             if (body.length > 0) {
                  autoTable(doc, {
                     startY: currentY,
-                    head: [[CALCULATOR_OPTIONS[key as CalculatorType], 'Total']],
+                    head: [[CALCULATOR_OPTIONS[key as CalculatorType], 'Quantidade']],
                     body: body,
                     theme: 'striped',
                     headStyles: { fillColor: [34, 139, 34] },
@@ -1477,12 +1469,6 @@ export default function QuantitativoPage() {
             }
         });
 
-        if (allTotals.lajes && (allTotals.lajes.area as number) > 0) {
-             const value = allTotals.lajes.area as number;
-             const itemName = 'Área de Laje (m²)';
-             consolidatedTotals[itemName] = { value: (consolidatedTotals[itemName]?.value || 0) + value, unit: 'm²' };
-        }
-        
         doc.addPage();
         currentY = addHeader(doc, 2);
         
@@ -1494,7 +1480,7 @@ export default function QuantitativoPage() {
 
              autoTable(doc, {
                 startY: currentY,
-                head: [['Resumo Geral de Materiais', 'Quantidade Total']],
+                head: [['Material Consolidado', 'Quantidade Final']],
                 body: summaryBody,
                 theme: 'grid',
                 headStyles: { fillColor: [22, 163, 74] },
@@ -1502,7 +1488,7 @@ export default function QuantitativoPage() {
         }
 
 
-        doc.save('relatorio_quantitativo.pdf');
+        doc.save('relatorio_quantitativo_preciso.pdf');
     };
 
     const handleToggleAll = () => {
@@ -1592,7 +1578,7 @@ export default function QuantitativoPage() {
         <CardHeader>
           <CardTitle>Identificação do Projeto</CardTitle>
           <CardDescription>
-            Selecione um cliente para associar este orçamento. Esta informação será usada no PDF exportado.
+            Selecione um cliente para associar este orçamento ao PDF exportado.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1627,5 +1613,3 @@ export default function QuantitativoPage() {
     </div>
   );
 }
-
-    

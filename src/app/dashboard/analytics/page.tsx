@@ -20,11 +20,11 @@ import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { DateRange } from 'react-day-picker';
 
-const REVENUE_COLOR = '#22c55e'; // Verde
-const EXPENSE_COLOR = '#ef4444'; // Vermelho
-const BALANCE_COLOR = '#3b82f6';  // Azul
-const PAYROLL_COLOR = '#a855f7'; // Roxo
-const PENDING_COLOR = '#f59e0b'; // Âmbar/Laranja para "A Receber"
+const REVENUE_COLOR = '#22c55e';
+const EXPENSE_COLOR = '#ef4444';
+const BALANCE_COLOR = '#3b82f6';
+const PAYROLL_COLOR = '#a855f7';
+const PENDING_COLOR = '#f59e0b';
 
 const flowChartConfig = {
     receita: { label: "Receitas", color: REVENUE_COLOR },
@@ -121,6 +121,7 @@ export default function AnalyticsPage() {
                 } as ServicePayment;
             });
 
+            // Reconstrução de pagamentos legados para precisão histórica
             const reconstructedReceivables: ServicePayment[] = [...receivablesHistory];
             servicesData.forEach(service => {
                 const historyForThisService = receivablesHistory.filter(r => r.servico_id === service.id);
@@ -172,9 +173,17 @@ export default function AnalyticsPage() {
     }, [receivables, services, selectedCityFilter, isGlobalView]);
 
     const activeExpenses = useMemo(() => {
-        if (!isGlobalView) return [];
-        return accountsPayable.filter(a => a.status === 'pago');
-    }, [accountsPayable, isGlobalView]);
+        return accountsPayable
+            .filter(a => a.status === 'pago')
+            .filter(a => {
+                if (isGlobalView) return true;
+                if (a.servico_id) {
+                    const service = services.find(s => s.id === a.servico_id);
+                    return service?.endereco_obra?.city === selectedCityFilter;
+                }
+                return false;
+            });
+    }, [accountsPayable, services, selectedCityFilter, isGlobalView]);
 
     const sampleRange = useMemo(() => {
         const start = dateRange?.from || startOfMonth(new Date());
@@ -204,7 +213,6 @@ export default function AnalyticsPage() {
 
                 return {
                     timestamp: day.getTime(),
-                    date: format(day, 'dd/MM'),
                     receita: receitaDia,
                     despesa: despesaDia,
                     folha: folhaDia
@@ -230,7 +238,6 @@ export default function AnalyticsPage() {
 
                 return {
                     timestamp: day.getTime(),
-                    date: format(day, 'dd/MM/yy'),
                     saldo: totalReceivedUntilNow - totalPaidUntilNow,
                     receita: totalReceivedUntilNow,
                     despesa: totalPaidUntilNow
@@ -255,7 +262,6 @@ export default function AnalyticsPage() {
 
                 return { 
                     timestamp: month.getTime(),
-                    name: format(month, 'MMM/yy', { locale: ptBR }), 
                     receitas: totalReceivedUntilNow, 
                     despesas: totalPaidUntilNow,
                     saldo: totalReceivedUntilNow - totalPaidUntilNow
@@ -401,7 +407,7 @@ export default function AnalyticsPage() {
                             <Activity className="h-5 w-5" />
                             Patrimônio Acumulado (Diário)
                         </CardTitle>
-                        <CardDescription>Saldo líquido acumulado dia a dia, mostrando o impacto direto das transações.</CardDescription>
+                        <CardDescription>Saldo líquido acumulado dia a dia no período filtrado.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <ChartContainer config={{}} className="h-[400px] w-full">
@@ -415,7 +421,7 @@ export default function AnalyticsPage() {
                                     minTickGap={60}
                                     tickFormatter={(ts) => format(new Date(ts), 'dd/MM')}
                                 />
-                                <YAxis tickFormatter={(v) => `R$${Number(v).toLocaleString('pt-BR', { notation: 'compact' })}`} axisLine={false} tickLine={false} />
+                                <YAxis tickFormatter={(v) => `R$ ${Number(v).toLocaleString('pt-BR')}`} axisLine={false} tickLine={false} />
                                 <ChartTooltip content={<ChartTooltipContent formatter={(v, n) => `${n}: R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />} />
                                 <ChartLegend content={<ChartLegendContent />} />
                                 <Line type="stepAfter" dataKey="receita" stroke={REVENUE_COLOR} strokeWidth={1.5} dot={false} name="Receita Acum." />
@@ -445,7 +451,7 @@ export default function AnalyticsPage() {
                                     tickMargin={8}
                                     tickFormatter={(ts) => format(new Date(ts), 'MMM/yy', { locale: ptBR })}
                                 />
-                                <YAxis tickFormatter={(v) => `R$${Number(v).toLocaleString('pt-BR', { notation: 'compact' })}`} axisLine={false} tickLine={false} />
+                                <YAxis tickFormatter={(v) => `R$ ${Number(v).toLocaleString('pt-BR')}`} axisLine={false} tickLine={false} />
                                 <ChartTooltip content={<ChartTooltipContent formatter={(v, n) => `${n}: R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />} />
                                 <ChartLegend content={<ChartLegendContent />} />
                                 <Line type="monotone" dataKey="receitas" stroke={REVENUE_COLOR} strokeWidth={2} dot={true} name="Receitas Acum." />
@@ -475,7 +481,7 @@ export default function AnalyticsPage() {
                                     className="text-[10px] text-muted-foreground"
                                 />
                                 <YAxis 
-                                    tickFormatter={(v) => `R$${Number(v).toLocaleString('pt-BR', { notation: 'compact' })}`} 
+                                    tickFormatter={(v) => `R$ ${Number(v).toLocaleString('pt-BR')}`} 
                                     axisLine={false} 
                                     tickLine={false}
                                     tickMargin={10}
@@ -516,7 +522,7 @@ export default function AnalyticsPage() {
                                 <PieIcon className="h-5 w-5" />
                                 Status de Recebíveis (Contratos Ativos)
                             </CardTitle>
-                            <CardDescription>O que foi faturado vs. saldo pendente na carteira.</CardDescription>
+                            <CardDescription>O que foi faturado vs. saldo pendente na carteira filtrada.</CardDescription>
                         </CardHeader>
                         <CardContent>
                             <ChartContainer config={pieChartConfig} className="h-[300px] w-full">
@@ -549,7 +555,7 @@ export default function AnalyticsPage() {
                                 <Users className="h-5 w-5" />
                                 Maiores Faturamentos por Cliente
                             </CardTitle>
-                            <CardDescription>No período selecionado.</CardDescription>
+                            <CardDescription>No período e cidade selecionados.</CardDescription>
                         </CardHeader>
                         <CardContent>
                             <ChartContainer config={{}} className="h-[400px] w-full">
@@ -568,7 +574,7 @@ export default function AnalyticsPage() {
                                     <CartesianGrid horizontal={false} opacity={0.2} />
                                     <XAxis type="number" hide />
                                     <YAxis dataKey="name" type="category" width={150} axisLine={false} tickLine={false} className="text-[12px]" />
-                                    <ChartTooltip content={<ChartTooltipContent formatter={(v) => `R$ ${Number(v).toLocaleString('pt-BR')}`} />} />
+                                    <ChartTooltip content={<ChartTooltipContent formatter={(v) => `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />} />
                                     <Bar dataKey="value" fill="#8884d8" radius={[0, 4, 4, 0]} name="Receita Total" />
                                 </BarChart>
                             </ChartContainer>
@@ -581,7 +587,7 @@ export default function AnalyticsPage() {
                                 <Truck className="h-5 w-5" />
                                 Maiores Gastos com Fornecedores
                             </CardTitle>
-                            <CardDescription>No período selecionado.</CardDescription>
+                            <CardDescription>No período e cidade selecionados (apenas gastos vinculados).</CardDescription>
                         </CardHeader>
                         <CardContent>
                             <ChartContainer config={{}} className="h-[400px] w-full">
@@ -602,7 +608,7 @@ export default function AnalyticsPage() {
                                     <CartesianGrid horizontal={false} opacity={0.2} />
                                     <XAxis type="number" hide />
                                     <YAxis dataKey="name" type="category" width={150} axisLine={false} tickLine={false} className="text-[12px]" />
-                                    <ChartTooltip content={<ChartTooltipContent formatter={(v) => `R$ ${Number(v).toLocaleString('pt-BR')}`} />} />
+                                    <ChartTooltip content={<ChartTooltipContent formatter={(v) => `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />} />
                                     <Bar dataKey="value" fill="#f43f5e" radius={[0, 4, 4, 0]} name="Gasto Total" />
                                 </BarChart>
                             </ChartContainer>
