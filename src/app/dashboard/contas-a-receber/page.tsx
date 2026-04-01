@@ -23,7 +23,7 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import { collection, getDocs, doc, updateDoc, Timestamp, query, where, addDoc, deleteDoc, getDoc } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
-import { Calendar as CalendarIcon, Download, ExternalLink, XCircle, ArrowUp, TrendingUp, MoreHorizontal, HandCoins, FileText, Loader2, Link as LinkIcon, ClipboardCopy, Pencil, Trash2 } from 'lucide-react';
+import { Calendar as CalendarIcon, Download, ExternalLink, XCircle, ArrowUp, TrendingUp, MoreHorizontal, HandCoins, FileText, Loader2, Link as LinkIcon, ClipboardCopy, Pencil, Trash2, CheckCircle2, Clock, DollarSign } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -512,42 +512,42 @@ export default function ContasAReceberPage() {
         }
     };
     
-    const filteredReceivable = useMemo(() => {
-        return services
-            .filter(service => {
-                if (statusFilter === 'pendente') {
-                    return service.status_financeiro === 'pendente' && service.saldo_devedor > 0.01;
-                }
-                if (statusFilter === 'pago') {
-                    return service.status_financeiro === 'pago' || (service.status_financeiro !== 'cancelado' && service.saldo_devedor <= 0.01);
-                }
-                return statusFilter ? service.status_financeiro === statusFilter : true;
-            })
-            .filter(service => {
-                return selectedClient ? service.cliente_id === selectedClient : true;
-            })
-            .filter(service => {
-                if (!selectedCityFilter) return true;
-                return service.endereco_obra?.city === selectedCityFilter;
-            })
-            .filter(service => {
+    // Filtro de base para os contadores (ignora apenas o filtro de status em si)
+    const baseFilteredServices = useMemo(() => {
+        return services.filter(service => {
+            const matchesClient = !selectedClient || service.cliente_id === selectedClient;
+            const matchesCity = !selectedCityFilter || selectedCityFilter === 'none' || service.endereco_obra?.city === selectedCityFilter;
+            const matchesDate = (() => {
                 if (!dateRange?.from) return true;
                 const fromDate = startOfDay(dateRange.from);
                 const toDate = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from);
-                const serviceDate = service.data_cadastro;
-                return serviceDate >= fromDate && serviceDate <= toDate;
-            });
-    }, [services, statusFilter, selectedClient, selectedCityFilter, dateRange]);
+                return service.data_cadastro >= fromDate && service.data_cadastro <= toDate;
+            })();
+            return matchesClient && matchesCity && matchesDate && service.status_financeiro !== 'cancelado';
+        });
+    }, [services, selectedClient, selectedCityFilter, dateRange]);
 
-    const totalReceivablePending = services
-        .filter(s => s.status_financeiro !== 'cancelado')
-        .reduce((acc, curr) => acc + (curr.saldo_devedor || 0), 0);
+    const filteredReceivable = useMemo(() => {
+        return baseFilteredServices.filter(service => {
+            if (statusFilter === 'pendente') {
+                return service.saldo_devedor > 0.01;
+            }
+            if (statusFilter === 'pago') {
+                return service.saldo_devedor <= 0.01;
+            }
+            return true;
+        });
+    }, [baseFilteredServices, statusFilter]);
 
-    const totalReceivablePaid = services.reduce((acc, curr) => acc + (curr.valor_pago || 0), 0);
-
-    const filteredTotal = useMemo(() => filteredReceivable.reduce((acc, curr) => acc + curr.valor_total, 0), [filteredReceivable]);
-    const filteredSaldoDevedor = useMemo(() => filteredReceivable.reduce((acc, curr) => acc + (curr.saldo_devedor || 0), 0), [filteredReceivable]);
-    const filteredRecebido = useMemo(() => filteredReceivable.reduce((acc, curr) => acc + (curr.valor_pago || 0), 0), [filteredReceivable]);
+    const counters = useMemo(() => {
+        return {
+            total: baseFilteredServices.reduce((acc, curr) => acc + curr.valor_total, 0),
+            recebido: baseFilteredServices.reduce((acc, curr) => acc + (curr.valor_pago || 0), 0),
+            pendente: baseFilteredServices.reduce((acc, curr) => acc + (curr.saldo_devedor || 0), 0),
+            quitados: baseFilteredServices.filter(s => s.saldo_devedor <= 0.01).length,
+            emAberto: baseFilteredServices.filter(s => s.saldo_devedor > 0.01).length,
+        };
+    }, [baseFilteredServices]);
 
     const generatePdf = () => {
         const doc = new jsPDF();
@@ -566,9 +566,9 @@ export default function ContasAReceberPage() {
             startY: 35,
             head: [['Resumo Financeiro do Filtro', '']],
             body: [
-                ['Total dos Contratos:', `R$ ${filteredTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
-                ['Total Recebido:', `R$ ${filteredRecebido.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
-                ['Total Saldo Devedor:', `R$ ${filteredSaldoDevedor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
+                ['Total dos Contratos:', `R$ ${counters.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
+                ['Total Recebido:', `R$ ${counters.recebido.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
+                ['Total Saldo Devedor:', `R$ ${counters.pendente.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
             ],
             theme: 'grid',
             headStyles: { fillColor: [34, 139, 34] },
@@ -586,7 +586,7 @@ export default function ContasAReceberPage() {
             format(service.data_cadastro, 'dd/MM/yyyy'),
             `R$ ${(service.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
             `R$ ${(service.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
-            service.status_financeiro,
+            service.saldo_devedor <= 0.01 ? 'pago' : 'pendente',
             ]),
             theme: 'striped',
             headStyles: { fillColor: [34, 139, 34] },
@@ -617,29 +617,51 @@ export default function ContasAReceberPage() {
               description="Gerencie os serviços prestados a serem recebidos dos clientes."
             />
             
-             <div className="grid gap-4 md:grid-cols-2">
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Contas a Receber (Pendente)</CardTitle>
-                        <ArrowUp className="h-4 w-4 text-green-500" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-green-500">R$ {totalReceivablePending.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
-                        <p className="text-xs text-muted-foreground">
-                            Soma de todos os saldos devedores ativos
-                        </p>
+            {/* Contadores Financeiros */}
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                <Card className="bg-blue-50 dark:bg-blue-950/20 border-l-4 border-l-blue-500">
+                    <CardContent className="p-4 flex items-center justify-between">
+                        <div className="space-y-1">
+                            <p className="text-xs font-medium text-blue-600 dark:text-blue-400 uppercase">Total Contratos</p>
+                            <p className="text-xl font-bold">R$ {counters.total.toLocaleString('pt-BR', { notation: 'compact' })}</p>
+                        </div>
+                        <TrendingUp className="h-8 w-8 text-blue-500 opacity-20" />
                     </CardContent>
                 </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Total Recebido</CardTitle>
-                        <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-green-500">R$ {totalReceivablePaid.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
-                         <p className="text-xs text-muted-foreground">
-                            Soma de todos os pagamentos recebidos
-                        </p>
+                <Card className="bg-green-50 dark:bg-green-950/20 border-l-4 border-l-green-500">
+                    <CardContent className="p-4 flex items-center justify-between">
+                        <div className="space-y-1">
+                            <p className="text-xs font-medium text-green-600 dark:text-green-400 uppercase">Recebido</p>
+                            <p className="text-xl font-bold text-green-700 dark:text-green-300">R$ {counters.recebido.toLocaleString('pt-BR', { notation: 'compact' })}</p>
+                        </div>
+                        <DollarSign className="h-8 w-8 text-green-500 opacity-20" />
+                    </CardContent>
+                </Card>
+                <Card className="bg-red-50 dark:bg-red-950/20 border-l-4 border-l-red-500">
+                    <CardContent className="p-4 flex items-center justify-between">
+                        <div className="space-y-1">
+                            <p className="text-xs font-medium text-red-600 dark:text-red-400 uppercase">A Receber</p>
+                            <p className="text-xl font-bold text-red-700 dark:text-red-300">R$ {counters.pendente.toLocaleString('pt-BR', { notation: 'compact' })}</p>
+                        </div>
+                        <ArrowUp className="h-8 w-8 text-red-500 opacity-20" />
+                    </CardContent>
+                </Card>
+                <Card className="bg-slate-100 dark:bg-slate-900 border-l-4 border-l-slate-400">
+                    <CardContent className="p-4 flex items-center justify-between">
+                        <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase">Quitados</p>
+                            <p className="text-2xl font-bold">{counters.quitados}</p>
+                        </div>
+                        <CheckCircle2 className="h-8 w-8 text-slate-400 opacity-20" />
+                    </CardContent>
+                </Card>
+                <Card className="bg-amber-50 dark:bg-amber-950/20 border-l-4 border-l-amber-500">
+                    <CardContent className="p-4 flex items-center justify-between">
+                        <div className="space-y-1">
+                            <p className="text-xs font-medium text-amber-600 dark:text-amber-400 uppercase">Em Aberto</p>
+                            <p className="text-2xl font-bold text-amber-700 dark:text-amber-300">{counters.emAberto}</p>
+                        </div>
+                        <Clock className="h-8 w-8 text-amber-500 opacity-20" />
                     </CardContent>
                 </Card>
             </div>
@@ -699,7 +721,6 @@ export default function ContasAReceberPage() {
                                 <SelectContent>
                                     <SelectItem value="pendente">Pendente</SelectItem>
                                     <SelectItem value="pago">Pago</SelectItem>
-                                    <SelectItem value="cancelado">Cancelado</SelectItem>
                                 </SelectContent>
                             </Select>
                          </div>
@@ -723,6 +744,7 @@ export default function ContasAReceberPage() {
                                     <SelectValue placeholder="Filtrar por cidade..." />
                                 </SelectTrigger>
                                 <SelectContent>
+                                    <SelectItem value="none">Todas as Cidades</SelectItem>
                                     {cities.map(city => (
                                         <SelectItem key={city.id} value={city.nome_cidade}>
                                             {city.nome_cidade}
@@ -742,12 +764,12 @@ export default function ContasAReceberPage() {
                         <div className="font-bold text-lg pl-2">Totais Filtrados</div>
                         <div className="flex flex-row gap-12 pr-4">
                             <div className="text-right">
-                                <div className="text-sm font-bold text-green-500">Recebido: R$ {filteredRecebido.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
-                                <div className="text-sm font-bold text-red-500">Saldo: R$ {filteredSaldoDevedor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                                <div className="text-sm font-bold text-green-500">Recebido: R$ {filteredReceivable.reduce((acc, curr) => acc + (curr.valor_pago || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                                <div className="text-sm font-bold text-red-500">Saldo: R$ {filteredReceivable.reduce((acc, curr) => acc + (curr.saldo_devedor || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
                             </div>
                             <div className="text-right">
                                 <div className="text-sm font-bold text-blue-400">Total Contratos: R$</div>
-                                <div className="text-lg font-bold text-blue-300">{filteredTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                                <div className="text-lg font-bold text-blue-300">{filteredReceivable.reduce((acc, curr) => acc + curr.valor_total, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
                             </div>
                         </div>
                     </div>
@@ -755,8 +777,6 @@ export default function ContasAReceberPage() {
                     <ReceivableTableComponent 
                         services={filteredReceivable} 
                         getClient={getClient}
-                        totalValor={filteredTotal}
-                        totalSaldo={filteredSaldoDevedor}
                         onPayment={handlePaymentClick}
                         onReceipt={generateReceipt}
                         onProofOfService={generateProofOfService}
@@ -812,7 +832,7 @@ export default function ContasAReceberPage() {
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Data</TableHead>
-                                    <TableHead className="text-right">Valor</TableHead>
+                                    <TableHead>Valor</TableHead>
                                     {isAdmin && <TableHead className="w-[100px] text-right">Ações</TableHead>}
                                 </TableRow>
                             </TableHeader>
@@ -820,7 +840,7 @@ export default function ContasAReceberPage() {
                                 {viewingServiceHistory.length > 0 ? viewingServiceHistory.map((p) => (
                                     <TableRow key={p.id}>
                                         <TableCell>{format(p.data, "dd/MM/yyyy 'às' HH:mm")}</TableCell>
-                                        <TableCell className="text-right text-green-600 font-medium">R$ {p.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
+                                        <TableCell className="text-green-600 font-medium">R$ {p.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
                                         {isAdmin && (
                                             <TableCell className="text-right">
                                                 <div className="flex justify-end gap-2">
@@ -860,7 +880,7 @@ export default function ContasAReceberPage() {
                                 <TableFooter>
                                     <TableRow>
                                         <TableCell className="font-bold">Total Recebido</TableCell>
-                                        <TableCell className="text-right font-bold text-green-600">R$ {viewingService.valor_pago.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
+                                        <TableCell className="font-bold text-green-600">R$ {viewingService.valor_pago.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
                                         {isAdmin && <TableCell></TableCell>}
                                     </TableRow>
                                 </TableFooter>
@@ -915,11 +935,9 @@ export default function ContasAReceberPage() {
 }
 
 
-function ReceivableTableComponent({ services, getClient, totalValor, totalSaldo, onPayment, onReceipt, onProofOfService, onViewHistory }: { 
+function ReceivableTableComponent({ services, getClient, onPayment, onReceipt, onProofOfService, onViewHistory }: { 
     services: Service[], 
     getClient: (id: string) => Client | undefined,
-    totalValor: number,
-    totalSaldo: number,
     onPayment: (service: Service) => void,
     onReceipt: (service: Service) => void,
     onProofOfService: (service: Service) => void,
