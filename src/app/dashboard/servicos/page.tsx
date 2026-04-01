@@ -203,7 +203,8 @@ export default function ServicosPage() {
   const [cities, setCities] = useState<City[]>([]);
   const [serviceTypes, setServiceTypes] = useState<ServiceType[]>([]);
   const [search, setSearch] = useState('');
-  const [selectedCityFilter, setSelectedCityFilter] = useState('');
+  const [selectedCityFilter, setSelectedCityFilter] = useState('none');
+  const [statusExecutionFilter, setStatusExecutionFilter] = useState('all');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isCityDialogOpen, setIsCityDialogOpen] = useState(false);
   const [isTypeDialogOpen, setIsTypeDialogOpen] = useState(false);
@@ -297,7 +298,6 @@ export default function ServicosPage() {
       
       let valorPago = editingService?.valor_pago || 0;
       
-      // Lógica de pagamento à vista: Se for novo serviço ou se foi alterado para à vista e ainda não estava pago
       if (values.forma_pagamento === 'a_vista' && (!editingService || editingService.forma_pagamento !== 'a_vista')) {
           valorPago = values.valor_total;
       }
@@ -316,7 +316,6 @@ export default function ServicosPage() {
       if (editingService) {
         await updateDoc(doc(db, 'servicos', editingService.id), serviceData);
         
-        // Se mudou para à vista na edição, lança a diferença como recebimento
         if (values.forma_pagamento === 'a_vista' && editingService.forma_pagamento !== 'a_vista') {
             const diferenca = values.valor_total - editingService.valor_pago;
             if (diferenca > 0) {
@@ -333,7 +332,6 @@ export default function ServicosPage() {
       } else {
         const docRef = await addDoc(collection(db, 'servicos'), serviceData);
         
-        // Se for à vista no cadastro inicial, cria o registro de recebimento automático
         if (values.forma_pagamento === 'a_vista') {
             await addDoc(collection(db, 'recebimentos'), {
                 servico_id: docRef.id,
@@ -403,12 +401,15 @@ export default function ServicosPage() {
     setIsDialogOpen(true);
   };
 
-  const filteredServices = services.filter(s => {
-    const client = clients.find(c => c.codigo_cliente === s.cliente_id);
-    const matchesSearch = s.descricao.toLowerCase().includes(search.toLowerCase()) || (client?.nome_completo.toLowerCase() || '').includes(search.toLowerCase());
-    const matchesCity = !selectedCityFilter || selectedCityFilter === 'none' || s.endereco_obra?.city === selectedCityFilter;
-    return matchesSearch && matchesCity;
-  });
+  const filteredServices = useMemo(() => {
+    return services.filter(s => {
+      const client = clients.find(c => c.codigo_cliente === s.cliente_id);
+      const matchesSearch = s.descricao.toLowerCase().includes(search.toLowerCase()) || (client?.nome_completo.toLowerCase() || '').includes(search.toLowerCase());
+      const matchesCity = !selectedCityFilter || selectedCityFilter === 'none' || s.endereco_obra?.city === selectedCityFilter;
+      const matchesStatus = !statusExecutionFilter || statusExecutionFilter === 'all' || s.status_execucao === statusExecutionFilter;
+      return matchesSearch && matchesCity && matchesStatus;
+    });
+  }, [services, clients, search, selectedCityFilter, statusExecutionFilter]);
 
   const getStatusBadge = (status: Service['status_execucao']) => {
     const variants: Record<string, "secondary" | "default" | "destructive" | "outline" | "accent"> = {
@@ -429,6 +430,12 @@ export default function ServicosPage() {
     };
   }, [filteredServices]);
 
+  const handleClearFilters = () => {
+    setSearch('');
+    setSelectedCityFilter('none');
+    setStatusExecutionFilter('all');
+  }
+
   return (
     <div className="flex flex-col gap-8">
       <PageHeader title="Serviços" description="Gestão de projetos e execuções de obras." />
@@ -441,6 +448,12 @@ export default function ServicosPage() {
                     <Input placeholder="Buscar por descrição ou cliente..." className="pl-10" value={search} onChange={e => setSearch(e.target.value)} />
                 </div>
                 <div className="flex items-center gap-2 w-full md:w-auto">
+                    <Button onClick={handleAddNewClick} variant="accent" className="shrink-0"><PlusCircle className="mr-2 h-4 w-4" />Novo Serviço</Button>
+                </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-4 mt-4 p-4 bg-muted rounded-lg">
+                <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">Cidade:</span>
                     <Select value={selectedCityFilter} onValueChange={setSelectedCityFilter}>
                         <SelectTrigger className="w-full md:w-[200px]"><SelectValue placeholder="Filtrar por cidade" /></SelectTrigger>
                         <SelectContent>
@@ -448,8 +461,25 @@ export default function ServicosPage() {
                             {cities.map(c => <SelectItem key={c.id} value={c.nome_cidade}>{c.nome_cidade}</SelectItem>)}
                         </SelectContent>
                     </Select>
-                    <Button onClick={handleAddNewClick} variant="accent" className="shrink-0"><PlusCircle className="mr-2 h-4 w-4" />Novo Serviço</Button>
                 </div>
+                <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">Status:</span>
+                    <Select value={statusExecutionFilter} onValueChange={setStatusExecutionFilter}>
+                        <SelectTrigger className="w-full md:w-[200px]"><SelectValue placeholder="Status de execução" /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Todos os Status</SelectItem>
+                            <SelectItem value="não iniciado">Não Iniciado</SelectItem>
+                            <SelectItem value="em andamento">Em Andamento</SelectItem>
+                            <SelectItem value="paralisado">Paralisado</SelectItem>
+                            <SelectItem value="fiscalizado">Fiscalizado</SelectItem>
+                            <SelectItem value="finalizado">Finalizado</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+                <Button variant="ghost" onClick={handleClearFilters} className="text-muted-foreground ml-auto">
+                    <XCircle className="mr-2 h-4 w-4" />
+                    Limpar Filtros
+                </Button>
             </div>
         </CardHeader>
         <CardContent>
