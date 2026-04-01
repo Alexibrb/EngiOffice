@@ -51,6 +51,7 @@ import {
   Users,
   Truck,
   DollarSign,
+  Clock,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -279,6 +280,14 @@ export default function DashboardPage() {
     }
   };
 
+  const statusCounts = useMemo(() => {
+    return {
+      'não iniciado': services.filter(s => s.status_execucao === 'não iniciado').length,
+      'em andamento': services.filter(s => s.status_execucao === 'em andamento').length,
+      'finalizado': services.filter(s => s.status_execucao === 'finalizado').length,
+    };
+  }, [services]);
+
   const ongoingServices = services.filter(
     (s) => s.status_execucao === 'em andamento'
   );
@@ -307,8 +316,6 @@ export default function DashboardPage() {
   const totalPayablePaid = accountsPayable.reduce((acc, curr) => curr.status === 'pago' ? acc + curr.valor : acc, 0);
   
   const balance = totalReceivablePaid - totalPayablePaid;
-  
-  const completedServices = services.filter(s => s.status_execucao === 'finalizado').length;
   
   const totalReceivablePending = services
     .filter(s => s.status_financeiro !== 'cancelado')
@@ -711,6 +718,7 @@ export default function DashboardPage() {
         </Collapsible>
       )}
 
+      {/* Seção Financeira Principal */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card className="bg-blue-50 dark:bg-blue-950/20 border-l-4 border-l-blue-500">
           <CardContent className="p-4 flex items-center justify-between">
@@ -736,52 +744,73 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card className="bg-slate-100 dark:bg-slate-900 border-l-4 border-l-slate-400">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div className="space-y-1">
-              <p className="text-xs font-medium text-muted-foreground uppercase">Serviços em Andamento</p>
-              <p className="text-2xl font-bold">{ongoingServices.length}</p>
-            </div>
-            <ClipboardList className="h-8 w-8 text-muted-foreground opacity-20" />
-          </CardContent>
+        <Card className="bg-green-50 dark:bg-green-950/20 border-l-4 border-l-green-500">
+            <CardContent className="p-4 flex items-center justify-between">
+                <div className="space-y-1">
+                    <p className="text-xs font-medium text-green-600 dark:text-green-400 uppercase">A Receber (Pendente)</p>
+                    <p className="text-xl font-bold text-green-700 dark:text-green-300">
+                      R$ {totalReceivablePending.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </p>
+                </div>
+                <ArrowUp className="h-8 w-8 text-green-500 opacity-20" />
+            </CardContent>
         </Card>
 
-        <Card className="bg-green-50 dark:bg-green-950/20 border-l-4 border-l-green-500">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div className="space-y-1">
-              <p className="text-xs font-medium text-green-600 dark:text-green-400 uppercase">Serviços Concluídos</p>
-              <p className="text-2xl font-bold">{completedServices}</p>
-            </div>
-            <CheckCircle className="h-8 w-8 text-green-500 opacity-20" />
-          </CardContent>
+        <Card className="bg-red-50 dark:bg-red-950/20 border-l-4 border-l-red-500">
+            <CardContent className="p-4 flex items-center justify-between">
+                <div className="space-y-1">
+                    <p className="text-xs font-medium text-red-600 dark:text-red-400 uppercase">A Pagar (Pendente)</p>
+                    <p className="text-xl font-bold text-red-700 dark:text-red-300">
+                      R$ {totalPayablePending.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </p>
+                </div>
+                <ArrowDown className="h-8 w-8 text-red-500 opacity-20" />
+            </CardContent>
         </Card>
       </div>
 
-       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card className="bg-green-50 dark:bg-green-950/20 border-l-4 border-l-green-500">
-              <CardContent className="p-4 flex items-center justify-between">
-                  <div className="space-y-1">
-                      <p className="text-xs font-medium text-green-600 dark:text-green-400 uppercase">A Receber (Pendente)</p>
-                      <p className="text-xl font-bold text-green-700 dark:text-green-300">
-                        R$ {totalReceivablePending.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                      </p>
-                  </div>
-                  <ArrowUp className="h-8 w-8 text-green-500 opacity-20" />
-              </CardContent>
-          </Card>
+      {/* Seção Operacional e Despesas Específicas */}
+      <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-3">
+        {/* Card Unificado de Status de Projetos */}
+        <Card className="lg:col-span-2 border-l-4 border-l-slate-400 bg-slate-50 dark:bg-slate-900/20">
+          <CardHeader className="p-4 pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-xs font-bold text-muted-foreground uppercase flex items-center gap-2">
+                <ClipboardList className="h-4 w-4" />
+                Resumo de Projetos
+              </CardTitle>
+              <Badge variant="outline" className="text-[10px]">{services.length} Total</Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="p-4 pt-4">
+            <div className="grid grid-cols-3 gap-4">
+              <div className="flex flex-col items-center justify-center p-3 rounded-lg bg-background/50 border">
+                <span className="text-[10px] text-muted-foreground uppercase font-bold mb-1">Não Iniciados</span>
+                <div className="flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-slate-400" />
+                  <span className="text-2xl font-bold">{statusCounts['não iniciado']}</span>
+                </div>
+              </div>
+              <div className="flex flex-col items-center justify-center p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                <span className="text-[10px] text-blue-600 dark:text-blue-400 uppercase font-bold mb-1">Em Andamento</span>
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-blue-500" />
+                  <span className="text-2xl font-bold text-blue-700 dark:text-blue-300">{statusCounts['em andamento']}</span>
+                </div>
+              </div>
+              <div className="flex flex-col items-center justify-center p-3 rounded-lg bg-green-500/10 border border-green-500/20">
+                <span className="text-[10px] text-green-600 dark:text-green-400 uppercase font-bold mb-1">Concluídos</span>
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  <span className="text-2xl font-bold text-green-700 dark:text-green-300">{statusCounts['finalizado']}</span>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-          <Card className="bg-red-50 dark:bg-red-950/20 border-l-4 border-l-red-500">
-              <CardContent className="p-4 flex items-center justify-between">
-                  <div className="space-y-1">
-                      <p className="text-xs font-medium text-red-600 dark:text-red-400 uppercase">A Pagar (Pendente)</p>
-                      <p className="text-xl font-bold text-red-700 dark:text-red-300">
-                        R$ {totalPayablePending.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                      </p>
-                  </div>
-                  <ArrowDown className="h-8 w-8 text-red-500 opacity-20" />
-              </CardContent>
-          </Card>
-
+        {/* Despesas Consolidadas */}
+        <div className="grid grid-cols-1 gap-4">
           <Card className="bg-slate-100 dark:bg-slate-900 border-l-4 border-l-slate-400">
               <CardContent className="p-4 flex items-center justify-between">
                   <div className="space-y-1">
@@ -805,7 +834,8 @@ export default function DashboardPage() {
                   <Users className="h-8 w-8 text-muted-foreground opacity-20" />
               </CardContent>
           </Card>
-       </div>
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
         <Collapsible open={showActiveServices} onOpenChange={setShowActiveServices}>
