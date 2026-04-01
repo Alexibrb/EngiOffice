@@ -539,14 +539,33 @@ export default function ContasAReceberPage() {
     }, [baseFilteredServices, statusFilter]);
 
     const counters = useMemo(() => {
+        // Calcular o recebido real somando as parcelas individuais que caem dentro do filtro de data/cliente/cidade
+        const filteredPayments = paymentsHistory.filter(p => {
+            const service = services.find(s => s.id === p.servico_id);
+            if (!service) return false;
+            
+            const matchesClient = !selectedClient || p.cliente_id === selectedClient;
+            const matchesCity = !selectedCityFilter || selectedCityFilter === 'none' || service.endereco_obra?.city === selectedCityFilter;
+            const matchesDate = (() => {
+                if (!dateRange?.from) return true;
+                const from = startOfDay(dateRange.from);
+                const to = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from);
+                return p.data >= from && p.data <= to;
+            })();
+            
+            return matchesClient && matchesCity && matchesDate;
+        });
+
+        const totalRecebidoNoPeriodo = filteredPayments.reduce((acc, curr) => acc + curr.valor, 0);
+
         return {
             total: baseFilteredServices.reduce((acc, curr) => acc + curr.valor_total, 0),
-            recebido: baseFilteredServices.reduce((acc, curr) => acc + (curr.valor_pago || 0), 0),
+            recebido: totalRecebidoNoPeriodo, // Dinâmico pelo histórico de pagamentos
             pendente: baseFilteredServices.reduce((acc, curr) => acc + (curr.saldo_devedor || 0), 0),
             quitados: baseFilteredServices.filter(s => s.saldo_devedor <= 0.01).length,
             emAberto: baseFilteredServices.filter(s => s.saldo_devedor > 0.01).length,
         };
-    }, [baseFilteredServices]);
+    }, [baseFilteredServices, paymentsHistory, services, selectedClient, selectedCityFilter, dateRange]);
 
     const generatePdf = () => {
         const doc = new jsPDF();
@@ -763,7 +782,7 @@ export default function ContasAReceberPage() {
                         <div className="font-bold text-lg pl-2">Totais Filtrados</div>
                         <div className="flex flex-row gap-12 pr-4">
                             <div className="text-right">
-                                <div className="text-sm font-bold text-green-500">Recebido: R$ {filteredReceivable.reduce((acc, curr) => acc + (curr.valor_pago || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                                <div className="text-sm font-bold text-green-500">Recebido: R$ {counters.recebido.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                                 <div className="text-sm font-bold text-red-500">Saldo: R$ {filteredReceivable.reduce((acc, curr) => acc + (curr.saldo_devedor || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                             </div>
                             <div className="text-right">
@@ -1014,11 +1033,12 @@ function ReceivableTableComponent({ services, getClient, onPayment, onReceipt, o
                                   )}
                                 </TableCell>
                                 <TableCell className="align-top">
-                                    <div className="font-medium">Total: R$ {(service.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                                    <div className={cn("text-sm font-medium", isFullyPaid ? "text-muted-foreground" : "text-red-500")}>
+                                    <div className="font-medium text-xs">Contrato: R$ {(service.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                                    <div className="text-[10px] text-green-600">Já Pago: R$ {(service.valor_pago || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                                    <div className={cn("text-xs font-bold", isFullyPaid ? "text-muted-foreground" : "text-red-500")}>
                                         Saldo: R$ {(service.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                     </div>
-                                    {service.quantidade_m2 ? <div className="text-xs text-muted-foreground">Area: {service.quantidade_m2} m²</div> : null}
+                                    {service.quantidade_m2 ? <div className="text-[10px] text-muted-foreground">Area: {service.quantidade_m2} m²</div> : null}
                                 </TableCell>
                                  <TableCell className="align-top space-y-1">
                                     <Badge 
