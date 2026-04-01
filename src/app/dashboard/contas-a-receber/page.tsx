@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -566,9 +565,9 @@ export default function ContasAReceberPage() {
             startY: 35,
             head: [['Resumo Financeiro do Filtro', '']],
             body: [
-                ['Total dos Contratos:', `R$ ${counters.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
-                ['Total Recebido:', `R$ ${counters.recebido.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
-                ['Total Saldo Devedor:', `R$ ${counters.pendente.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
+                ['Total dos Contratos:', `R$ ${counters.total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
+                ['Total Recebido:', `R$ ${counters.recebido.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
+                ['Total Saldo Devedor:', `R$ ${counters.pendente.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
             ],
             theme: 'grid',
             headStyles: { fillColor: [34, 139, 34] },
@@ -584,8 +583,8 @@ export default function ContasAReceberPage() {
             service.descricao,
             getClient(service.cliente_id)?.nome_completo || 'Desconhecido',
             format(service.data_cadastro, 'dd/MM/yyyy'),
-            `R$ ${(service.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
-            `R$ ${(service.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+            `R$ ${(service.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+            `R$ ${(service.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
             service.saldo_devedor <= 0.01 ? 'pago' : 'pendente',
             ]),
             theme: 'striped',
@@ -623,7 +622,7 @@ export default function ContasAReceberPage() {
                     <CardContent className="p-4 flex items-center justify-between">
                         <div className="space-y-1">
                             <p className="text-xs font-medium text-blue-600 dark:text-blue-400 uppercase">Total Contratos</p>
-                            <p className="text-xl font-bold">R$ {counters.total.toLocaleString('pt-BR', { notation: 'compact' })}</p>
+                            <p className="text-xl font-bold text-foreground">R$ {counters.total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                         </div>
                         <TrendingUp className="h-8 w-8 text-blue-500 opacity-20" />
                     </CardContent>
@@ -632,7 +631,7 @@ export default function ContasAReceberPage() {
                     <CardContent className="p-4 flex items-center justify-between">
                         <div className="space-y-1">
                             <p className="text-xs font-medium text-green-600 dark:text-green-400 uppercase">Recebido</p>
-                            <p className="text-xl font-bold text-green-700 dark:text-green-300">R$ {counters.recebido.toLocaleString('pt-BR', { notation: 'compact' })}</p>
+                            <p className="text-xl font-bold text-green-700 dark:text-green-300">R$ {counters.recebido.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                         </div>
                         <DollarSign className="h-8 w-8 text-green-500 opacity-20" />
                     </CardContent>
@@ -641,7 +640,7 @@ export default function ContasAReceberPage() {
                     <CardContent className="p-4 flex items-center justify-between">
                         <div className="space-y-1">
                             <p className="text-xs font-medium text-red-600 dark:text-red-400 uppercase">A Receber</p>
-                            <p className="text-xl font-bold text-red-700 dark:text-red-300">R$ {counters.pendente.toLocaleString('pt-BR', { notation: 'compact' })}</p>
+                            <p className="text-xl font-bold text-red-700 dark:text-red-300">R$ {counters.pendente.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                         </div>
                         <ArrowUp className="h-8 w-8 text-red-500 opacity-20" />
                     </CardContent>
@@ -764,12 +763,12 @@ export default function ContasAReceberPage() {
                         <div className="font-bold text-lg pl-2">Totais Filtrados</div>
                         <div className="flex flex-row gap-12 pr-4">
                             <div className="text-right">
-                                <div className="text-sm font-bold text-green-500">Recebido: R$ {filteredReceivable.reduce((acc, curr) => acc + (curr.valor_pago || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
-                                <div className="text-sm font-bold text-red-500">Saldo: R$ {filteredReceivable.reduce((acc, curr) => acc + (curr.saldo_devedor || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                                <div className="text-sm font-bold text-green-500">Recebido: R$ {filteredReceivable.reduce((acc, curr) => acc + (curr.valor_pago || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                                <div className="text-sm font-bold text-red-500">Saldo: R$ {filteredReceivable.reduce((acc, curr) => acc + (curr.saldo_devedor || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                             </div>
                             <div className="text-right">
                                 <div className="text-sm font-bold text-blue-400">Total Contratos: R$</div>
-                                <div className="text-lg font-bold text-blue-300">{filteredReceivable.reduce((acc, curr) => acc + curr.valor_total, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                                <div className="text-lg font-bold text-blue-300">{filteredReceivable.reduce((acc, curr) => acc + curr.valor_total, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                             </div>
                         </div>
                     </div>
@@ -791,7 +790,7 @@ export default function ContasAReceberPage() {
                         <DialogTitle>Lançar Pagamento</DialogTitle>
                         <DialogDescription>
                             Serviço: {editingService?.descricao}<br/>
-                            Saldo Devedor Atual: <span className="font-bold text-red-500">R$ {(editingService?.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                            Saldo Devedor Atual: <span className="font-bold text-red-500">R$ {(editingService?.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                         </DialogDescription>
                     </DialogHeader>
                     <Form {...paymentForm}>
@@ -840,7 +839,7 @@ export default function ContasAReceberPage() {
                                 {viewingServiceHistory.length > 0 ? viewingServiceHistory.map((p) => (
                                     <TableRow key={p.id}>
                                         <TableCell>{format(p.data, "dd/MM/yyyy 'às' HH:mm")}</TableCell>
-                                        <TableCell className="text-green-600 font-medium">R$ {p.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
+                                        <TableCell className="text-green-600 font-medium">R$ {p.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                                         {isAdmin && (
                                             <TableCell className="text-right">
                                                 <div className="flex justify-end gap-2">
@@ -880,7 +879,7 @@ export default function ContasAReceberPage() {
                                 <TableFooter>
                                     <TableRow>
                                         <TableCell className="font-bold">Total Recebido</TableCell>
-                                        <TableCell className="font-bold text-green-600">R$ {viewingService.valor_pago.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
+                                        <TableCell className="font-bold text-green-600">R$ {viewingService.valor_pago.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                                         {isAdmin && <TableCell></TableCell>}
                                     </TableRow>
                                 </TableFooter>
@@ -1015,9 +1014,9 @@ function ReceivableTableComponent({ services, getClient, onPayment, onReceipt, o
                                   )}
                                 </TableCell>
                                 <TableCell className="align-top">
-                                    <div className="font-medium">Total: R$ {(service.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                                    <div className="font-medium">Total: R$ {(service.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                                     <div className={cn("text-sm font-medium", isFullyPaid ? "text-muted-foreground" : "text-red-500")}>
-                                        Saldo: R$ {(service.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                        Saldo: R$ {(service.saldo_devedor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                     </div>
                                     {service.quantidade_m2 ? <div className="text-xs text-muted-foreground">Area: {service.quantidade_m2} m²</div> : null}
                                 </TableCell>
