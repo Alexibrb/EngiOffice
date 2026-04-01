@@ -48,6 +48,8 @@ import {
   AlertCircle,
   ChevronDown,
   ChevronUp,
+  Users,
+  Truck,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -315,7 +317,13 @@ export default function DashboardPage() {
     .filter((a) => a.status === 'pendente')
     .reduce((acc, curr) => acc + curr.valor, 0);
 
-  const totalExpenses = accountsPayable.reduce((acc, curr) => acc + curr.valor, 0);
+  const totalSupplierExpenses = accountsPayable
+    .filter(a => a.tipo_referencia === 'fornecedor')
+    .reduce((acc, curr) => acc + curr.valor, 0);
+
+  const totalPayrollExpenses = accountsPayable
+    .filter(a => a.tipo_referencia === 'funcionario')
+    .reduce((acc, curr) => acc + curr.valor, 0);
 
   const handlePayAccount = (accountId: string, type?: 'fornecedor' | 'funcionario') => {
     const path = type === 'funcionario' ? '/dashboard/pagamentos' : '/dashboard/contas-a-pagar';
@@ -345,7 +353,7 @@ export default function DashboardPage() {
       toast({
         variant: "destructive",
         title: "Erro",
-        description: "Ocorreu um erro ao excluir o serviço.",
+        description: "Ocorreu um erro ao excluir the serviço.",
       });
     }
   };
@@ -759,40 +767,52 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
          <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Contas a Receber (Pendente)</CardTitle>
+                  <CardTitle className="text-sm font-medium">A Receber (Pendente)</CardTitle>
                   <ArrowUp className="h-4 w-4 text-green-500" />
               </CardHeader>
               <CardContent>
-                  <div className="text-2xl font-bold text-green-500">R$ {totalReceivablePending.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
-                  <p className="text-xs text-muted-foreground">
-                      Soma de todos os saldos devedores ativos
+                  <div className="text-xl font-bold text-green-500">R$ {totalReceivablePending.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                  <p className="text-[10px] text-muted-foreground">
+                      Soma de saldos devedores ativos
                   </p>
               </CardContent>
           </Card>
           <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Contas a Pagar (Pendente)</CardTitle>
+                  <CardTitle className="text-sm font-medium">A Pagar (Pendente)</CardTitle>
                   <ArrowDown className="h-4 w-4 text-red-500" />
               </CardHeader>
               <CardContent>
-                  <div className="text-2xl font-bold text-red-500">R$ {totalPayablePending.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
-                    <p className="text-xs text-muted-foreground">
-                      Soma de todas as contas pendentes
+                  <div className="text-xl font-bold text-red-500">R$ {totalPayablePending.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                    <p className="text-[10px] text-muted-foreground">
+                      Soma de faturas não liquidadas
                   </p>
               </CardContent>
           </Card>
            <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total de Despesas</CardTitle>
-                  <CreditCard className="h-4 w-4 text-muted-foreground" />
+                  <CardTitle className="text-sm font-medium">Desp. Fornecedores</CardTitle>
+                  <Truck className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                  <div className="text-2xl font-bold text-red-500">R$ {totalExpenses.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
-                    <p className="text-xs text-muted-foreground">
-                      Soma de despesas pagas e pendentes
+                  <div className="text-xl font-bold text-red-500">R$ {totalSupplierExpenses.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                    <p className="text-[10px] text-muted-foreground">
+                      Total histórico com fornecedores
+                  </p>
+              </CardContent>
+          </Card>
+          <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Folha Pagamento</CardTitle>
+                  <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                  <div className="text-xl font-bold text-red-500">R$ {totalPayrollExpenses.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                    <p className="text-[10px] text-muted-foreground">
+                      Total histórico com funcionários
                   </p>
               </CardContent>
           </Card>
