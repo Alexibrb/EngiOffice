@@ -521,30 +521,14 @@ export default function ContasAReceberPage() {
     }, [baseFilteredServices, statusFilter]);
 
     const counters = useMemo(() => {
-        const filteredPayments = paymentsHistory.filter(p => {
-            const service = services.find(s => s.id === p.servico_id);
-            if (!service) return false;
-            const matchesClient = !selectedClient || p.cliente_id === selectedClient;
-            const matchesCity = !selectedCityFilter || selectedCityFilter === 'none' || service.endereco_obra?.city === selectedCityFilter;
-            const matchesDate = (() => {
-                if (!dateRange?.from) return true;
-                const from = startOfDay(dateRange.from);
-                const to = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from);
-                return p.data >= from && p.data <= to;
-            })();
-            return matchesClient && matchesCity && matchesDate;
-        });
-
-        const totalRecebidoNoPeriodo = filteredPayments.reduce((acc, curr) => acc + curr.valor, 0);
-
         return {
             total: baseFilteredServices.reduce((acc, curr) => acc + curr.valor_total, 0),
-            recebido: totalRecebidoNoPeriodo,
+            recebido: baseFilteredServices.reduce((acc, curr) => acc + (curr.valor_pago || 0), 0),
             pendente: baseFilteredServices.reduce((acc, curr) => acc + (curr.saldo_devedor || 0), 0),
             quitados: baseFilteredServices.filter(s => s.saldo_devedor <= 0.01).length,
             emAberto: baseFilteredServices.filter(s => s.saldo_devedor > 0.01).length,
         };
-    }, [baseFilteredServices, paymentsHistory, services, selectedClient, selectedCityFilter, dateRange]);
+    }, [baseFilteredServices]);
 
     const generatePdf = () => {
         const doc = new jsPDF();
@@ -557,7 +541,7 @@ export default function ContasAReceberPage() {
             head: [['Resumo Financeiro do Filtro', '']],
             body: [
                 ['Total dos Contratos:', `R$ ${counters.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
-                ['Total Recebido no Período:', `R$ ${counters.recebido.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
+                ['Total Recebido:', `R$ ${counters.recebido.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
                 ['Total Saldo Devedor:', `R$ ${counters.pendente.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
             ],
             theme: 'grid',
@@ -602,7 +586,7 @@ export default function ContasAReceberPage() {
                 <Card className="bg-green-50 dark:bg-green-950/20 border-l-4 border-l-green-500">
                     <CardContent className="p-4 flex items-center justify-between">
                         <div className="space-y-1">
-                            <p className="text-xs font-medium text-green-600 dark:text-green-400 uppercase">Recebido (no período)</p>
+                            <p className="text-xs font-medium text-green-600 dark:text-green-400 uppercase">Recebido</p>
                             <p className="text-xl font-bold text-green-700 dark:text-green-300">R$ {counters.recebido.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
                         </div>
                         <DollarSign className="h-8 w-8 text-green-500 opacity-20" />
@@ -662,12 +646,12 @@ export default function ContasAReceberPage() {
                         <div className="font-bold text-lg pl-2">Totais Filtrados</div>
                         <div className="flex flex-row gap-12 pr-4">
                             <div className="text-right">
-                                <div className="text-sm font-bold text-green-500">Recebido (no período): R$ {counters.recebido.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
-                                <div className="text-sm font-bold text-red-500">Saldo Pendente: R$ {filteredReceivable.reduce((acc, curr) => acc + (curr.saldo_devedor || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                                <div className="text-sm font-bold text-green-500">Valor Recebido: R$ {counters.recebido.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                                <div className="text-sm font-bold text-red-500">Saldo Pendente: R$ {counters.pendente.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
                             </div>
                             <div className="text-right">
-                                <div className="text-sm font-bold text-blue-400">Contratos na lista: R$</div>
-                                <div className="text-lg font-bold text-blue-300">{filteredReceivable.reduce((acc, curr) => acc + curr.valor_total, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                                <div className="text-sm font-bold text-blue-400">Total Contratos: R$</div>
+                                <div className="text-lg font-bold text-blue-300">{counters.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
                             </div>
                         </div>
                     </div>
