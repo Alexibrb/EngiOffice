@@ -50,6 +50,7 @@ import {
   ChevronUp,
   Users,
   Truck,
+  DollarSign,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -711,109 +712,97 @@ export default function DashboardPage() {
       )}
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Saldo em Caixa
-            </CardTitle>
-            <CircleDollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-             <div className={cn("text-2xl font-bold", balance < 0 ? "text-red-500" : "text-green-500")}>R$ {balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
-            <p className="text-xs text-muted-foreground">
-              Recebidos - Contas Pagas
-            </p>
+        <Card className="bg-blue-50 dark:bg-blue-950/20 border-l-4 border-l-blue-500">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div className="space-y-1">
+              <p className="text-xs font-medium text-blue-600 dark:text-blue-400 uppercase">Saldo em Caixa</p>
+              <p className={cn("text-xl font-bold", balance < 0 ? "text-red-600" : "text-blue-700 dark:text-blue-300")}>
+                R$ {balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </p>
+            </div>
+            <CircleDollarSign className="h-8 w-8 text-blue-500 opacity-20" />
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Total Recebido
-            </CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-500">R$ {totalReceivablePaid.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
-             <p className="text-xs text-muted-foreground">
-                Soma de todos os pagamentos recebidos
-            </p>
+        
+        <Card className="bg-green-50 dark:bg-green-950/20 border-l-4 border-l-green-500">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div className="space-y-1">
+              <p className="text-xs font-medium text-green-600 dark:text-green-400 uppercase">Total Recebido</p>
+              <p className="text-xl font-bold text-green-700 dark:text-green-300">
+                R$ {totalReceivablePaid.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </p>
+            </div>
+            <TrendingUp className="h-8 w-8 text-green-500 opacity-20" />
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Serviços em Andamento
-            </CardTitle>
-            <ClipboardList className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{ongoingServices.length}</div>
-            <p className="text-xs text-muted-foreground">
-              Total de projetos em execução
-            </p>
+
+        <Card className="bg-slate-100 dark:bg-slate-900 border-l-4 border-l-slate-400">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div className="space-y-1">
+              <p className="text-xs font-medium text-muted-foreground uppercase">Serviços em Andamento</p>
+              <p className="text-2xl font-bold">{ongoingServices.length}</p>
+            </div>
+            <ClipboardList className="h-8 w-8 text-muted-foreground opacity-20" />
           </CardContent>
         </Card>
-         <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Serviços Concluídos</CardTitle>
-                <CheckCircle className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-                <div className="text-2xl font-bold">{completedServices}</div>
-                  <p className="text-xs text-muted-foreground">
-                    Total de serviços finalizados
-                </p>
-            </CardContent>
+
+        <Card className="bg-green-50 dark:bg-green-950/20 border-l-4 border-l-green-500">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div className="space-y-1">
+              <p className="text-xs font-medium text-green-600 dark:text-green-400 uppercase">Serviços Concluídos</p>
+              <p className="text-2xl font-bold">{completedServices}</p>
+            </div>
+            <CheckCircle className="h-8 w-8 text-green-500 opacity-20" />
+          </CardContent>
         </Card>
       </div>
 
        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-         <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">A Receber (Pendente)</CardTitle>
-                  <ArrowUp className="h-4 w-4 text-green-500" />
-              </CardHeader>
-              <CardContent>
-                  <div className="text-xl font-bold text-green-500">R$ {totalReceivablePending.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
-                  <p className="text-[10px] text-muted-foreground">
-                      Soma de saldos devedores ativos
-                  </p>
+          <Card className="bg-green-50 dark:bg-green-950/20 border-l-4 border-l-green-500">
+              <CardContent className="p-4 flex items-center justify-between">
+                  <div className="space-y-1">
+                      <p className="text-xs font-medium text-green-600 dark:text-green-400 uppercase">A Receber (Pendente)</p>
+                      <p className="text-xl font-bold text-green-700 dark:text-green-300">
+                        R$ {totalReceivablePending.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </p>
+                  </div>
+                  <ArrowUp className="h-8 w-8 text-green-500 opacity-20" />
               </CardContent>
           </Card>
-          <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">A Pagar (Pendente)</CardTitle>
-                  <ArrowDown className="h-4 w-4 text-red-500" />
-              </CardHeader>
-              <CardContent>
-                  <div className="text-xl font-bold text-red-500">R$ {totalPayablePending.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
-                    <p className="text-[10px] text-muted-foreground">
-                      Soma de faturas não liquidadas
-                  </p>
+
+          <Card className="bg-red-50 dark:bg-red-950/20 border-l-4 border-l-red-500">
+              <CardContent className="p-4 flex items-center justify-between">
+                  <div className="space-y-1">
+                      <p className="text-xs font-medium text-red-600 dark:text-red-400 uppercase">A Pagar (Pendente)</p>
+                      <p className="text-xl font-bold text-red-700 dark:text-red-300">
+                        R$ {totalPayablePending.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </p>
+                  </div>
+                  <ArrowDown className="h-8 w-8 text-red-500 opacity-20" />
               </CardContent>
           </Card>
-           <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Desp. Fornecedores</CardTitle>
-                  <Truck className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                  <div className="text-xl font-bold text-red-500">R$ {totalSupplierExpenses.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
-                    <p className="text-[10px] text-muted-foreground">
-                      Total histórico com fornecedores
-                  </p>
+
+          <Card className="bg-slate-100 dark:bg-slate-900 border-l-4 border-l-slate-400">
+              <CardContent className="p-4 flex items-center justify-between">
+                  <div className="space-y-1">
+                      <p className="text-xs font-medium text-muted-foreground uppercase">Desp. Fornecedores</p>
+                      <p className="text-xl font-bold text-red-500">
+                        R$ {totalSupplierExpenses.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </p>
+                  </div>
+                  <Truck className="h-8 w-8 text-muted-foreground opacity-20" />
               </CardContent>
           </Card>
-          <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Folha Pagamento</CardTitle>
-                  <Users className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                  <div className="text-xl font-bold text-red-500">R$ {totalPayrollExpenses.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
-                    <p className="text-[10px] text-muted-foreground">
-                      Total histórico com funcionários
-                  </p>
+
+          <Card className="bg-slate-100 dark:bg-slate-900 border-l-4 border-l-slate-400">
+              <CardContent className="p-4 flex items-center justify-between">
+                  <div className="space-y-1">
+                      <p className="text-xs font-medium text-muted-foreground uppercase">Folha Pagamento</p>
+                      <p className="text-xl font-bold text-red-500">
+                        R$ {totalPayrollExpenses.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </p>
+                  </div>
+                  <Users className="h-8 w-8 text-muted-foreground opacity-20" />
               </CardContent>
           </Card>
        </div>
