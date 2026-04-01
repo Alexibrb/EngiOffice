@@ -26,7 +26,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { Service, Client, ServiceType, City, AuthorizedUser } from '@/lib/types';
-import { PlusCircle, Search, MoreHorizontal, Loader2, Calendar as CalendarIcon, Wrench, Link as LinkIcon, ExternalLink, ClipboardCopy, XCircle, Trash, TrendingUp, ArrowUp, DollarSign } from 'lucide-react';
+import { PlusCircle, Search, MoreHorizontal, Loader2, Calendar as CalendarIcon, Wrench, Link as LinkIcon, ExternalLink, ClipboardCopy, XCircle, Trash, TrendingUp, ArrowUp, DollarSign, ClipboardList, CheckCircle2, Clock, AlertTriangle, Eye } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -401,15 +401,38 @@ export default function ServicosPage() {
     setIsDialogOpen(true);
   };
 
-  const filteredServices = useMemo(() => {
+  // Filtro de base para os contadores (ignora apenas o filtro de status em si para permitir navegação)
+  const baseFilteredServices = useMemo(() => {
     return services.filter(s => {
       const client = clients.find(c => c.codigo_cliente === s.cliente_id);
       const matchesSearch = s.descricao.toLowerCase().includes(search.toLowerCase()) || (client?.nome_completo.toLowerCase() || '').includes(search.toLowerCase());
       const matchesCity = !selectedCityFilter || selectedCityFilter === 'none' || s.endereco_obra?.city === selectedCityFilter;
-      const matchesStatus = !statusExecutionFilter || statusExecutionFilter === 'all' || s.status_execucao === statusExecutionFilter;
-      return matchesSearch && matchesCity && matchesStatus;
+      return matchesSearch && matchesCity;
     });
-  }, [services, clients, search, selectedCityFilter, statusExecutionFilter]);
+  }, [services, clients, search, selectedCityFilter]);
+
+  const filteredServices = useMemo(() => {
+    return baseFilteredServices.filter(s => {
+      const matchesStatus = !statusExecutionFilter || statusExecutionFilter === 'all' || s.status_execucao === statusExecutionFilter;
+      return matchesStatus;
+    });
+  }, [baseFilteredServices, statusExecutionFilter]);
+
+  const statusCounts = useMemo(() => {
+    const counts = {
+      'não iniciado': 0,
+      'em andamento': 0,
+      'paralisado': 0,
+      'fiscalizado': 0,
+      'finalizado': 0,
+    };
+    baseFilteredServices.forEach(s => {
+      if (s.status_execucao in counts) {
+        counts[s.status_execucao as keyof typeof counts]++;
+      }
+    });
+    return counts;
+  }, [baseFilteredServices]);
 
   const getStatusBadge = (status: Service['status_execucao']) => {
     const variants: Record<string, "secondary" | "default" | "destructive" | "outline" | "accent"> = {
@@ -440,6 +463,55 @@ export default function ServicosPage() {
     <div className="flex flex-col gap-8">
       <PageHeader title="Serviços" description="Gestão de projetos e execuções de obras." />
       
+      {/* Contadores de Status */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <Card className="bg-slate-100 dark:bg-slate-900 border-l-4 border-l-slate-400">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div className="space-y-1">
+              <p className="text-xs font-medium text-muted-foreground uppercase">Não Iniciados</p>
+              <p className="text-2xl font-bold">{statusCounts['não iniciado']}</p>
+            </div>
+            <Clock className="h-8 w-8 text-slate-400 opacity-20" />
+          </CardContent>
+        </Card>
+        <Card className="bg-blue-50 dark:bg-blue-950/20 border-l-4 border-l-blue-500">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div className="space-y-1">
+              <p className="text-xs font-medium text-blue-600 dark:text-blue-400 uppercase">Em Andamento</p>
+              <p className="text-2xl font-bold text-blue-700 dark:text-blue-300">{statusCounts['em andamento']}</p>
+            </div>
+            <TrendingUp className="h-8 w-8 text-blue-500 opacity-20" />
+          </CardContent>
+        </Card>
+        <Card className="bg-red-50 dark:bg-red-950/20 border-l-4 border-l-red-500">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div className="space-y-1">
+              <p className="text-xs font-medium text-red-600 dark:text-red-400 uppercase">Paralisados</p>
+              <p className="text-2xl font-bold text-red-700 dark:text-red-300">{statusCounts['paralisado']}</p>
+            </div>
+            <AlertTriangle className="h-8 w-8 text-red-500 opacity-20" />
+          </CardContent>
+        </Card>
+        <Card className="bg-amber-50 dark:bg-amber-950/20 border-l-4 border-l-amber-500">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div className="space-y-1">
+              <p className="text-xs font-medium text-amber-600 dark:text-amber-400 uppercase">Fiscalizados</p>
+              <p className="text-2xl font-bold text-amber-700 dark:text-amber-300">{statusCounts['fiscalizado']}</p>
+            </div>
+            <Eye className="h-8 w-8 text-amber-500 opacity-20" />
+          </CardContent>
+        </Card>
+        <Card className="bg-green-50 dark:bg-green-950/20 border-l-4 border-l-green-500">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div className="space-y-1">
+              <p className="text-xs font-medium text-green-600 dark:text-green-400 uppercase">Finalizados</p>
+              <p className="text-2xl font-bold text-green-700 dark:text-green-300">{statusCounts['finalizado']}</p>
+            </div>
+            <CheckCircle2 className="h-8 w-8 text-green-500 opacity-20" />
+          </CardContent>
+        </Card>
+      </div>
+
       <Card>
         <CardHeader>
             <div className="flex flex-col md:flex-row items-center justify-between gap-4">
