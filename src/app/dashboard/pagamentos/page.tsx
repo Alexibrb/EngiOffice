@@ -16,7 +16,7 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import { collection, addDoc, getDocs, doc, query, where, deleteDoc, updateDoc, Timestamp, setDoc } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
-import { Loader2, Trash, DollarSign, CalendarIcon, CheckCircle, XCircle, Download, User, Briefcase, MapPin, Pencil } from 'lucide-react';
+import { Loader2, Trash, DollarSign, CalendarIcon, CheckCircle, XCircle, Download, User, Briefcase, MapPin, Pencil, ChevronDown, ChevronRight } from 'lucide-react';
 import type { Account, Employee, AuthorizedUser, Client, Service } from '@/lib/types';
 import { format, startOfDay, endOfDay } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -44,6 +44,105 @@ const paymentSchema = z.object({
   cliente_id: z.string().optional(),
   servico_id: z.string().optional(),
 });
+
+function PaymentTableRow({ 
+    payment, 
+    employeeName, 
+    clientName, 
+    serviceDesc,
+    isAdmin,
+    onEdit,
+    onMarkAsPaid,
+    onDelete
+}: { 
+    payment: Account, 
+    employeeName: string, 
+    clientName: string, 
+    serviceDesc: string,
+    isAdmin: boolean,
+    onEdit: (p: Account) => void,
+    onMarkAsPaid: (id: string) => void,
+    onDelete: (id: string) => void
+}) {
+    const [isOpen, setIsOpen] = useState(false);
+
+    return (
+        <>
+            <TableRow className="group">
+                <TableCell>
+                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => setIsOpen(!isOpen)}>
+                        {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                    </Button>
+                </TableCell>
+                <TableCell className="font-medium">{employeeName}</TableCell>
+                <TableCell>{format(payment.vencimento, 'dd/MM/yyyy')}</TableCell>
+                <TableCell>
+                    <Badge variant={payment.status === 'pago' ? 'secondary' : 'destructive'}>
+                        {payment.status}
+                    </Badge>
+                </TableCell>
+                <TableCell className="text-right font-medium text-green-500">
+                    {payment.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                </TableCell>
+                <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-2">
+                        {(isAdmin || payment.status === 'pendente') && (
+                            <Button variant="ghost" size="icon" onClick={() => onEdit(payment)} title="Editar lançamento">
+                                <Pencil className="h-4 w-4 text-primary" />
+                            </Button>
+                        )}
+                        {isAdmin && (
+                            <>
+                                <Button variant="outline" size="icon" onClick={() => onMarkAsPaid(payment.id)} disabled={payment.status === 'pago'} title="Marcar como pago">
+                                    <CheckCircle className="h-4 w-4 text-green-500" />
+                                </Button>
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <Button variant="ghost" size="icon" title="Excluir lançamento">
+                                            <Trash className="h-4 w-4 text-destructive" />
+                                        </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Excluir este lançamento?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                Esta ação não pode ser desfeita. Isso excluirá permanentemente o registro de pagamento.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                            <AlertDialogAction onClick={() => onDelete(payment.id)}>Excluir</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            </>
+                        )}
+                    </div>
+                </TableCell>
+            </TableRow>
+            {isOpen && (
+                <TableRow className="bg-muted/30">
+                    <TableCell colSpan={6} className="p-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                            <div className="space-y-2">
+                                <p className="font-bold text-muted-foreground flex items-center gap-2">
+                                    <User className="h-3 w-3" /> Cliente Vinculado
+                                </p>
+                                <p className="pl-5">{clientName}</p>
+                            </div>
+                            <div className="space-y-2">
+                                <p className="font-bold text-muted-foreground flex items-center gap-2">
+                                    <Briefcase className="h-3 w-3" /> Projeto / Obra
+                                </p>
+                                <p className="pl-5">{serviceDesc}</p>
+                            </div>
+                        </div>
+                    </TableCell>
+                </TableRow>
+            )}
+        </>
+    );
+}
 
 export default function PagamentosPage() {
     const [payments, setPayments] = useState<Account[]>([]);
@@ -82,7 +181,7 @@ export default function PagamentosPage() {
                 const querySnapshot = await getDocs(q);
                 if (!querySnapshot.empty) {
                     const userData = querySnapshot.docs[0].data() as AuthorizedUser;
-                    setIsAdmin(userData.role === 'admin');
+                    setIsAdmin(userData.role === 'admin' || user.email === 'alexandro.ibrb@gmail.com');
                 } else {
                     setIsAdmin(false);
                 }
@@ -159,7 +258,7 @@ export default function PagamentosPage() {
         const s = services.find(srv => srv.id === id);
         if (!s) return '-';
         const addr = s.endereco_obra;
-        const addrStr = (addr && addr.street) ? `${addr.street}, ${addr.number} - ${addr.neighborhood}` : 'Endereço não informado';
+        const addrStr = (addr && addr.street) ? `${addr.street}, ${addr.number} - ${addr.neighborhood}, ${addr.city}` : 'Endereço não informado';
         return `${s.descricao} (${addrStr})`;
     };
 
@@ -176,7 +275,7 @@ export default function PagamentosPage() {
             };
 
             if (editingPaymentId) {
-                await setDoc(doc(db, 'contas_a_pagar', editingPaymentId), paymentData, { merge: true });
+                await updateDoc(doc(db, 'contas_a_pagar', editingPaymentId), paymentData);
                 toast({ title: "Sucesso!", description: "Lançamento atualizado com sucesso." });
             } else {
                 await addDoc(collection(db, 'contas_a_pagar'), paymentData);
@@ -342,7 +441,6 @@ export default function PagamentosPage() {
         doc.text(filterText, 14, currentY);
         currentY += 7;
 
-        // Tabela de Resumo Financeiro
         autoTable(doc, {
             startY: currentY,
             head: [['Resumo da Folha no Filtro', '']],
@@ -597,7 +695,6 @@ export default function PagamentosPage() {
                         </div>
                     </CardHeader>
                     <CardContent>
-                        {/* Barra de Totais Filtrados no Topo */}
                         <div className="bg-slate-900 text-white p-4 rounded-t-lg flex flex-row justify-between items-center border-x border-t">
                             <div className="font-bold text-lg pl-2">Totais Filtrados</div>
                             <div className="flex flex-row gap-12 pr-4">
@@ -614,8 +711,8 @@ export default function PagamentosPage() {
                             <Table>
                                 <TableHeader>
                                     <TableRow>
+                                        <TableHead className="w-[50px]"></TableHead>
                                         <TableHead>Funcionário</TableHead>
-                                        <TableHead>Cliente / Projeto (Obra)</TableHead>
                                         <TableHead>Data</TableHead>
                                         <TableHead>Status</TableHead>
                                         <TableHead className="text-right">Valor</TableHead>
@@ -630,57 +727,17 @@ export default function PagamentosPage() {
                                             </TableCell>
                                         </TableRow>
                                     ) : filteredPayments.length > 0 ? filteredPayments.map((payment) => (
-                                        <TableRow key={payment.id}>
-                                            <TableCell className="font-medium">{getEmployeeName(payment.referencia_id)}</TableCell>
-                                            <TableCell className="text-xs">
-                                                <div className="font-medium">{getClientName(payment.cliente_id || '')}</div>
-                                                <div className="text-muted-foreground">{getServiceDesc(payment.servico_id || '')}</div>
-                                            </TableCell>
-                                            <TableCell>{format(payment.vencimento, 'dd/MM/yyyy')}</TableCell>
-                                            <TableCell>
-                                                <Badge variant={payment.status === 'pago' ? 'secondary' : 'destructive'}>
-                                                    {payment.status}
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell className="text-right font-medium text-green-500">
-                                                {payment.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                            </TableCell>
-                                            <TableCell className="text-right">
-                                                <div className="flex items-center justify-end gap-2">
-                                                    {(isAdmin || payment.status === 'pendente') && (
-                                                        <Button variant="ghost" size="icon" onClick={() => handleEditClick(payment)} title="Editar lançamento">
-                                                            <Pencil className="h-4 w-4 text-primary" />
-                                                        </Button>
-                                                    )}
-                                                    {isAdmin && (
-                                                        <>
-                                                            <Button variant="outline" size="icon" onClick={() => handleMarkAsPaid(payment.id)} disabled={payment.status === 'pago'} title="Marcar como pago">
-                                                                <CheckCircle className="h-4 w-4 text-green-500" />
-                                                            </Button>
-                                                            <AlertDialog>
-                                                                <AlertDialogTrigger asChild>
-                                                                    <Button variant="ghost" size="icon" title="Excluir lançamento">
-                                                                        <Trash className="h-4 w-4 text-destructive" />
-                                                                    </Button>
-                                                                </AlertDialogTrigger>
-                                                                <AlertDialogContent>
-                                                                    <AlertDialogHeader>
-                                                                        <AlertDialogTitle>Excluir este lançamento?</AlertDialogTitle>
-                                                                        <AlertDialogDescription>
-                                                                            Esta ação não pode ser desfeita. Isso excluirá permanentemente o registro de pagamento.
-                                                                        </AlertDialogDescription>
-                                                                    </AlertDialogHeader>
-                                                                    <AlertDialogFooter>
-                                                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                                                        <AlertDialogAction onClick={() => handleDeletePayment(payment.id)}>Excluir</AlertDialogAction>
-                                                                    </AlertDialogFooter>
-                                                                </AlertDialogContent>
-                                                            </AlertDialog>
-                                                        </>
-                                                    )}
-                                                </div>
-                                            </TableCell>
-                                        </TableRow>
+                                        <PaymentTableRow 
+                                            key={payment.id}
+                                            payment={payment}
+                                            employeeName={getEmployeeName(payment.referencia_id)}
+                                            clientName={getClientName(payment.cliente_id || '')}
+                                            serviceDesc={getServiceDesc(payment.servico_id || '')}
+                                            isAdmin={isAdmin}
+                                            onEdit={handleEditClick}
+                                            onMarkAsPaid={handleMarkAsPaid}
+                                            onDelete={handleDeletePayment}
+                                        />
                                     )) : (
                                         <TableRow>
                                             <TableCell colSpan={6} className="h-24 text-center">Nenhum pagamento encontrado.</TableCell>
