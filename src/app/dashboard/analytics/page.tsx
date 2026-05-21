@@ -416,7 +416,12 @@ export default function AnalyticsPage() {
                                     tickFormatter={(ts) => format(new Date(ts), 'dd/MM')}
                                 />
                                 <YAxis tickFormatter={(v) => `R$ ${Number(v).toLocaleString('pt-BR')}`} axisLine={false} tickLine={false} />
-                                <ChartTooltip content={<ChartTooltipContent formatter={(v, n) => `${n}: R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />} />
+                                <ChartTooltip content={
+                                    <ChartTooltipContent 
+                                        labelFormatter={(ts) => format(new Date(ts), 'dd/MM/yyyy')}
+                                        formatter={(v, n) => `${n}: R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} 
+                                    />
+                                } />
                                 <ChartLegend content={<ChartLegendContent />} />
                                 <Line type="monotone" dataKey="receita" stroke={REVENUE_COLOR} strokeWidth={2} dot={false} name="Receitas" />
                                 <Line type="monotone" dataKey="despesa" stroke={EXPENSE_COLOR} strokeWidth={2} dot={false} name="Fornecedores" />
@@ -446,7 +451,12 @@ export default function AnalyticsPage() {
                                     tickFormatter={(ts) => format(new Date(ts), 'MMM/yy', { locale: ptBR })}
                                 />
                                 <YAxis tickFormatter={(v) => `R$ ${Number(v).toLocaleString('pt-BR')}`} axisLine={false} tickLine={false} />
-                                <ChartTooltip content={<ChartTooltipContent formatter={(v, n) => `${n}: R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />} />
+                                <ChartTooltip content={
+                                    <ChartTooltipContent 
+                                        labelFormatter={(ts) => format(new Date(ts), 'MMMM / yyyy', { locale: ptBR })}
+                                        formatter={(v, n) => `${n}: R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} 
+                                    />
+                                } />
                                 <ChartLegend content={<ChartLegendContent />} />
                                 <Line type="monotone" dataKey="receitas" stroke={REVENUE_COLOR} strokeWidth={2} dot={true} name="Receitas Acum." />
                                 <Line type="monotone" dataKey="despesasFornecedores" stroke={EXPENSE_COLOR} strokeWidth={2} dot={true} name="Desp. Fornecedores Acum." />
@@ -483,7 +493,12 @@ export default function AnalyticsPage() {
                                 />
                                 <ChartTooltip 
                                     cursor={{ fill: 'rgba(0,0,0,0.05)' }}
-                                    content={<ChartTooltipContent formatter={(v, n) => `${n}: R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />} 
+                                    content={
+                                        <ChartTooltipContent 
+                                            labelFormatter={(ts) => format(new Date(ts), 'dd/MM/yyyy')}
+                                            formatter={(v, n) => `${n}: R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} 
+                                        />
+                                    } 
                                 />
                                 <ChartLegend verticalAlign="bottom" align="center" iconType="circle" />
                                 <Bar 
