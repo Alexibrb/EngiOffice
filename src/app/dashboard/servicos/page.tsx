@@ -291,6 +291,14 @@ export default function ServicosPage() {
     fetchData();
   }, [searchParams]);
 
+  const handleCopyLink = (url: string) => {
+    navigator.clipboard.writeText(url);
+    toast({
+      title: "Sucesso!",
+      description: "Link copiado para a área de transferência.",
+    });
+  };
+
   const handleSaveService = async (values: z.infer<typeof serviceSchema>) => {
     setIsLoading(true);
     try {
@@ -594,6 +602,29 @@ export default function ServicosPage() {
                                     <TableCell>
                                         <div className="font-bold">{client?.nome_completo || 'N/A'}</div>
                                         <div className="text-xs text-muted-foreground">{s.descricao}</div>
+                                        {(s.anexos && s.anexos.length > 0) && (
+                                            <div className="text-[10px] text-muted-foreground mt-1 space-y-1">
+                                                {s.anexos.map((anexo, index) => {
+                                                     const isWebUrl = anexo.startsWith('http://') || anexo.startsWith('https://');
+                                                     return (
+                                                        <div key={index} className="flex items-center gap-1 group">
+                                                            <LinkIcon className="h-3 w-3 shrink-0 text-primary" />
+                                                            <span className="truncate max-w-[200px]">{anexo}</span>
+                                                            <Button variant="ghost" size="icon" className="h-4 w-4 opacity-50 group-hover:opacity-100" onClick={() => handleCopyLink(anexo)}>
+                                                                <ClipboardCopy className="h-2.5 w-2.5" />
+                                                            </Button>
+                                                            {isWebUrl && (
+                                                            <a href={anexo} target="_blank" rel="noopener noreferrer">
+                                                                <Button variant="ghost" size="icon" className="h-4 w-4 opacity-50 group-hover:opacity-100">
+                                                                    <ExternalLink className="h-2.5 w-2.5" />
+                                                                </Button>
+                                                            </a>
+                                                            )}
+                                                        </div>
+                                                    )
+                                                })}
+                                            </div>
+                                        )}
                                     </TableCell>
                                     <TableCell>
                                         <div className="text-xs">{s.endereco_obra?.street}, {s.endereco_obra?.number}</div>
@@ -744,7 +775,7 @@ export default function ServicosPage() {
 
                     <DialogFooter>
                         <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
-                        <Button type="submit" disabled={isLoading} variant="accent">{isLoading && <Loader2 className="mr-2 animate-spin" />}Salvar Serviço</Button>
+                        <Button type="submit" disabled={isLoading} variant="accent">{isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Salvar Serviço</Button>
                     </DialogFooter>
                 </form>
             </Form>
