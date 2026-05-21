@@ -404,42 +404,6 @@ export default function AnalyticsPage() {
                 
                 <Card>
                     <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-primary">
-                            <Activity className="h-5 w-5" />
-                            Oscilação Financeira Diária
-                        </CardTitle>
-                        <CardDescription>Movimentação diária por setor no período filtrado.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <ChartContainer config={flowChartConfig} className="h-[400px] w-full">
-                            <LineChart id="daily-oscillation-chart" data={dailyFlowTransactions}>
-                                <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.2} />
-                                <XAxis 
-                                    dataKey="timestamp" 
-                                    tickLine={false} 
-                                    axisLine={false} 
-                                    tickMargin={8} 
-                                    minTickGap={60}
-                                    tickFormatter={(ts) => formatDateLabel(ts, 'dd/MM')}
-                                />
-                                <YAxis tickFormatter={(v) => `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} axisLine={false} tickLine={false} />
-                                <ChartTooltip content={
-                                    <ChartTooltipContent 
-                                        labelFormatter={(ts) => formatDateLabel(ts, 'dd/MM/yyyy')}
-                                        formatter={(v, n) => `${n}: R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} 
-                                    />
-                                } />
-                                <ChartLegend content={<ChartLegendContent />} />
-                                <Line type="monotone" dataKey="receita" stroke={REVENUE_COLOR} strokeWidth={2} dot={false} name="Receitas" />
-                                <Line type="monotone" dataKey="despesa" stroke={EXPENSE_COLOR} strokeWidth={2} dot={false} name="Fornecedores" />
-                                <Line type="monotone" dataKey="folha" stroke={PAYROLL_COLOR} strokeWidth={2} dot={false} name="Folha Pagto" />
-                            </LineChart>
-                        </ChartContainer>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader>
                         <CardTitle className="flex items-center gap-2 text-green-500">
                             <TrendingUp className="h-5 w-5" />
                             Crescimento Histórico (Mensal) - Entradas vs Fornecedores
@@ -465,9 +429,9 @@ export default function AnalyticsPage() {
                                     />
                                 } />
                                 <ChartLegend content={<ChartLegendContent />} />
-                                <Line type="monotone" dataKey="receitas" stroke={REVENUE_COLOR} strokeWidth={2} dot={true} name="Receitas Acum." />
-                                <Line type="monotone" dataKey="despesasFornecedores" stroke={EXPENSE_COLOR} strokeWidth={2} dot={true} name="Desp. Fornecedores Acum." />
-                                <Line type="monotone" dataKey="saldo" stroke={BALANCE_COLOR} strokeWidth={4} strokeDasharray="5 5" dot={true} name="Saldo Acum. (Operacional)" />
+                                <Line key="receitas-acum" type="monotone" dataKey="receitas" stroke={REVENUE_COLOR} strokeWidth={2} dot={true} name="Receitas Acum." />
+                                <Line key="despesas-forn-acum" type="monotone" dataKey="despesasFornecedores" stroke={EXPENSE_COLOR} strokeWidth={2} dot={true} name="Desp. Fornecedores Acum." />
+                                <Line key="saldo-acum" type="monotone" dataKey="saldo" stroke={BALANCE_COLOR} strokeWidth={4} strokeDasharray="5 5" dot={true} name="Saldo Acum. (Operacional)" />
                             </LineChart>
                         </ChartContainer>
                     </CardContent>
@@ -480,7 +444,12 @@ export default function AnalyticsPage() {
                     </CardHeader>
                     <CardContent>
                         <ChartContainer config={flowChartConfig} className="h-[400px] w-full">
-                            <BarChart id="daily-flow-chart" data={dailyFlowTransactions} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                            <BarChart 
+                                id="daily-flow-chart" 
+                                data={dailyFlowTransactions} 
+                                margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+                                barCategoryGap="15%"
+                            >
                                 <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.3} />
                                 <XAxis 
                                     dataKey="timestamp" 
@@ -509,18 +478,21 @@ export default function AnalyticsPage() {
                                 />
                                 <ChartLegend verticalAlign="bottom" align="center" iconType="circle" />
                                 <Bar 
+                                    key="bar-receita"
                                     dataKey="receita" 
                                     fill={REVENUE_COLOR} 
                                     radius={[4, 4, 0, 0]} 
                                     name="Receitas" 
                                 />
                                 <Bar 
+                                    key="bar-despesa"
                                     dataKey="despesa" 
                                     fill={EXPENSE_COLOR} 
                                     radius={[4, 4, 0, 0]} 
                                     name="Fornecedores" 
                                 />
                                 <Bar 
+                                    key="bar-folha"
                                     dataKey="folha" 
                                     fill={PAYROLL_COLOR} 
                                     radius={[4, 4, 0, 0]} 
@@ -555,7 +527,7 @@ export default function AnalyticsPage() {
                                         label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                                     >
                                         {pieData.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={entry.fill} />
+                                            <Cell key={`cell-pie-${index}`} fill={entry.fill} />
                                         ))}
                                     </Pie>
                                     <ChartTooltip content={<ChartTooltipContent formatter={(v) => `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} />} />
@@ -585,7 +557,7 @@ export default function AnalyticsPage() {
                                     <XAxis type="number" hide />
                                     <YAxis dataKey="name" type="category" width={150} axisLine={false} tickLine={false} className="text-[12px]" />
                                     <ChartTooltip content={<ChartTooltipContent formatter={(v) => `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} />} />
-                                    <Bar dataKey="value" fill="#8884d8" radius={[0, 4, 4, 0]} name="Receita Total" />
+                                    <Bar key="ranking-client-bar" dataKey="value" fill="#8884d8" radius={[0, 4, 4, 0]} name="Receita Total" />
                                 </BarChart>
                             </ChartContainer>
                         </CardContent>
@@ -611,7 +583,7 @@ export default function AnalyticsPage() {
                                     <XAxis type="number" hide />
                                     <YAxis dataKey="name" type="category" width={150} axisLine={false} tickLine={false} className="text-[12px]" />
                                     <ChartTooltip content={<ChartTooltipContent formatter={(v) => `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} />} />
-                                    <Bar dataKey="value" fill="#f43f5e" radius={[0, 4, 4, 0]} name="Gasto Total" />
+                                    <Bar key="ranking-supplier-bar" dataKey="value" fill="#f43f5e" radius={[0, 4, 4, 0]} name="Gasto Total" />
                                 </BarChart>
                             </ChartContainer>
                         </CardContent>
