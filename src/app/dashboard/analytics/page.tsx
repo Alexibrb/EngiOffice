@@ -404,6 +404,79 @@ export default function AnalyticsPage() {
                 
                 <Card>
                     <CardHeader>
+                        <CardTitle className="text-xl font-bold">Fluxo de Caixa (Diário)</CardTitle>
+                        <CardDescription>Comparativo de entradas e saídas por dia no período selecionado.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="w-full overflow-x-auto pb-4">
+                            <div style={{ minWidth: `${Math.max(800, dailyFlowTransactions.length * 80)}px` }}>
+                                <ChartContainer config={flowChartConfig} className="h-[400px] w-full">
+                                    <BarChart 
+                                        id="daily-flow-chart" 
+                                        data={dailyFlowTransactions} 
+                                        margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+                                        barCategoryGap="10%"
+                                    >
+                                        <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.3} />
+                                        <XAxis 
+                                            dataKey="timestamp" 
+                                            tickLine={false} 
+                                            axisLine={false} 
+                                            tickMargin={15} 
+                                            minTickGap={20}
+                                            tickFormatter={(ts) => formatDateLabel(ts, 'dd/MM')}
+                                            className="text-[11px] font-medium text-muted-foreground"
+                                        />
+                                        <YAxis 
+                                            tickFormatter={(v) => `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} 
+                                            axisLine={false} 
+                                            tickLine={false}
+                                            tickMargin={10}
+                                            className="text-[10px] text-muted-foreground"
+                                        />
+                                        <ChartTooltip 
+                                            cursor={{ fill: 'rgba(0,0,0,0.05)' }}
+                                            content={
+                                                <ChartTooltipContent 
+                                                    labelFormatter={(ts) => formatDateLabel(ts, 'dd/MM/yyyy')}
+                                                    formatter={(v, n) => `${n}: R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} 
+                                                />
+                                            } 
+                                        />
+                                        <ChartLegend verticalAlign="bottom" align="center" iconType="circle" />
+                                        <Bar 
+                                            key="bar-receita"
+                                            dataKey="receita" 
+                                            fill={REVENUE_COLOR} 
+                                            radius={[4, 4, 0, 0]} 
+                                            name="Receitas" 
+                                            barSize={20}
+                                        />
+                                        <Bar 
+                                            key="bar-despesa"
+                                            dataKey="despesa" 
+                                            fill={EXPENSE_COLOR} 
+                                            radius={[4, 4, 0, 0]} 
+                                            name="Fornecedores" 
+                                            barSize={20}
+                                        />
+                                        <Bar 
+                                            key="bar-folha"
+                                            dataKey="folha" 
+                                            fill={PAYROLL_COLOR} 
+                                            radius={[4, 4, 0, 0]} 
+                                            name="Folha Pagto" 
+                                            barSize={20}
+                                        />
+                                    </BarChart>
+                                </ChartContainer>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader>
                         <CardTitle className="flex items-center gap-2 text-green-500">
                             <TrendingUp className="h-5 w-5" />
                             Crescimento Histórico (Mensal) - Entradas vs Fornecedores
@@ -437,73 +510,7 @@ export default function AnalyticsPage() {
                     </CardContent>
                 </Card>
 
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="text-xl font-bold">Fluxo de Caixa (Diário)</CardTitle>
-                        <CardDescription>Comparativo de entradas e saídas por dia no período selecionado.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <ChartContainer config={flowChartConfig} className="h-[400px] w-full">
-                            <BarChart 
-                                id="daily-flow-chart" 
-                                data={dailyFlowTransactions} 
-                                margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
-                                barCategoryGap="15%"
-                            >
-                                <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.3} />
-                                <XAxis 
-                                    dataKey="timestamp" 
-                                    tickLine={false} 
-                                    axisLine={false} 
-                                    tickMargin={15} 
-                                    minTickGap={30}
-                                    tickFormatter={(ts) => formatDateLabel(ts, 'dd/MM')}
-                                    className="text-[10px] text-muted-foreground"
-                                />
-                                <YAxis 
-                                    tickFormatter={(v) => `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} 
-                                    axisLine={false} 
-                                    tickLine={false}
-                                    tickMargin={10}
-                                    className="text-[10px] text-muted-foreground"
-                                />
-                                <ChartTooltip 
-                                    cursor={{ fill: 'rgba(0,0,0,0.05)' }}
-                                    content={
-                                        <ChartTooltipContent 
-                                            labelFormatter={(ts) => formatDateLabel(ts, 'dd/MM/yyyy')}
-                                            formatter={(v, n) => `${n}: R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} 
-                                        />
-                                    } 
-                                />
-                                <ChartLegend verticalAlign="bottom" align="center" iconType="circle" />
-                                <Bar 
-                                    key="bar-receita"
-                                    dataKey="receita" 
-                                    fill={REVENUE_COLOR} 
-                                    radius={[4, 4, 0, 0]} 
-                                    name="Receitas" 
-                                />
-                                <Bar 
-                                    key="bar-despesa"
-                                    dataKey="despesa" 
-                                    fill={EXPENSE_COLOR} 
-                                    radius={[4, 4, 0, 0]} 
-                                    name="Fornecedores" 
-                                />
-                                <Bar 
-                                    key="bar-folha"
-                                    dataKey="folha" 
-                                    fill={PAYROLL_COLOR} 
-                                    radius={[4, 4, 0, 0]} 
-                                    name="Folha Pagto" 
-                                />
-                            </BarChart>
-                        </ChartContainer>
-                    </CardContent>
-                </Card>
-
-                <div className="grid grid-cols-1 gap-8">
+                <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
                     <Card>
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
