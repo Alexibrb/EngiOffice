@@ -255,15 +255,16 @@ export default function AnalyticsPage() {
                     .filter(r => !isAfter(r.data, monthEnd))
                     .reduce((acc, r) => acc + (r.valor || 0), 0);
                 
-                const totalPaidUntilNow = activeExpenses
-                    .filter(a => !isAfter(a.vencimento, monthEnd))
+                // Filtra apenas despesas com fornecedores conforme solicitado
+                const totalPaidSuppliersUntilNow = activeExpenses
+                    .filter(a => a.tipo_referencia === 'fornecedor' && !isAfter(a.vencimento, monthEnd))
                     .reduce((acc, a) => acc + (a.valor || 0), 0);
 
                 return { 
                     timestamp: month.getTime(),
                     receitas: totalReceivedUntilNow, 
-                    despesas: totalPaidUntilNow,
-                    saldo: totalReceivedUntilNow - totalPaidUntilNow
+                    despesasFornecedores: totalPaidSuppliersUntilNow,
+                    saldo: totalReceivedUntilNow - totalPaidSuppliersUntilNow
                 };
             });
         } catch (e) { return []; }
@@ -426,7 +427,7 @@ export default function AnalyticsPage() {
                             <Activity className="h-5 w-5" />
                             Patrimônio Acumulado (Diário)
                         </CardTitle>
-                        <CardDescription>Saldo líquido acumulado dia a dia no período filtrado.</CardDescription>
+                        <CardDescription>Saldo líquido acumulado dia a dia no período filtrado (considera todas as saídas pagas).</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <ChartContainer config={{}} className="h-[400px] w-full">
@@ -444,7 +445,7 @@ export default function AnalyticsPage() {
                                 <ChartTooltip content={<ChartTooltipContent formatter={(v, n) => `${n}: R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />} />
                                 <ChartLegend content={<ChartLegendContent />} />
                                 <Line type="stepAfter" dataKey="receita" stroke={REVENUE_COLOR} strokeWidth={1.5} dot={false} name="Receita Acum." />
-                                <Line type="stepAfter" dataKey="despesa" stroke={EXPENSE_COLOR} strokeWidth={1.5} dot={false} name="Despesa Acum." />
+                                <Line type="stepAfter" dataKey="despesa" stroke={EXPENSE_COLOR} strokeWidth={1.5} dot={false} name="Despesa Acum. (Total)" />
                                 <Line type="stepAfter" dataKey="saldo" stroke={BALANCE_COLOR} strokeWidth={4} dot={false} name="Patrimônio Líquido" />
                             </LineChart>
                         </ChartContainer>
@@ -455,9 +456,9 @@ export default function AnalyticsPage() {
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2 text-green-500">
                             <TrendingUp className="h-5 w-5" />
-                            Crescimento Histórico (Mensal)
+                            Crescimento Histórico (Mensal) - Entradas vs Fornecedores
                         </CardTitle>
-                        <CardDescription>Visão agrupada por mês da evolução patrimonial total.</CardDescription>
+                        <CardDescription>Visão agrupada por mês da evolução patrimonial excluindo folha de pagamento.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <ChartContainer config={{}} className="h-[400px] w-full">
@@ -474,8 +475,8 @@ export default function AnalyticsPage() {
                                 <ChartTooltip content={<ChartTooltipContent formatter={(v, n) => `${n}: R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />} />
                                 <ChartLegend content={<ChartLegendContent />} />
                                 <Line type="monotone" dataKey="receitas" stroke={REVENUE_COLOR} strokeWidth={2} dot={true} name="Receitas Acum." />
-                                <Line type="monotone" dataKey="despesas" stroke={EXPENSE_COLOR} strokeWidth={2} dot={true} name="Despesas Acum." />
-                                <Line type="monotone" dataKey="saldo" stroke={BALANCE_COLOR} strokeWidth={4} strokeDasharray="5 5" dot={true} name="Saldo Acumulado" />
+                                <Line type="monotone" dataKey="despesasFornecedores" stroke={EXPENSE_COLOR} strokeWidth={2} dot={true} name="Desp. Fornecedores Acum." />
+                                <Line type="monotone" dataKey="saldo" stroke={BALANCE_COLOR} strokeWidth={4} strokeDasharray="5 5" dot={true} name="Saldo Acum. (Operacional)" />
                             </LineChart>
                         </ChartContainer>
                     </CardContent>
