@@ -407,7 +407,7 @@ export default function AnalyticsPage() {
                         <CardTitle className="text-xl font-bold">Fluxo de Caixa (Diário)</CardTitle>
                         <CardDescription>Comparativo de entradas e saídas (apenas dias com movimentação).</CardDescription>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="flex flex-col">
                         <div className="w-full overflow-x-auto pb-4">
                             <div style={{ minWidth: `${Math.max(800, dailyFlowTransactions.length * 80)}px` }}>
                                 <ChartContainer config={flowChartConfig} className="h-[400px] w-full">
@@ -443,7 +443,6 @@ export default function AnalyticsPage() {
                                                 />
                                             } 
                                         />
-                                        <ChartLegend verticalAlign="bottom" align="center" iconType="circle" />
                                         <Bar 
                                             key="bar-receita"
                                             dataKey="receita" 
@@ -471,6 +470,16 @@ export default function AnalyticsPage() {
                                     </BarChart>
                                 </ChartContainer>
                             </div>
+                        </div>
+                        
+                        {/* Legenda Fixa (fora do scroll horizontal) */}
+                        <div className="flex flex-wrap items-center justify-center gap-6 mt-4 pt-4 border-t">
+                            {Object.entries(flowChartConfig).map(([key, config]) => (
+                                <div key={key} className="flex items-center gap-2">
+                                    <div className="h-3 w-3 rounded-full" style={{ backgroundColor: config.color }} />
+                                    <span className="text-sm font-medium text-muted-foreground">{config.label}</span>
+                                </div>
+                            ))}
                         </div>
                     </CardContent>
                 </Card>
