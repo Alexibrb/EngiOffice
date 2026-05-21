@@ -424,7 +424,7 @@ export default function AnalyticsPage() {
                                             axisLine={false} 
                                             tickMargin={15} 
                                             minTickGap={20}
-                                            tickFormatter={(ts) => formatDateLabel(ts, 'dd/MM')}
+                                            tickFormatter={(ts) => formatDateLabel(ts, 'dd/MM/yy')}
                                             className="text-[11px] font-medium text-muted-foreground"
                                         />
                                         <YAxis 
