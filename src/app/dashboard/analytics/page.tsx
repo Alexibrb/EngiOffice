@@ -121,7 +121,6 @@ export default function AnalyticsPage() {
                 } as ServicePayment;
             });
 
-            // Reconstrução de pagamentos legados para precisão histórica
             const reconstructedReceivables: ServicePayment[] = [...receivablesHistory];
             servicesData.forEach(service => {
                 const historyForThisService = receivablesHistory.filter(r => r.servico_id === service.id);
@@ -284,17 +283,37 @@ export default function AnalyticsPage() {
         ];
     }, [services, selectedCityFilter, isGlobalView]);
 
-    const receivablesForRankings = useMemo(() => {
+    const rankingClientsData = useMemo(() => {
         const start = startOfDay(sampleRange.start);
         const end = endOfDay(sampleRange.end);
-        return activeReceivables.filter(r => r.data >= start && r.data <= end);
-    }, [activeReceivables, sampleRange]);
+        const filtered = activeReceivables.filter(r => r.data >= start && r.data <= end);
+        
+        return Object.entries(filtered.reduce((acc, curr) => {
+            const name = clients.find(c => c.codigo_cliente === curr.cliente_id)?.nome_completo || 'Desconhecido';
+            acc[name] = (acc[name] || 0) + curr.valor;
+            return acc;
+        }, {} as Record<string, number>))
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 10);
+    }, [activeReceivables, sampleRange, clients]);
 
-    const expensesForRankings = useMemo(() => {
+    const rankingSuppliersData = useMemo(() => {
         const start = startOfDay(sampleRange.start);
         const end = endOfDay(sampleRange.end);
-        return activeExpenses.filter(a => a.vencimento >= start && a.vencimento <= end);
-    }, [activeExpenses, sampleRange]);
+        const filtered = activeExpenses.filter(a => a.vencimento >= start && a.vencimento <= end);
+
+        return Object.entries(filtered
+            .filter(a => a.tipo_referencia === 'fornecedor')
+            .reduce((acc, curr) => {
+                const name = suppliers.find(s => s.id === curr.referencia_id)?.razao_social || 'Desconhecido';
+                acc[name] = (acc[name] || 0) + curr.valor;
+                return acc;
+            }, {} as Record<string, number>))
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 10);
+    }, [activeExpenses, sampleRange, suppliers]);
 
     const handleClearFilters = () => {
         setSelectedCityFilter('none');
@@ -411,7 +430,7 @@ export default function AnalyticsPage() {
                     </CardHeader>
                     <CardContent>
                         <ChartContainer config={{}} className="h-[400px] w-full">
-                            <LineChart data={dailyStepData}>
+                            <LineChart id="daily-step-chart" data={dailyStepData}>
                                 <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.2} />
                                 <XAxis 
                                     dataKey="timestamp" 
@@ -442,7 +461,7 @@ export default function AnalyticsPage() {
                     </CardHeader>
                     <CardContent>
                         <ChartContainer config={{}} className="h-[400px] w-full">
-                            <LineChart data={cumulativeMonthlyData}>
+                            <LineChart id="monthly-cumulative-chart" data={cumulativeMonthlyData}>
                                 <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.3} />
                                 <XAxis 
                                     dataKey="timestamp" 
@@ -469,7 +488,7 @@ export default function AnalyticsPage() {
                     </CardHeader>
                     <CardContent>
                         <ChartContainer config={flowChartConfig} className="h-[400px] w-full">
-                            <BarChart data={dailyFlowTransactions} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                            <BarChart id="daily-flow-chart" data={dailyFlowTransactions} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                                 <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.3} />
                                 <XAxis 
                                     dataKey="timestamp" 
@@ -526,7 +545,7 @@ export default function AnalyticsPage() {
                         </CardHeader>
                         <CardContent>
                             <ChartContainer config={pieChartConfig} className="h-[300px] w-full">
-                                <PieChart>
+                                <PieChart id="receivables-pie-chart">
                                     <Pie
                                         data={pieData}
                                         dataKey="value"
@@ -560,14 +579,8 @@ export default function AnalyticsPage() {
                         <CardContent>
                             <ChartContainer config={{}} className="h-[400px] w-full">
                                 <BarChart 
-                                    data={Object.entries(receivablesForRankings.reduce((acc, curr) => {
-                                        const name = clients.find(c => c.codigo_cliente === curr.cliente_id)?.nome_completo || 'Desconhecido';
-                                        acc[name] = (acc[name] || 0) + curr.valor;
-                                        return acc;
-                                    }, {} as Record<string, number>))
-                                    .map(([name, value]) => ({ name, value }))
-                                    .sort((a, b) => b.value - a.value)
-                                    .slice(0, 10)} 
+                                    id="ranking-clients-chart"
+                                    data={rankingClientsData} 
                                     layout="vertical" 
                                     margin={{ left: 40 }}
                                 >
@@ -592,16 +605,8 @@ export default function AnalyticsPage() {
                         <CardContent>
                             <ChartContainer config={{}} className="h-[400px] w-full">
                                 <BarChart 
-                                    data={Object.entries(expensesForRankings
-                                        .filter(a => a.tipo_referencia === 'fornecedor')
-                                        .reduce((acc, curr) => {
-                                            const name = suppliers.find(s => s.id === curr.referencia_id)?.razao_social || 'Desconhecido';
-                                            acc[name] = (acc[name] || 0) + curr.valor;
-                                            return acc;
-                                        }, {} as Record<string, number>))
-                                    .map(([name, value]) => ({ name, value }))
-                                    .sort((a, b) => b.value - a.value)
-                                    .slice(0, 10)} 
+                                    id="ranking-suppliers-chart"
+                                    data={rankingSuppliersData} 
                                     layout="vertical" 
                                     margin={{ left: 40 }}
                                 >
