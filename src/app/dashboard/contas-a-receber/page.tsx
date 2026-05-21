@@ -22,7 +22,7 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import { collection, getDocs, doc, updateDoc, Timestamp, query, where, addDoc, deleteDoc, getDoc } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
-import { Calendar as CalendarIcon, Download, ExternalLink, XCircle, ArrowUp, TrendingUp, MoreHorizontal, HandCoins, FileText, Loader2, Link as LinkIcon, ClipboardCopy, Pencil, Trash2, CheckCircle2, Clock, DollarSign } from 'lucide-react';
+import { Calendar as CalendarIcon, Download, ExternalLink, XCircle, ArrowUp, TrendingUp, MoreHorizontal, HandCoins, FileText, Loader2, Link as LinkIcon, ClipboardCopy, Pencil, Trash2, CheckCircle2, Clock, DollarSign, MapPin } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -596,7 +596,7 @@ export default function ContasAReceberPage() {
                     <CardContent className="p-4 flex items-center justify-between">
                         <div className="space-y-1">
                             <p className="text-xs font-medium text-red-600 dark:text-red-400 uppercase">A Receber</p>
-                            <p className="text-xl font-bold text-red-700 dark:text-red-300">R$ {counters.pendente.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                            <p className="text-xl font-bold text-red-700 dark:text-green-300">R$ {counters.pendente.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
                         </div>
                         <ArrowUp className="h-8 w-8 text-red-500 opacity-20" />
                     </CardContent>
@@ -782,12 +782,22 @@ function ReceivableTableComponent({ services, getClient, onPayment, onReceipt, o
                                 ? { text: 'Pago', variant: 'secondary' as const }
                                 : { text: 'Pendente', variant: 'destructive' as const };
 
+                        const address = service.endereco_obra;
+
                         return (
                             <TableRow key={service.id}>
                                 <TableCell className="align-top"><div className="font-bold">{client?.nome_completo || 'N/A'}</div></TableCell>
                                 <TableCell className="align-top">
                                   <div className="font-medium">{service.descricao}</div>
-                                  <div className="text-xs text-muted-foreground">{service.endereco_obra?.city} - {service.endereco_obra?.state}</div>
+                                  <div className="text-xs text-muted-foreground flex flex-col gap-0.5">
+                                      {address && address.street && (
+                                        <div className="flex items-center gap-1">
+                                            <MapPin className="h-3 w-3 text-primary" />
+                                            <span>{address.street}, {address.number} - {address.neighborhood}</span>
+                                        </div>
+                                      )}
+                                      <div className="pl-4 text-[10px]">{address?.city} - {address?.state}</div>
+                                  </div>
                                 </TableCell>
                                 <TableCell className="align-top">
                                     <div className="font-medium text-xs">Contrato: R$ {service.valor_total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
