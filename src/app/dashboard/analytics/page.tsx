@@ -301,6 +301,13 @@ export default function AnalyticsPage() {
         }
     };
 
+    const formatDateLabel = (ts: any, formatStr: string, options?: any) => {
+        if (!ts) return '';
+        const d = new Date(Number(ts));
+        if (isNaN(d.getTime())) return '';
+        return format(d, formatStr, options);
+    };
+
     if (isLoading) {
         return (
             <div className="flex h-full w-full items-center justify-center">
@@ -413,13 +420,13 @@ export default function AnalyticsPage() {
                                     axisLine={false} 
                                     tickMargin={8} 
                                     minTickGap={60}
-                                    tickFormatter={(ts) => format(new Date(ts), 'dd/MM')}
+                                    tickFormatter={(ts) => formatDateLabel(ts, 'dd/MM')}
                                 />
-                                <YAxis tickFormatter={(v) => `R$ ${Number(v).toLocaleString('pt-BR')}`} axisLine={false} tickLine={false} />
+                                <YAxis tickFormatter={(v) => `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} axisLine={false} tickLine={false} />
                                 <ChartTooltip content={
                                     <ChartTooltipContent 
-                                        labelFormatter={(ts) => format(new Date(ts), 'dd/MM/yyyy')}
-                                        formatter={(v, n) => `${n}: R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} 
+                                        labelFormatter={(ts) => formatDateLabel(ts, 'dd/MM/yyyy')}
+                                        formatter={(v, n) => `${n}: R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} 
                                     />
                                 } />
                                 <ChartLegend content={<ChartLegendContent />} />
@@ -448,13 +455,13 @@ export default function AnalyticsPage() {
                                     tickLine={false} 
                                     axisLine={false} 
                                     tickMargin={8}
-                                    tickFormatter={(ts) => format(new Date(ts), 'MMM/yy', { locale: ptBR })}
+                                    tickFormatter={(ts) => formatDateLabel(ts, 'MMM/yy', { locale: ptBR })}
                                 />
-                                <YAxis tickFormatter={(v) => `R$ ${Number(v).toLocaleString('pt-BR')}`} axisLine={false} tickLine={false} />
+                                <YAxis tickFormatter={(v) => `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} axisLine={false} tickLine={false} />
                                 <ChartTooltip content={
                                     <ChartTooltipContent 
-                                        labelFormatter={(ts) => format(new Date(ts), 'MMMM / yyyy', { locale: ptBR })}
-                                        formatter={(v, n) => `${n}: R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} 
+                                        labelFormatter={(ts) => formatDateLabel(ts, 'MMMM / yyyy', { locale: ptBR })}
+                                        formatter={(v, n) => `${n}: R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} 
                                     />
                                 } />
                                 <ChartLegend content={<ChartLegendContent />} />
@@ -481,11 +488,11 @@ export default function AnalyticsPage() {
                                     axisLine={false} 
                                     tickMargin={15} 
                                     minTickGap={30}
-                                    tickFormatter={(ts) => format(new Date(ts), 'dd/MM')}
+                                    tickFormatter={(ts) => formatDateLabel(ts, 'dd/MM')}
                                     className="text-[10px] text-muted-foreground"
                                 />
                                 <YAxis 
-                                    tickFormatter={(v) => `R$ ${Number(v).toLocaleString('pt-BR')}`} 
+                                    tickFormatter={(v) => `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} 
                                     axisLine={false} 
                                     tickLine={false}
                                     tickMargin={10}
@@ -495,8 +502,8 @@ export default function AnalyticsPage() {
                                     cursor={{ fill: 'rgba(0,0,0,0.05)' }}
                                     content={
                                         <ChartTooltipContent 
-                                            labelFormatter={(ts) => format(new Date(ts), 'dd/MM/yyyy')}
-                                            formatter={(v, n) => `${n}: R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} 
+                                            labelFormatter={(ts) => formatDateLabel(ts, 'dd/MM/yyyy')}
+                                            formatter={(v, n) => `${n}: R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} 
                                         />
                                     } 
                                 />
@@ -551,7 +558,7 @@ export default function AnalyticsPage() {
                                             <Cell key={`cell-${index}`} fill={entry.fill} />
                                         ))}
                                     </Pie>
-                                    <ChartTooltip content={<ChartTooltipContent formatter={(v) => `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />} />
+                                    <ChartTooltip content={<ChartTooltipContent formatter={(v) => `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} />} />
                                     <ChartLegend verticalAlign="bottom" align="center" />
                                 </PieChart>
                             </ChartContainer>
@@ -577,7 +584,7 @@ export default function AnalyticsPage() {
                                     <CartesianGrid horizontal={false} opacity={0.2} />
                                     <XAxis type="number" hide />
                                     <YAxis dataKey="name" type="category" width={150} axisLine={false} tickLine={false} className="text-[12px]" />
-                                    <ChartTooltip content={<ChartTooltipContent formatter={(v) => `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />} />
+                                    <ChartTooltip content={<ChartTooltipContent formatter={(v) => `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} />} />
                                     <Bar dataKey="value" fill="#8884d8" radius={[0, 4, 4, 0]} name="Receita Total" />
                                 </BarChart>
                             </ChartContainer>
@@ -603,7 +610,7 @@ export default function AnalyticsPage() {
                                     <CartesianGrid horizontal={false} opacity={0.2} />
                                     <XAxis type="number" hide />
                                     <YAxis dataKey="name" type="category" width={150} axisLine={false} tickLine={false} className="text-[12px]" />
-                                    <ChartTooltip content={<ChartTooltipContent formatter={(v) => `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />} />
+                                    <ChartTooltip content={<ChartTooltipContent formatter={(v) => `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} />} />
                                     <Bar dataKey="value" fill="#f43f5e" radius={[0, 4, 4, 0]} name="Gasto Total" />
                                 </BarChart>
                             </ChartContainer>
