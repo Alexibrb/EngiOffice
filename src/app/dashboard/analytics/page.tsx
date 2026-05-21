@@ -216,7 +216,7 @@ export default function AnalyticsPage() {
                     despesa: despesaDia,
                     folha: folhaDia
                 };
-            });
+            }).filter(d => d.receita > 0 || d.despesa > 0 || d.folha > 0);
         } catch (e) { return []; }
     }, [activeReceivables, activeExpenses, sampleRange]);
 
@@ -405,7 +405,7 @@ export default function AnalyticsPage() {
                 <Card>
                     <CardHeader>
                         <CardTitle className="text-xl font-bold">Fluxo de Caixa (Diário)</CardTitle>
-                        <CardDescription>Comparativo de entradas e saídas por dia no período selecionado.</CardDescription>
+                        <CardDescription>Comparativo de entradas e saídas (apenas dias com movimentação).</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <div className="w-full overflow-x-auto pb-4">
